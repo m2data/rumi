@@ -1138,59 +1138,7 @@ function separate(nodes, padX = 26, padY = 26){
 /* =====================================================================
    5 — SVG-Zeichnung
    ===================================================================== */
-const SVG_CSS = `
-.n-box{fill:#FFFFFF;stroke:#122029;stroke-width:1.2}
-.n-head{fill:#1D3F72}
-.n-title{fill:#FFFFFF;font:600 13.5px "Space Grotesk",sans-serif}
-.n-sub{fill:rgba(255,255,255,.72);font:400 10px "IBM Plex Mono",monospace;letter-spacing:.05em}
-.n-row{fill:#122029;font:400 11.5px "IBM Plex Mono",monospace}
-.n-row.dimtext{fill:#5E717F}
-.n-tag{font:500 9.5px "IBM Plex Mono",monospace;letter-spacing:.07em}
-.n-tag.key{fill:#1D3F72}
-.n-tag.src{fill:#8A5B00}
-.n-tag.attr{fill:#5E717F}
-.n-attr-tag{font:500 8.5px "IBM Plex Mono",monospace;fill:#B4145F;letter-spacing:.06em}
-.n-attr-type{font:400 10px "IBM Plex Mono",monospace;fill:#5E717F}
-.n-desc-bg{fill:#EEF2F6;stroke:#DDE4EA;stroke-width:1}
-.n-desc{font:400 10.5px "Space Grotesk",sans-serif;fill:#3C4C58}
-.n-sep{stroke:#DDE4EA;stroke-width:1}
-.node.source .n-box{fill:#FFF6E4;stroke:#8A5B00;stroke-width:1.2;stroke-dasharray:5 3}
-.node.source .n-head{fill:#8A5B00}
-.node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
-.node.selected .n-head{fill:#B4145F}
-.node.faded{opacity:.16}
-.node{cursor:grab}
-.node .n-title,.node .n-sub,.node .n-row{pointer-events:none}
-.eg .e-path{fill:none;stroke:#122029;stroke-width:1.25}
-.eg .e-mk{fill:none;stroke:#122029;stroke-width:1.25;stroke-linecap:round}
-.eg .e-dot{fill:#E7ECF1;stroke:#122029;stroke-width:1.25}
-.eg.quelle .e-path{stroke:#8A5B00;stroke-dasharray:6 4}
-.eg.quelle .e-mk{stroke:#8A5B00}
-.eg.quelle .e-dot{stroke:#8A5B00}
-.eg .e-hit{fill:none;stroke:transparent;stroke-width:15;cursor:pointer;pointer-events:stroke}
-.eg.picked .e-path{stroke:#B4145F;stroke-width:2.2}
-.eg.picked .e-mk{stroke:#B4145F}
-.eg.picked .e-dot{stroke:#B4145F}
-.selbox{fill:rgba(180,20,95,.05);stroke:#B4145F;stroke-width:1.2;stroke-dasharray:5 4;pointer-events:none}
-.band{fill:rgba(29,63,114,.12);stroke:#1D3F72;stroke-width:1;stroke-dasharray:4 3;pointer-events:none}
-.hnd{fill:#FFFFFF;stroke:#B4145F;stroke-width:1.8;cursor:grab}
-.hnd:hover{fill:#B4145F}
-.pt{fill:#1D3F72;stroke:#FFFFFF;stroke-width:1.8;cursor:move}
-.pt:hover{fill:#B4145F}
-.seg{stroke:transparent;stroke-width:12;fill:none;pointer-events:stroke}
-.seg:hover{stroke:rgba(180,20,95,.3)}
-.seg.v{cursor:ew-resize}
-.seg.h{cursor:ns-resize}
-.gh{fill:#B4145F;fill-opacity:.22;stroke:#B4145F;stroke-width:1;stroke-dasharray:2 2;cursor:copy}
-.gh:hover{fill-opacity:.6;stroke-dasharray:none}
-.gh.ortho{cursor:cell}
-.eg .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em}
-.eg.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
-.eg .e-lbl-bg{fill:#E7ECF1}
-.eg.faded{opacity:.1}
-.eg.active .e-path,.eg.active .e-mk{stroke:#B4145F;stroke-width:2}
-.eg.active .e-dot{stroke:#B4145F}
-`;
+/* einsetzen: svg.css */
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
