@@ -298,6 +298,7 @@ function setMode(mode){
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
   $('hierTree').hidden = mode !== 'hierarchie';
+  $('hierTools').hidden = mode !== 'hierarchie';
   if(mode === 'hierarchie'){
     if(!S.outline) parseOutline();
     setSidePane('beschreibung');
@@ -310,4 +311,98 @@ function setMode(mode){
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
     setView(S.view);
   }
+}
+
+/* ---------- Struktur bearbeiten: anlegen, umbenennen, löschen ---------- */
+/* In-App-Bearbeitungen (Text, Objektmengen) in die Knoten schreiben, damit sie
+   beim Neuaufbau der Kennungen und der YAML-Ausgabe erhalten bleiben. */
+function bakeOverlays(){
+  outlineFlat(S.outline.roots).forEach(n=>{
+    if(S.hierText[n.id] !== undefined) n.beschreibung = S.hierText[n.id];
+    if(S.hierShown[n.id]) n.objekte = S.hierShown[n.id].map(i => i.replace(/^o:/, ''));
+  });
+  S.hierText = {}; S.hierShown = {};
+}
+
+/* Kennungen (Pfad) für den ganzen Baum neu vergeben. */
+function reassignIds(){
+  const walk = (nodes, pfad)=> nodes.forEach(n=>{ n.id = pfad.concat(n.name).join('›'); walk(n.kinder, pfad.concat(n.name)); });
+  walk(S.outline.roots, []);
+}
+
+/* Gespeicherte Anordnungen/Kantenzüge auf geänderte Kennungen umschreiben
+   (newPrefix === null löscht sie). */
+function remapGeometry(oldPrefix, newPrefix){
+  [S.hierSaved, S.hierRoutes].forEach(store=>{
+    Object.keys(store).forEach(k=>{
+      if(k === oldPrefix || k.startsWith(oldPrefix + '›')){
+        const val = store[k]; delete store[k];
+        if(newPrefix !== null) store[newPrefix + k.slice(oldPrefix.length)] = val;
+      }
+    });
+  });
+}
+
+/* Bearbeitete Übersicht als YAML festhalten und sichern. */
+function commitOutline(){
+  S.outlineText = outlineToYaml(S.outline.roots);
+  writeStore();
+}
+
+const reinName = s => String(s || '').replace(/[›:]/g, '').trim();
+
+function outlineAdd(parentId, name){
+  name = reinName(name);
+  if(!name || !S.outline) return null;
+  bakeOverlays();
+  const neu = {id:'', name, beschreibung:'', objekte:[], kinder:[]};
+  if(parentId){ const p = outlineFind(S.outline.roots, parentId); if(!p) return null; p.kinder.push(neu); }
+  else S.outline.roots.push(neu);
+  reassignIds();
+  commitOutline();
+  selectDiagram(neu.id);
+  toast('Diagramm „' + name + '" angelegt');
+  return neu.id;
+}
+
+function outlineRename(id, name){
+  name = reinName(name);
+  const node = S.outline && outlineFind(S.outline.roots, id);
+  if(!node || !name) return;
+  bakeOverlays();
+  const alt = node.id;
+  node.name = name;
+  reassignIds();
+  remapGeometry(alt, node.id);
+  if(S.hierSel === alt || S.hierSel.startsWith(alt + '›')) S.hierSel = node.id + S.hierSel.slice(alt.length);
+  commitOutline();
+  selectDiagram(S.hierSel);
+}
+
+function outlineDelete(id){
+  const node = S.outline && outlineFind(S.outline.roots, id);
+  if(!node) return;
+  bakeOverlays();
+  const entferne = arr=>{
+    const i = arr.findIndex(n => n.id === id);
+    if(i >= 0){ arr.splice(i, 1); return true; }
+    return arr.some(n => entferne(n.kinder));
+  };
+  entferne(S.outline.roots);
+  remapGeometry(id, null);
+  reassignIds();
+  commitOutline();
+  const rest = outlineFlat(S.outline.roots);
+  selectDiagram(rest.length ? rest[0].id : null);
+}
+
+/* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */
+function hierAction(act){
+  if(act === 'add-top'){ const n = prompt('Name der neuen Domäne:'); if(n) outlineAdd(null, n); return; }
+  const id = S.hierSel;
+  if(!id){ toast('Erst ein Diagramm wählen'); return; }
+  const node = outlineFind(S.outline.roots, id);
+  if(act === 'add-child'){ const n = prompt('Name des neuen Unterdiagramms:'); if(n) outlineAdd(id, n); }
+  else if(act === 'rename'){ const n = prompt('Neuer Name:', node ? node.name : ''); if(n) outlineRename(id, n); }
+  else if(act === 'delete'){ if(node && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
 }

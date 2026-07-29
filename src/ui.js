@@ -62,6 +62,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
+  uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
 
@@ -77,6 +78,7 @@ function adoptLayoutFile(obj){
   if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
+  if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
     S.hierRoutes = obj.hierarchie.kantenzuege || {};
@@ -770,6 +772,8 @@ $('btnFit').onclick = fit;
 
 // Modus Komplettansicht ↔ Hierarchie
 document.querySelectorAll('.mode-btn').forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
+// Struktur bearbeiten (Werkzeugleiste über dem Baum)
+$('hierTools').querySelectorAll('[data-hact]').forEach(b=> b.onclick = ()=> hierAction(b.dataset.hact));
 // Baum: Ordner klappen oder Diagramm wählen
 $('hierTree').addEventListener('click', ev=>{
   const tw = ev.target.closest('[data-toggle]');
@@ -1002,6 +1006,7 @@ async function loadYaml(text, name, preset){
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
     S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
+    S.outlineText = '';
     S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
     if(preset) adoptLayoutFile(preset);
     else {

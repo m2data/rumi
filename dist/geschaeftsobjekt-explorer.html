@@ -149,6 +149,15 @@ aside{
 .sidetab.tab-hier{display:none}
 body.modus-hierarchie .sidetab.tab-hier{display:flex}
 body.modus-hierarchie .sidetab.tab-komplett{display:none}
+/* Werkzeugleiste zum Bearbeiten der Hierarchie */
+.hier-tools{display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px 0}
+.hier-tools[hidden]{display:none}
+.hier-tools button{
+  appearance:none;font-family:var(--ui);font-size:10.5px;font-weight:500;
+  border:1px solid var(--hair);background:var(--panel);color:var(--muted);
+  padding:3px 7px;border-radius:5px;cursor:pointer;white-space:nowrap;
+}
+.hier-tools button:hover{background:var(--obj-soft);color:var(--ink)}
 /* Diagramm-Baum oben in der Hierarchie, darüber die Reiter */
 .hier-tree{
   flex:0 1 auto;max-height:36%;overflow-y:auto;padding:8px 6px;
@@ -441,6 +450,12 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
 
 <main>
   <aside id="sidebar">
+    <div class="hier-tools" id="hierTools" hidden>
+      <button data-hact="add-child" title="Unterdiagramm zum gewählten anlegen">＋ Unterdiagramm</button>
+      <button data-hact="add-top" title="Neue Domäne auf oberster Ebene">＋ Domäne</button>
+      <button data-hact="rename" title="Gewähltes Diagramm umbenennen">Umbenennen</button>
+      <button data-hact="delete" title="Gewähltes Diagramm löschen">Löschen</button>
+    </div>
     <div class="hier-tree" id="hierTree" role="tree" aria-label="Diagramm-Hierarchie" hidden></div>
 
     <div class="sidetabs" role="tablist" aria-label="Seitenleiste">
@@ -3017,6 +3032,7 @@ function setMode(mode){
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
   $('hierTree').hidden = mode !== 'hierarchie';
+  $('hierTools').hidden = mode !== 'hierarchie';
   if(mode === 'hierarchie'){
     if(!S.outline) parseOutline();
     setSidePane('beschreibung');
@@ -3029,6 +3045,100 @@ function setMode(mode){
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
     setView(S.view);
   }
+}
+
+/* ---------- Struktur bearbeiten: anlegen, umbenennen, löschen ---------- */
+/* In-App-Bearbeitungen (Text, Objektmengen) in die Knoten schreiben, damit sie
+   beim Neuaufbau der Kennungen und der YAML-Ausgabe erhalten bleiben. */
+function bakeOverlays(){
+  outlineFlat(S.outline.roots).forEach(n=>{
+    if(S.hierText[n.id] !== undefined) n.beschreibung = S.hierText[n.id];
+    if(S.hierShown[n.id]) n.objekte = S.hierShown[n.id].map(i => i.replace(/^o:/, ''));
+  });
+  S.hierText = {}; S.hierShown = {};
+}
+
+/* Kennungen (Pfad) für den ganzen Baum neu vergeben. */
+function reassignIds(){
+  const walk = (nodes, pfad)=> nodes.forEach(n=>{ n.id = pfad.concat(n.name).join('›'); walk(n.kinder, pfad.concat(n.name)); });
+  walk(S.outline.roots, []);
+}
+
+/* Gespeicherte Anordnungen/Kantenzüge auf geänderte Kennungen umschreiben
+   (newPrefix === null löscht sie). */
+function remapGeometry(oldPrefix, newPrefix){
+  [S.hierSaved, S.hierRoutes].forEach(store=>{
+    Object.keys(store).forEach(k=>{
+      if(k === oldPrefix || k.startsWith(oldPrefix + '›')){
+        const val = store[k]; delete store[k];
+        if(newPrefix !== null) store[newPrefix + k.slice(oldPrefix.length)] = val;
+      }
+    });
+  });
+}
+
+/* Bearbeitete Übersicht als YAML festhalten und sichern. */
+function commitOutline(){
+  S.outlineText = outlineToYaml(S.outline.roots);
+  writeStore();
+}
+
+const reinName = s => String(s || '').replace(/[›:]/g, '').trim();
+
+function outlineAdd(parentId, name){
+  name = reinName(name);
+  if(!name || !S.outline) return null;
+  bakeOverlays();
+  const neu = {id:'', name, beschreibung:'', objekte:[], kinder:[]};
+  if(parentId){ const p = outlineFind(S.outline.roots, parentId); if(!p) return null; p.kinder.push(neu); }
+  else S.outline.roots.push(neu);
+  reassignIds();
+  commitOutline();
+  selectDiagram(neu.id);
+  toast('Diagramm „' + name + '" angelegt');
+  return neu.id;
+}
+
+function outlineRename(id, name){
+  name = reinName(name);
+  const node = S.outline && outlineFind(S.outline.roots, id);
+  if(!node || !name) return;
+  bakeOverlays();
+  const alt = node.id;
+  node.name = name;
+  reassignIds();
+  remapGeometry(alt, node.id);
+  if(S.hierSel === alt || S.hierSel.startsWith(alt + '›')) S.hierSel = node.id + S.hierSel.slice(alt.length);
+  commitOutline();
+  selectDiagram(S.hierSel);
+}
+
+function outlineDelete(id){
+  const node = S.outline && outlineFind(S.outline.roots, id);
+  if(!node) return;
+  bakeOverlays();
+  const entferne = arr=>{
+    const i = arr.findIndex(n => n.id === id);
+    if(i >= 0){ arr.splice(i, 1); return true; }
+    return arr.some(n => entferne(n.kinder));
+  };
+  entferne(S.outline.roots);
+  remapGeometry(id, null);
+  reassignIds();
+  commitOutline();
+  const rest = outlineFlat(S.outline.roots);
+  selectDiagram(rest.length ? rest[0].id : null);
+}
+
+/* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */
+function hierAction(act){
+  if(act === 'add-top'){ const n = prompt('Name der neuen Domäne:'); if(n) outlineAdd(null, n); return; }
+  const id = S.hierSel;
+  if(!id){ toast('Erst ein Diagramm wählen'); return; }
+  const node = outlineFind(S.outline.roots, id);
+  if(act === 'add-child'){ const n = prompt('Name des neuen Unterdiagramms:'); if(n) outlineAdd(id, n); }
+  else if(act === 'rename'){ const n = prompt('Neuer Name:', node ? node.name : ''); if(n) outlineRename(id, n); }
+  else if(act === 'delete'){ if(node && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
 }
 /* =====================================================================
    7 — Ansicht wechseln, Anordnung merken
@@ -3094,6 +3204,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
+  uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
 
@@ -3109,6 +3220,7 @@ function adoptLayoutFile(obj){
   if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
+  if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
     S.hierRoutes = obj.hierarchie.kantenzuege || {};
@@ -3802,6 +3914,8 @@ $('btnFit').onclick = fit;
 
 // Modus Komplettansicht ↔ Hierarchie
 document.querySelectorAll('.mode-btn').forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
+// Struktur bearbeiten (Werkzeugleiste über dem Baum)
+$('hierTools').querySelectorAll('[data-hact]').forEach(b=> b.onclick = ()=> hierAction(b.dataset.hact));
 // Baum: Ordner klappen oder Diagramm wählen
 $('hierTree').addEventListener('click', ev=>{
   const tw = ev.target.closest('[data-toggle]');
@@ -4034,6 +4148,7 @@ async function loadYaml(text, name, preset){
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
     S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
+    S.outlineText = '';
     S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
     if(preset) adoptLayoutFile(preset);
     else {
