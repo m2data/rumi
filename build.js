@@ -18,6 +18,7 @@ const OUT = path.join(DIST, 'geschaeftsobjekt-explorer.html');
 // Beispiel fuer Schritt 3:
 //   { marker: '<!-- einsetzen: style.css -->', file: 'style.css', wrap: s => `<style>\n${s}\n</style>` },
 const teile = [
+  { marker: '<!-- einsetzen: style.css -->', file: 'style.css', wrap: s => `<style>\n${s}\n</style>` },
 ];
 
 let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
