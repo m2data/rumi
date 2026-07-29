@@ -1,10 +1,14 @@
 # Regressionstest für den Geschäftsobjekt-Explorer
 
-Zwei Dateien, keine Abhängigkeiten, nur Node.
+Zwei Dateien in `test/`, keine Abhängigkeiten, nur Node.
 
-    node smoke.js [pfad/zur/geschaeftsobjekt-explorer.html]
+    node test/smoke.js [pfad/zur/geschaeftsobjekt-explorer.html]
 
-Ohne Pfadangabe wird `geschaeftsobjekt-explorer.html` im selben Ordner geprüft.
+Ohne Pfadangabe wird die gebaute Datei `dist/geschaeftsobjekt-explorer.html`
+geprüft. Zusammenbau und Prüfung hängen so zusammen:
+
+    node build.js && node test/smoke.js
+
 Rückgabewert 0 bei Erfolg, 1 bei mindestens einem Fehlschlag — damit lässt sich
 der Aufruf in einen Pre-Commit-Hook oder eine Pipeline hängen.
 
@@ -28,7 +32,7 @@ trotzdem unbenutzbar. Genau diese Lücke schließt der Rauchtest.
 
 ## Nach jeder Änderung
 
-    node smoke.js && echo "ok"
+    node build.js && node test/smoke.js && echo "ok"
 
 Bei neuen Funktionen gehört eine Prüfung dazu, die den **Bedienweg** abbildet,
 nicht nur das Ergebnis der Berechnung.

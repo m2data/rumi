@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const {createDom, dispatch} = require('./domshim');
 
-const FILE = process.argv[2] || path.join(__dirname, 'geschaeftsobjekt-explorer.html');
+const FILE = process.argv[2] || path.join(__dirname, '..', 'dist', 'geschaeftsobjekt-explorer.html');
 const html = fs.readFileSync(FILE, 'utf8');
 const script = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
   .map(m => m[1]).filter(s => s.includes('function'))[0];
