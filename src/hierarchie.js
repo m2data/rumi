@@ -83,6 +83,47 @@ function outlineToYaml(roots){
   return lines.join('\n') + '\n';
 }
 
+/* Markdown einer Zeile auf reinen Text reduzieren (für Titel/Text im Export). */
+function plainLine(s){
+  return String(s)
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*#{1,6}\s+/, '')
+    .replace(/^\s*[-*]\s+/, '• ')
+    .replace(/^\s*>\s?/, '')
+    .trim();
+}
+
+/* Kopf für den SVG-/PNG-Export eines Diagramms: Titel + Beschreibung über dem
+   Bild. Gibt {svg, height} zurück oder null (nicht im Hierarchie-Modus). */
+function hierExportHeader(b){
+  if(S.mode !== 'hierarchie' || !S.hierSel || !S.outline) return null;
+  const node = outlineFind(S.outline.roots, S.hierSel);
+  if(!node) return null;
+  const maxW = Math.max(240, b.w - 28);
+  const descFont = '400 12px "Space Grotesk", sans-serif';
+  const zeilen = [];
+  String(diagramText(node) || '').replace(/\r\n?/g, '\n').split('\n').forEach(raw=>{
+    const t = plainLine(raw);
+    if(!t){ if(zeilen.length && zeilen[zeilen.length-1] !== '') zeilen.push(''); return; }
+    wrapText(t, maxW, descFont).forEach(w => zeilen.push(w));
+  });
+  while(zeilen.length && zeilen[zeilen.length-1] === '') zeilen.pop();
+
+  const lineH = 16, titleH = 26, padTop = 22, gap = 10, padBot = 16, absatz = 8;
+  const bodyH = zeilen.reduce((h, l) => h + (l === '' ? absatz : lineH), 0);
+  const height = padTop + titleH + (zeilen.length ? gap + bodyH : 0) + padBot;
+  const x0 = b.x + 16;
+  let y = b.y - height + padTop + 16;
+  let svg = `<text class="hx-ttl" x="${x0}" y="${y.toFixed(1)}">${esc(node.name)}</text>`;
+  y += gap;
+  zeilen.forEach(l=>{ if(l === ''){ y += absatz; return; } y += lineH; svg += `<text class="hx-dsc" x="${x0}" y="${y.toFixed(1)}">${esc(l)}</text>`; });
+  svg += `<line x1="${b.x + 16}" y1="${(b.y - 8).toFixed(1)}" x2="${b.x + b.w - 16}" y2="${(b.y - 8).toFixed(1)}" stroke="#C4CFD8"/>`;
+  return {svg, height};
+}
+
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
   if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';

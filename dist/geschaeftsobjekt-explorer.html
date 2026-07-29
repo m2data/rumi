@@ -2802,6 +2802,47 @@ function outlineToYaml(roots){
   return lines.join('\n') + '\n';
 }
 
+/* Markdown einer Zeile auf reinen Text reduzieren (für Titel/Text im Export). */
+function plainLine(s){
+  return String(s)
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*#{1,6}\s+/, '')
+    .replace(/^\s*[-*]\s+/, '• ')
+    .replace(/^\s*>\s?/, '')
+    .trim();
+}
+
+/* Kopf für den SVG-/PNG-Export eines Diagramms: Titel + Beschreibung über dem
+   Bild. Gibt {svg, height} zurück oder null (nicht im Hierarchie-Modus). */
+function hierExportHeader(b){
+  if(S.mode !== 'hierarchie' || !S.hierSel || !S.outline) return null;
+  const node = outlineFind(S.outline.roots, S.hierSel);
+  if(!node) return null;
+  const maxW = Math.max(240, b.w - 28);
+  const descFont = '400 12px "Space Grotesk", sans-serif';
+  const zeilen = [];
+  String(diagramText(node) || '').replace(/\r\n?/g, '\n').split('\n').forEach(raw=>{
+    const t = plainLine(raw);
+    if(!t){ if(zeilen.length && zeilen[zeilen.length-1] !== '') zeilen.push(''); return; }
+    wrapText(t, maxW, descFont).forEach(w => zeilen.push(w));
+  });
+  while(zeilen.length && zeilen[zeilen.length-1] === '') zeilen.pop();
+
+  const lineH = 16, titleH = 26, padTop = 22, gap = 10, padBot = 16, absatz = 8;
+  const bodyH = zeilen.reduce((h, l) => h + (l === '' ? absatz : lineH), 0);
+  const height = padTop + titleH + (zeilen.length ? gap + bodyH : 0) + padBot;
+  const x0 = b.x + 16;
+  let y = b.y - height + padTop + 16;
+  let svg = `<text class="hx-ttl" x="${x0}" y="${y.toFixed(1)}">${esc(node.name)}</text>`;
+  y += gap;
+  zeilen.forEach(l=>{ if(l === ''){ y += absatz; return; } y += lineH; svg += `<text class="hx-dsc" x="${x0}" y="${y.toFixed(1)}">${esc(l)}</text>`; });
+  svg += `<line x1="${b.x + 16}" y1="${(b.y - 8).toFixed(1)}" x2="${b.x + b.w - 16}" y2="${(b.y - 8).toFixed(1)}" stroke="#C4CFD8"/>`;
+  return {svg, height};
+}
+
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
   if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
@@ -3906,23 +3947,31 @@ function exportSVG(){
   }
   const att = attributionLine();
   const foot = att ? 20 : 0;
+  const head = hierExportHeader(b);            // Titel + Beschreibung (nur Hierarchie)
+  const headH = head ? head.height : 0;
+  const topY = b.y - headH, totalH = headH + b.h + foot;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(b.w)}" height="${Math.round(b.h + foot)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h + foot}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(b.w)}" height="${Math.round(totalH)}" viewBox="${b.x} ${topY} ${b.w} ${totalH}">
 <style>${SVG_CSS}
-.att{font:400 10px "IBM Plex Mono",ui-monospace,monospace;fill:#5E717F}</style>
-<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h + foot}" fill="#E7ECF1"/>
+.att{font:400 10px "IBM Plex Mono",ui-monospace,monospace;fill:#5E717F}
+.hx-ttl{font:600 20px "Space Grotesk",sans-serif;fill:#122029}
+.hx-dsc{font:400 12px "Space Grotesk",sans-serif;fill:#5E717F}</style>
+<rect x="${b.x}" y="${topY}" width="${b.w}" height="${totalH}" fill="#E7ECF1"/>
+${head ? head.svg : ''}
 ${inner}
 ${att ? `<text class="att" x="${b.x + 12}" y="${b.y + b.h + 13}">${esc(att)}</text>` : ''}
 </svg>`;
 }
 function exportPNG(){
   const b = bbox(30), scale = 2;
+  const head = hierExportHeader(b);
+  const headH = head ? head.height : 0;
   const blob = new Blob([exportSVG()], {type:'image/svg+xml;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = ()=>{
     const c = document.createElement('canvas');
-    c.width = Math.round(b.w*scale); c.height = Math.round((b.h + (attributionLine() ? 20 : 0))*scale);
+    c.width = Math.round(b.w*scale); c.height = Math.round((headH + b.h + (attributionLine() ? 20 : 0))*scale);
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#E7ECF1'; ctx.fillRect(0,0,c.width,c.height);
     ctx.drawImage(img, 0, 0, c.width, c.height);

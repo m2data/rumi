@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -386,6 +386,11 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
       api.selectDiagram('Übersicht'); api.selectDiagram(ziel.dataset.id);
       t('bearbeitete Beschreibung überlebt den Diagrammwechsel',
         S.hierText[ziel.dataset.id] === '# Lieferkette\n\nEin **wichtiger** Ablauf.');
+      // Export trägt Titel und Beschreibung des Diagramms
+      const svgOut = api.exportSVG();
+      t('SVG-Export enthält Titel und Beschreibung',
+        svgOut.includes('hx-ttl') && svgOut.includes('>Lieferung<')
+        && svgOut.includes('hx-dsc') && svgOut.includes('Lieferkette'));
     }
   }
   api.setMode('komplett');

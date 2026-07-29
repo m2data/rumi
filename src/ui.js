@@ -915,23 +915,31 @@ function exportSVG(){
   }
   const att = attributionLine();
   const foot = att ? 20 : 0;
+  const head = hierExportHeader(b);            // Titel + Beschreibung (nur Hierarchie)
+  const headH = head ? head.height : 0;
+  const topY = b.y - headH, totalH = headH + b.h + foot;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(b.w)}" height="${Math.round(b.h + foot)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h + foot}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(b.w)}" height="${Math.round(totalH)}" viewBox="${b.x} ${topY} ${b.w} ${totalH}">
 <style>${SVG_CSS}
-.att{font:400 10px "IBM Plex Mono",ui-monospace,monospace;fill:#5E717F}</style>
-<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h + foot}" fill="#E7ECF1"/>
+.att{font:400 10px "IBM Plex Mono",ui-monospace,monospace;fill:#5E717F}
+.hx-ttl{font:600 20px "Space Grotesk",sans-serif;fill:#122029}
+.hx-dsc{font:400 12px "Space Grotesk",sans-serif;fill:#5E717F}</style>
+<rect x="${b.x}" y="${topY}" width="${b.w}" height="${totalH}" fill="#E7ECF1"/>
+${head ? head.svg : ''}
 ${inner}
 ${att ? `<text class="att" x="${b.x + 12}" y="${b.y + b.h + 13}">${esc(att)}</text>` : ''}
 </svg>`;
 }
 function exportPNG(){
   const b = bbox(30), scale = 2;
+  const head = hierExportHeader(b);
+  const headH = head ? head.height : 0;
   const blob = new Blob([exportSVG()], {type:'image/svg+xml;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = ()=>{
     const c = document.createElement('canvas');
-    c.width = Math.round(b.w*scale); c.height = Math.round((b.h + (attributionLine() ? 20 : 0))*scale);
+    c.width = Math.round(b.w*scale); c.height = Math.round((headH + b.h + (attributionLine() ? 20 : 0))*scale);
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#E7ECF1'; ctx.fillRect(0,0,c.width,c.height);
     ctx.drawImage(img, 0, 0, c.width, c.height);
