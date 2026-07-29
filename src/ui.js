@@ -62,7 +62,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
-  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, ausgeblendet: S.hierHidden }
+  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown }
 });
 
 function adoptLayoutFile(obj){
@@ -80,7 +80,7 @@ function adoptLayoutFile(obj){
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
     S.hierRoutes = obj.hierarchie.kantenzuege || {};
-    S.hierHidden = obj.hierarchie.ausgeblendet || {};
+    S.hierShown = obj.hierarchie.sichtbar || {};
   }
   return true;
 }
@@ -105,10 +105,14 @@ function persist(){
   writeStore();
 }
 
-/* Anordnung des aktuell gewählten Diagramms merken (wie persist() für Ansichten). */
+/* Anordnung des aktuell gewählten Diagramms merken (wie persist() für Ansichten).
+   Nur sichtbare Knoten: ein später hinzugeholtes Objekt gilt dann als neu und
+   wird von hierPlaceFresh() platziert, statt bei (0,0) zu kleben. */
 function hierPersist(){
   if(!S.hierSel) return;
-  S.hierSaved[S.hierSel] = positionsSnapshot();
+  const m = {};
+  visNodes().forEach(n=>{ m[n.id] = {x:n.x, y:n.y}; });
+  S.hierSaved[S.hierSel] = m;
   S.hierRoutes[S.hierSel] = routesSnapshot();
   writeStore();
 }
@@ -116,14 +120,10 @@ function hierPersist(){
 /* =====================================================================
    8 — Seitenleiste
    ===================================================================== */
-/* Welche Knoten die Objektliste zeigt: alle (Komplettsicht) bzw. nur die
-   Mitglieder des gewählten Diagramms (Hierarchie). */
-function listedNodes(){
-  if(S.mode !== 'hierarchie') return S.graph.nodes;
-  const node = S.hierSel && S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
-  const mitglied = new Set((node ? node.objekte : []).map(o => 'o:' + o));
-  return S.graph.nodes.filter(n => mitglied.has(n.id));
-}
+/* Die Objektliste zeigt in beiden Modi alle Objekte des Modells: in der
+   Hierarchie sind die im Diagramm sichtbaren angehakt, die übrigen lassen sich
+   dort hinzuholen. */
+function listedNodes(){ return S.graph.nodes; }
 
 function renderObjectList(){
   const ul = $('objectList');
@@ -161,13 +161,13 @@ function renderObjectList(){
   updateVisCount();
 }
 
-/* Ausblenden merken: in der Komplettsicht global (S.hidden), im Hierarchie-Modus
-   je Diagramm (S.hierHidden[Diagramm]). */
-function markHidden(id, on){
+/* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
+   Modus als sichtbare Menge je Diagramm (S.hierShown[Diagramm]). */
+function markVisible(id, on){
   if(S.mode === 'hierarchie'){
-    const hid = new Set(S.hierHidden[S.hierSel] || []);
-    if(on) hid.delete(id); else hid.add(id);
-    S.hierHidden[S.hierSel] = [...hid];
+    const shown = hierShownSet();
+    if(on) shown.add(id); else shown.delete(id);
+    S.hierShown[S.hierSel] = [...shown];
   } else {
     if(on) S.hidden.delete(id); else S.hidden.add(id);
   }
@@ -176,10 +176,11 @@ function markHidden(id, on){
 function setGroupVisible(list, on){
   list.forEach(n=>{
     n.hidden = !on;
-    markHidden(n.id, on);
+    markVisible(n.id, on);
     if(!on) S.sel.delete(n.id);
   });
   if(S.selected && !S.sel.has(S.selected)) S.selected = [...S.sel].pop() || null;
+  if(S.mode === 'hierarchie') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -193,8 +194,9 @@ function updateVisCount(){
 function setVisible(id, on){
   const n = S.graph.byId.get(id);
   if(n) n.hidden = !on;
-  markHidden(id, on);
+  markVisible(id, on);
   if(!on){ S.sel.delete(id); if(S.selected === id) S.selected = [...S.sel].pop() || null; }
+  if(S.mode === 'hierarchie') hierPlaceFresh();
   document.querySelectorAll(`.olist .ochk[data-id="${CSS.escape(id)}"]`).forEach(c=>{
     c.checked = on;
     c.closest('li').classList.toggle('off', !on);
@@ -203,8 +205,9 @@ function setVisible(id, on){
 }
 
 function setAllVisible(on){
-  listedNodes().forEach(n=>{ n.hidden = !on; markHidden(n.id, on); });
+  listedNodes().forEach(n=>{ n.hidden = !on; markVisible(n.id, on); });
   if(!on){ S.sel.clear(); S.selected = null; }
+  if(S.mode === 'hierarchie') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -985,7 +988,7 @@ async function loadYaml(text, name, preset){
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
     S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
-    S.hierSaved = {}; S.hierRoutes = {}; S.hierHidden = {};
+    S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {};
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);

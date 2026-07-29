@@ -348,27 +348,27 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     t('gemerkte Anordnung überlebt den Diagrammwechsel',
       wieder && merk && Math.abs(wieder.x - merk.x) < 0.5, (merk && merk.x) + ' → ' + (wieder && wieder.x));
 
-    // Reiter „Objekte“: nur die Diagramm-Objekte, klickbar → „Details“
+    // Reiter „Objekte“: ALLE Objekte zur Auswahl, angehakt = im Diagramm
     const listBtns = document.getElementById('objectList').querySelectorAll('button[data-id]');
-    t('Objektliste zeigt nur die Diagramm-Objekte', listBtns.length === 5, listBtns.length + '');
-    if(listBtns.length){
-      dispatch(listBtns[0], 'click', {});
-      const db = document.getElementById('detailBody');
-      t('Details-Reiter zeigt das gewählte Objekt', !db.hidden && db.textContent.length > 0);
-    }
-    // Häkchen blendet je Diagramm aus, ohne die Komplettsicht zu berühren
-    const chk = document.getElementById('objectList').querySelectorAll('.ochk')[0];
-    if(chk){
-      const oid = chk.dataset.id;
-      chk.checked = false; dispatch(chk, 'change', {});
-      t('Objekt im Diagramm ausgeblendet',
-        S.graph.byId.get(oid).hidden === true
-        && (S.hierHidden[S.hierSel] || []).includes(oid) && !S.hidden.has(oid));
-      api.selectDiagram('Übersicht'); api.selectDiagram(ziel.dataset.id);
-      t('Ausblenden je Diagramm bleibt erhalten', S.graph.byId.get(oid).hidden === true);
-      const chk2 = [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => c.dataset.id === oid);
-      if(chk2){ chk2.checked = true; dispatch(chk2, 'change', {}); }   // fürs Weitere wieder einblenden
-    }
+    t('Objektliste bietet alle Objekte zur Auswahl', listBtns.length === 11, listBtns.length + '');
+    const zeilen = document.getElementById('objectList').querySelectorAll('li.row');
+    const aktiv = [...zeilen].filter(li => !li.classList.contains('off')).length;
+    t('nur die Diagramm-Objekte sind angehakt', aktiv === 5, aktiv + ' von ' + zeilen.length);
+    dispatch(listBtns[0], 'click', {});
+    const db = document.getElementById('detailBody');
+    t('Details-Reiter zeigt das gewählte Objekt', !db.hidden && db.textContent.length > 0);
+
+    // Weiteres GO ins Diagramm holen (Objekt, das nicht in der YAML-Liste steht)
+    const chkNeu = [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => !c.checked);
+    const neuId = chkNeu.dataset.id;
+    chkNeu.checked = true; dispatch(chkNeu, 'change', {});
+    t('weiteres Objekt ins Diagramm geholt',
+      S.graph.byId.get(neuId).hidden === false
+      && (S.hierShown[S.hierSel] || []).includes(neuId) && !S.hidden.has(neuId));
+    api.selectDiagram('Übersicht'); api.selectDiagram(ziel.dataset.id);
+    t('hinzugeholtes Objekt bleibt im Diagramm', S.graph.byId.get(neuId).hidden === false);
+    const chkWeg = [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => c.dataset.id === neuId);
+    if(chkWeg){ chkWeg.checked = false; dispatch(chkWeg, 'change', {}); }   // zurücksetzen
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',

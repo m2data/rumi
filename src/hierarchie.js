@@ -103,6 +103,26 @@ function toggleOutline(id){
   renderOutlineTree();
 }
 
+/* Aktuell sichtbare Objekte des gewählten Diagramms (gespeicherte Menge oder,
+   solange unbearbeitet, die YAML-Liste). */
+function hierShownSet(){
+  if(S.hierShown[S.hierSel]) return new Set(S.hierShown[S.hierSel]);
+  const node = S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
+  return new Set((node ? node.objekte : []).map(o => 'o:' + o));
+}
+
+/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unter die bereits
+   platzierten setzen, damit die bestehende Anordnung erhalten bleibt. */
+function hierPlaceFresh(){
+  const saved = S.hierSaved[S.hierSel] || {};
+  const platziert = visNodes().filter(n => saved[n.id]);
+  const neu = visNodes().filter(n => !saved[n.id]);
+  if(!neu.length) return;
+  let x = platziert.length ? Math.min(...platziert.map(n => n.x)) : 0;
+  const y = platziert.length ? Math.max(...platziert.map(n => n.y + n.h)) + 40 : 0;
+  neu.forEach(n=>{ n.x = Math.round(x); n.y = Math.round(y); x += n.w + 30; });
+}
+
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
 function selectDiagram(id){
   S.hierSel = id;
@@ -118,9 +138,10 @@ function selectDiagram(id){
    je Diagramm ausgeblendete Objekte bleiben verborgen. */
 function showDiagram(node){
   S.graph = makeGraph(S.model, 1);
-  const mitglied = new Set(node.objekte.map(o => 'o:' + o));
-  const versteckt = new Set(S.hierHidden[node.id] || []);
-  S.graph.nodes.forEach(n=>{ n.hidden = !mitglied.has(n.id) || versteckt.has(n.id); });
+  const shown = S.hierShown[node.id]
+    ? new Set(S.hierShown[node.id])
+    : new Set(node.objekte.map(o => 'o:' + o));
+  S.graph.nodes.forEach(n=>{ n.hidden = !shown.has(n.id); });
   S.sel = new Set(); S.selected = null; S.selEdge = null;
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
