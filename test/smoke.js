@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -158,6 +158,33 @@ if(eo){
     dispatch(svg, 'pointermove', {clientX:470, clientY:470});
     dispatch(svg, 'pointerup', {});
     t('Teilstück wurde verschoben', JSON.stringify(eo.bends) !== before);
+  }
+}
+
+console.log('== Ortho: diagonal gezogener Anschlusspunkt bleibt bearbeitbar ==');
+{
+  // Ortho-Kante ohne Knick, Anschlusspunkte auf senkrechten Seiten -> die
+  // direkte Verbindung läuft schräg. Ohne Materialisierung zeichnet der
+  // Ortho-Zweig von drawHandles dafür weder Segment- noch Stützpunktgriff:
+  // die Kante ließe sich weder schieben noch mit einem Stützpunkt versehen.
+  const e = S.graph.edges.find(x => x.ortho && x.from !== x.to
+    && !S.graph.byId.get(x.from).hidden && !S.graph.byId.get(x.to).hidden);
+  t('Ortho-Kante vorhanden', !!e);
+  if(e){
+    e.bends = null; e.portFrom = {side:'R', t:0.5}; e.portTo = {side:'T', t:0.5}; e.manual = true;
+    S.selEdge = e.id; api.draw();
+    const H = () => document.getElementById('handles');
+    const ghVor = H().querySelectorAll('.gh').length, segVor = H().querySelectorAll('.seg').length;
+    t('vorher keine Bearbeitungsgriffe (der gemeldete Zustand)', ghVor === 0 && segVor === 0,
+      `gh=${ghVor}, seg=${segVor}`);
+
+    const gesetzt = api.materializeOrtho(e);
+    api.draw();
+    t('schräge Ortho-Kante bekommt echte Knicke', gesetzt && e.bends && e.bends.length >= 2,
+      'bends=' + (e.bends ? e.bends.length : 0));
+    const ghNach = H().querySelectorAll('.gh').length, segNach = H().querySelectorAll('.seg').length;
+    t('Segment- und Stützpunktgriffe erscheinen', ghNach > 0 && segNach > 0,
+      `gh=${ghNach}, seg=${segNach}`);
   }
 }
 

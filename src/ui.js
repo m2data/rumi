@@ -655,7 +655,12 @@ svg.addEventListener('pointermove', ev=>{
 });
 
 function endPointer(ev){
-  if(portDrag){ portDrag = null; persist(); }
+  if(portDrag){
+    // Ortho-Kante ohne Knick, die jetzt schräg läuft, in echte Ecken überführen —
+    // damit Segment- und Stützpunktgriffe erscheinen und sie bearbeitbar bleibt.
+    if(materializeOrtho(portDrag.e)) drawEdges();
+    portDrag = null; persist();
+  }
   if(segDrag){ segDrag = null; persist(); }
   if(bendDrag){ bendDrag = null; persist(); }
   if(drag){

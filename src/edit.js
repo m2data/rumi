@@ -12,6 +12,39 @@ function routePoints(e, A, B){
   return [p1, ...bends, p2];
 }
 
+/* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
+   edgeMarkup zeichnet daraus die Stufe; als echte Knicke abgelegt, bekommt die
+   Kante die üblichen Segment- und Stützpunktgriffe (sonst bliebe eine diagonal
+   gezogene Ortho-Kante unbearbeitbar). Bei bereits achsparalleler Lage: keine. */
+function orthoCorners(p1, p2, side){
+  const vert = side === 'T' || side === 'B';
+  if(vert){
+    if(Math.abs(p1.x - p2.x) < 1) return [];
+    const my = Math.round((p1.y + p2.y) / 2);
+    return [{x:Math.round(p1.x), y:my}, {x:Math.round(p2.x), y:my}];
+  }
+  if(Math.abs(p1.y - p2.y) < 1) return [];
+  const mx = Math.round((p1.x + p2.x) / 2);
+  return [{x:mx, y:Math.round(p1.y)}, {x:mx, y:Math.round(p2.y)}];
+}
+
+/* Eine knicklose Ortho-Kante in eine mit echten Ecken überführen, sobald die
+   direkte Verbindung schräg läuft (etwa nach dem Ziehen eines Anschlusspunkts).
+   Gibt true zurück, wenn Knicke gesetzt wurden. */
+function materializeOrtho(e){
+  if(!e.ortho || (e.bends && e.bends.length)) return false;
+  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+  if(!A || !B || A === B) return false;
+  const ref = e.portFrom || e.portTo;
+  if(!ref) return false;
+  const p1 = e.portFrom ? portPoint(A, e.portFrom) : clipToBox(A, {x:B.x+B.w/2, y:B.y+B.h/2});
+  const p2 = e.portTo   ? portPoint(B, e.portTo)   : clipToBox(B, {x:A.x+A.w/2, y:A.y+A.h/2});
+  const c = orthoCorners(p1, p2, ref.side);
+  if(!c.length) return false;
+  e.bends = c;
+  return true;
+}
+
 function selectionBox(){
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
   if(list.length < 2) return null;
