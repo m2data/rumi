@@ -24,13 +24,16 @@ const teile = [
     wrap: s => `<style>\n${s}\n</style>` },
 
   { marker: '/* einsetzen: skript */',
-    module: ['yaml.js', 'model.js', 'layout.js', 'render.js', 'app.js', 'route.js', 'edit.js', 'ui.js'] },
+    module: ['yaml.js', 'model.js', 'layout.js', 'render.js', 'app.js', 'route.js', 'edit.js', 'hierarchie.js', 'ui.js'] },
 
   { marker: '/* einsetzen: svg.css */', file: 'svg.css',
     wrap: s => 'const SVG_CSS = `\n' + s + '\n`;' },
 
   { marker: '/* einsetzen: modell willibald-attr.yaml */', dir: MODELS, file: 'willibald-attr.yaml',
     wrap: s => 'const DEFAULT_YAML = `' + s + '\n`;' },
+
+  { marker: '/* einsetzen: uebersicht willibald-übersicht.yaml */', dir: MODELS, file: 'williibald-übersicht.yaml',
+    wrap: s => 'const DEFAULT_UEBERSICHT = `' + s + '\n`;' },
 ];
 
 let html = lies(SRC, 'index.html');

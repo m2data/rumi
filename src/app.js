@@ -2,6 +2,7 @@
    6 — Anwendungszustand
    ===================================================================== */
 /* einsetzen: modell willibald-attr.yaml */
+/* einsetzen: uebersicht willibald-übersicht.yaml */
 
 const S = {
   model:null, view:1, graph:null, yamlText:'',

@@ -32,6 +32,10 @@ Verfahren): alle vier Anordnungsverfahren liefern brauchbare Koordinaten,
 `separate()` löst Überdeckungen auf, kein Knoten verdeckt einen anderen, und die
 Kantenführung bleibt bei einer Kette kreuzungsfrei.
 
+**`outline.test.js`** prüft `hierarchie.js`: `buildOutline()` liest die Übersicht
+zu einem Diagramm-Baum (Beschreibung, Objektliste, Kinder), vergibt pfadbasierte
+Kennungen und meldet Objekte, die es im Modell nicht gibt.
+
 **`smoke.js`** lädt die HTML-Datei, führt ihr Skript aus und **klickt die App
 durch**: Kante anklicken, Stützpunkt einsetzen, ziehen, Anschlusspunkt versetzen,
 Teilstück verschieben, Ansicht wechseln, Knoten ziehen, Inhalt umschalten.
@@ -46,7 +50,7 @@ trotzdem unbenutzbar. Genau diese Lücke schließt der Rauchtest.
 
 ## Nach jeder Änderung
 
-    node build.js && node test/smoke.js && node test/model.test.js && node test/layout.test.js && echo "ok"
+    node build.js && node test/smoke.js && node test/model.test.js && node test/layout.test.js && node test/outline.test.js && echo "ok"
 
 Bei neuen Funktionen gehört eine Prüfung dazu, die den **Bedienweg** abbildet,
 nicht nur das Ergebnis der Berechnung.
