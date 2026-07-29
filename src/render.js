@@ -67,6 +67,14 @@ function portPoint(n, port){
   return {x: n.x + n.w, y: n.y + n.h*t};
 }
 
+/* Ein Kanten-Endpunkt am Knoten: der gesetzte Anschlusspunkt, sonst der Schnitt
+   mit dem Kasten Richtung Ziel (erster/letzter Knick bzw. Nachbarmitte). Jeder
+   Endpunkt wird unabhängig bestimmt. Gemeinsam genutzt von routePoints() (Griffe)
+   und edgeMarkup() (gezeichnete Linie), damit beide denselben Punkt sehen. */
+function edgeEnd(node, port, toward){
+  return port ? portPoint(node, port) : clipToBox(node, toward);
+}
+
 const fx = v => v.toFixed(1);
 
 /* Weicher Zug durch die Stützpunkte */
@@ -130,8 +138,8 @@ function edgeMarkup(e, g, cls){
     mid = {x: x + 30, y: y2 - 24};
   }
   else if(e.bends && e.bends.length){                // geführte Kante über Stützpunkte
-    p1 = e.portFrom ? portPoint(A, e.portFrom) : clipToBox(A, e.bends[0]);
-    p2 = e.portTo   ? portPoint(B, e.portTo)   : clipToBox(B, e.bends[e.bends.length-1]);
+    p1 = edgeEnd(A, e.portFrom, e.bends[0]);
+    p2 = edgeEnd(B, e.portTo, e.bends[e.bends.length-1]);
     const pts = [p1, ...e.bends, p2];
     path = e.ortho ? orthoPath(pts) : smoothPath(pts);
     a1 = Math.atan2(pts[1].y - p1.y, pts[1].x - p1.x);
@@ -139,11 +147,8 @@ function edgeMarkup(e, g, cls){
     mid = e.bends[Math.floor((e.bends.length-1)/2)];
   }
   else if(e.portFrom || e.portTo){                   // mindestens ein gesetzter Anschlusspunkt
-    // Jeder Anschlusspunkt unabhängig — dieselbe Regel wie in routePoints():
-    // gesetzt zählt der Port, sonst der Schnitt Richtung Nachbarmitte. (Früher
-    // verlangte dieser Zweig beide Ports, der einzeln gezogene wirkte dann nicht.)
-    p1 = e.portFrom ? portPoint(A, e.portFrom) : clipToBox(A, {x:B.x+B.w/2, y:B.y+B.h/2});
-    p2 = e.portTo   ? portPoint(B, e.portTo)   : clipToBox(B, {x:A.x+A.w/2, y:A.y+A.h/2});
+    p1 = edgeEnd(A, e.portFrom, {x:B.x+B.w/2, y:B.y+B.h/2});
+    p2 = edgeEnd(B, e.portTo, {x:A.x+A.w/2, y:A.y+A.h/2});
     if(e.ortho){
       const vert = (e.portFrom || e.portTo).side === 'T' || (e.portFrom || e.portTo).side === 'B';
       const pts = vert
@@ -167,7 +172,7 @@ function edgeMarkup(e, g, cls){
     const nx = -(cb.y-ca.y)/len, ny = (cb.x-ca.x)/len;
     const cv = (e.curve||0) * (e.canon || 1);
     const c = {x: mx + nx*cv, y: my + ny*cv};
-    p1 = clipToBox(A, c); p2 = clipToBox(B, c);
+    p1 = edgeEnd(A, e.portFrom, c); p2 = edgeEnd(B, e.portTo, c);   // portlos: Schnitt Richtung Bogenscheitel
     path = `M${fx(p1.x)} ${fx(p1.y)}Q${fx(c.x)} ${fx(c.y)} ${fx(p2.x)} ${fx(p2.y)}`;
     a1 = Math.atan2(c.y-p1.y, c.x-p1.x);
     a2 = Math.atan2(c.y-p2.y, c.x-p2.x);

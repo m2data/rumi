@@ -1,15 +1,12 @@
 /* ---------- Editierbare Stützpunkte ---------- */
 function routePoints(e, A, B){
   const bends = e.bends || [];
-  // Jeder Anschlusspunkt wird unabhängig behandelt: ist er gesetzt, zählt der
-  // Port, sonst der Schnitt mit dem Kasten Richtung erstem Knick bzw. Nachbar.
-  // (Früher galten gesetzte Ports ohne Stützpunkt nur, wenn BEIDE gesetzt waren
-  //  — dadurch ließ sich der erste Anschlusspunkt allein nicht verschieben.)
+  // Endpunkte über den gemeinsamen Helfer edgeEnd (siehe render.js) — dieselbe
+  // Bestimmung wie in edgeMarkup(), damit Griffe und gezeichnete Linie exakt
+  // aufeinanderliegen. Ziel ist der erste/letzte Knick bzw. die Nachbarmitte.
   const zielVon  = bends.length ? bends[0]               : {x:B.x+B.w/2, y:B.y+B.h/2};
   const zielNach = bends.length ? bends[bends.length-1]  : {x:A.x+A.w/2, y:A.y+A.h/2};
-  const p1 = e.portFrom ? portPoint(A, e.portFrom) : clipToBox(A, zielVon);
-  const p2 = e.portTo   ? portPoint(B, e.portTo)   : clipToBox(B, zielNach);
-  return [p1, ...bends, p2];
+  return [edgeEnd(A, e.portFrom, zielVon), ...bends, edgeEnd(B, e.portTo, zielNach)];
 }
 
 /* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
