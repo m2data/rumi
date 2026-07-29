@@ -29,6 +29,20 @@ einzelne Datei zum Weitergeben** — und trennt trotzdem die Quellen.
       dist/
         geschaeftsobjekt-explorer.html
 
+**Umgesetzter Stand.** Der Code lag in zehn nummerierten Abschnitten vor, die
+sich nicht ganz mit der Liste oben decken. Tatsächlich geschnitten wurde entlang
+dieser Abschnitte, jede Datei bleibt ein zusammenhängendes Stück (so ist der
+Zusammenbau nachweislich byte-identisch):
+
+- `render.js` enthält nur die SVG-Markup-Erzeugung (`nodeMarkup`, `edgeMarkup`).
+- `app.js` hält Zustand und das Anstoßen des Zeichnens (`initSvg`, `draw`).
+- `ui.js` kam hinzu für Ansicht, Seitenleiste, Eingabe und Kopfzeile — die
+  Ereignis- und Bedienschicht. Sie ist von `app.js` durch die dazwischenliegenden
+  `route.js`/`edit.js` getrennt und deshalb eine eigene Datei statt Teil von `app.js`.
+
+`model.test.js` und `layout.test.js` fehlen noch; der Rauchtest `smoke.js` deckt
+die Bedienwege bereits ab.
+
 `build.js` ist bewusst simpel: Dateien einlesen, in das Gerüst einsetzen,
 schreiben. Kein Bündler, keine Abhängigkeiten, kein `node_modules`.
 

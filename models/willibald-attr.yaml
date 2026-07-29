@@ -1,0 +1,452 @@
+meta:
+  titel: Willibald
+  urheber: DDVUG e.V.
+  lizenz: CC BY 4.0
+  lizenz_url: https://creativecommons.org/licenses/by/4.0/
+
+BusinessObjects:
+  Bestellung:
+    Domain: Willibald
+    desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung
+      angewendeten Rabatt.
+    business_keys:
+    - BestellungID
+    sources:
+    - Bestellung
+    - Bestellung_VRS
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: AllgLieferAdrID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Bestelldatum
+      type: date
+      nullable: false
+    - name: Wunschdatum
+      type: date
+      nullable: false
+    - name: Rabatt
+      type: numeric(5,2)
+      nullable: false
+    relationships:
+    - to: Position
+      name: enthält
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Kategorie:
+    Domain: Willibald
+    desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
+    business_keys:
+    - KatID
+    sources:
+    - Kategorie
+    attributes:
+    - name: KatID
+      type: varchar(50)
+      nullable: false
+      primary_key: true
+    - name: OberKatID
+      type: varchar(50)
+      nullable: true
+      foreign_key: true
+      references: Kategorie.KatID
+    - name: Name
+      type: varchar(512)
+      nullable: false
+    relationships:
+    - to: Kategorie
+      name: ist Oberkategorie von
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Produkt
+      name: enthält
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Kunde:
+    Domain: Willibald
+    desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
+    business_keys:
+    - KundeID
+    sources:
+    - Kunde
+    attributes:
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      primary_key: true
+    - name: VereinsPartnerID
+      type: varchar(30)
+      nullable: true
+      foreign_key: true
+      references: VereinsPartner.VereinsPartnerID
+    - name: Vorname
+      type: varchar(128)
+      nullable: false
+    - name: Name
+      type: varchar(128)
+      nullable: false
+    - name: Geschlecht
+      type: char
+      nullable: true
+    - name: Geburtsdatum
+      type: date
+      nullable: false
+    - name: Telefon
+      type: varchar(20)
+      nullable: true
+    - name: Mobil
+      type: varchar(20)
+      nullable: true
+    - name: Email
+      type: varchar(128)
+      nullable: true
+    - name: Kreditkarte
+      type: varchar(30)
+      nullable: false
+    - name: GueltigBis
+      type: char(5)
+      nullable: false
+    - name: KKFirma
+      type: varchar(128)
+      nullable: false
+    relationships:
+    - to: WohnHistorie
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: hat
+    - to: Lieferadresse
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: verwendet
+    - to: VereinsPartner
+      name: ist Vorsitzender von
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Bestellung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: gibt auf
+  LieferDienst:
+    Domain: Willibald
+    desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
+    business_keys:
+    - LieferDienstID
+    sources:
+    - LieferDienst
+    attributes:
+    - name: LieferDienstID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+    - name: Name
+      type: varchar(128)
+      nullable: false
+    - name: Telefon
+      type: varchar(20)
+      nullable: false
+    - name: Fax
+      type: varchar(20)
+      nullable: true
+    - name: Email
+      type: varchar(128)
+      nullable: false
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+    relationships:
+    - to: Lieferung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: führt aus
+  Lieferadresse:
+    Domain: Willibald
+    desc: Enthält eine vom Kunden verwendete Adresse, an die Bestellungen oder einzelne Bestellpositionen geliefert
+      werden können.
+    business_keys:
+    - LieferAdrID
+    sources:
+    - Lieferadresse
+    attributes:
+    - name: LieferAdrID
+      type: int
+      nullable: false
+      primary_key: true
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Adresszusatz
+      type: varchar(128)
+      nullable: true
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+    relationships:
+    - to: Bestellung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: ist allgemeine Lieferadresse für
+    - to: Position
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: ist spezielle Lieferadresse für
+    - to: Lieferung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: ist Zieladresse von
+  Lieferung:
+    Domain: Willibald
+    desc: Dokumentiert die Zustellung einer Bestellposition an eine Lieferadresse durch einen Lieferdienst zu einem
+      Lieferdatum.
+    business_keys:
+    - BestellungID
+    - PosID
+    - LieferAdrID
+    - LieferDienstID
+    sources:
+    - Lieferung
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Position.BestellungID
+    - name: PosID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Position.PosID
+    - name: LieferAdrID
+      type: int
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: LieferDienstID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: LieferDienst.LieferDienstID
+    - name: LieferDatum
+      type: date
+      nullable: false
+  Position:
+    Domain: Willibald
+    desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender
+      Lieferadresse.
+    business_keys:
+    - BestellungID
+    - PosID
+    sources:
+    - Position
+    - Position_VRS
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Bestellung.BestellungID
+    - name: PosID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: ProduktID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Produkt.ProduktID
+    - name: SpezLieferAdrID
+      type: int
+      nullable: true
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Menge
+      type: int
+      nullable: false
+    - name: Preis
+      type: numeric(10,2)
+      nullable: false
+    relationships:
+    - to: Lieferung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: wird erfüllt durch
+  Produkt:
+    Domain: Willibald
+    desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
+    business_keys:
+    - ProduktID
+    sources:
+    - Produkt
+    attributes:
+    - name: ProduktID
+      type: int
+      nullable: false
+      primary_key: true
+    - name: KatID
+      type: varchar(50)
+      nullable: false
+      foreign_key: true
+      references: Kategorie.KatID
+    - name: Bezeichnung
+      type: varchar(512)
+      nullable: false
+    - name: Umfang
+      type: varchar(128)
+      nullable: false
+    - name: Typ
+      type: int
+      nullable: false
+    - name: Preis
+      type: decimal(5,2)
+      nullable: false
+    - name: Pflanzort
+      type: varchar(128)
+      nullable: false
+    - name: Pflanzabstand
+      type: varchar(128)
+      nullable: false
+    relationships:
+    - to: Position
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: wird bestellt in
+  VereinsPartner:
+    Domain: Willibald
+    desc: Beschreibt einen Vereinspartner mit verantwortlichem Kunden beziehungsweise Vereinsvorsitz und gestaffelten
+      Rabatten.
+    business_keys:
+    - VereinsPartnerID
+    sources:
+    - VereinsPartner
+    attributes:
+    - name: VereinsPartnerID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+    - name: KundeIDVerein
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Rabatt1
+      type: int
+      nullable: false
+    - name: Rabatt2
+      type: int
+      nullable: false
+    - name: Rabatt3
+      type: int
+      nullable: false
+    relationships:
+    - to: Bestellung
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: begünstigt
+    - to: Kunde
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+      name: umfasst
+  WohnHistorie:
+    Domain: Willibald
+    desc: Dokumentiert die zeitliche Historie der Wohnadressen eines Kunden mit Gültigkeitsbeginn und optionalem
+      Gültigkeitsende.
+    business_keys:
+    - KundeID
+    sources:
+    - Wohnort
+    attributes:
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Von
+      type: date
+      nullable: false
+      primary_key: true
+    - name: Bis
+      type: date
+      nullable: true
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Adresszusatz
+      type: varchar(128)
+      nullable: true
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+  href_termintreue:
+    Domain: Willibald
+    desc: Definiert Wertebereiche zur fachlichen Klassifizierung der Termintreue anhand der Anzahl von Tagen.
+    business_keys:
+    - Anzahl_Tage_von
+    - Anzahl_Tage_bis
+    sources:
+    - href_termintreue
+    attributes: []

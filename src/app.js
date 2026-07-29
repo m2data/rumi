@@ -1,0 +1,89 @@
+/* =====================================================================
+   6 — Anwendungszustand
+   ===================================================================== */
+/* einsetzen: modell willibald-attr.yaml */
+
+const S = {
+  model:null, view:1, graph:null, yamlText:'',
+  saved:{1:{}, 2:{}, 3:{}},
+  routes:{1:{}, 2:{}, 3:{}},
+  content:{1:{}, 2:{}, 3:{}},
+  hidden:new Set(),
+  selEdge:null, exporting:false,
+  sel:new Set(),
+  layout:{algo:'hier', dir:'TB', labels:true},
+  selected:null, filter:'',
+  t:{x:0, y:0, k:1},
+  fileName:'willibald.yaml'
+};
+
+const $ = id => document.getElementById(id);
+const svg = $('canvas');
+let gEdges, gNodes, gViewport, gHandles;
+
+function initSvg(){
+  svg.innerHTML =
+    `<defs>
+       <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+         <path d="M24 0H0V24" fill="none" stroke="#D3DBE2" stroke-width="0.6"/>
+       </pattern>
+       <pattern id="grid5" width="120" height="120" patternUnits="userSpaceOnUse">
+         <rect width="120" height="120" fill="url(#grid)"/>
+         <path d="M120 0H0V120" fill="none" stroke="#C0CBD4" stroke-width="0.9"/>
+       </pattern>
+     </defs>
+     <rect id="bg" x="-100000" y="-100000" width="200000" height="200000" fill="url(#grid5)"/>
+     <style>${SVG_CSS}</style>
+     <g id="vp"><g id="edges"></g><g id="nodes"></g><g id="handles"></g></g>`;
+  gViewport = svg.querySelector('#vp');
+  gEdges = svg.querySelector('#edges');
+  gNodes = svg.querySelector('#nodes');
+  gHandles = svg.querySelector('#handles');
+}
+
+const isVisible = id => { const n = S.graph.byId.get(id); return n && !n.hidden; };
+const visNodes = ()=> S.graph.nodes.filter(n => !n.hidden);
+const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e.to));
+
+function neighbourhood(){
+  if(S.selEdge){
+    const e = S.graph.edges.find(x => x.id === S.selEdge);
+    if(e && isVisible(e.from) && isVisible(e.to))
+      return {keep:new Set([e.from, e.to]), eids:new Set([e.id])};
+  }
+  if(S.sel.size !== 1) return null;                 // Mehrfachauswahl dient dem Ordnen, nicht dem Erkunden
+  const only = [...S.sel][0];
+  if(!isVisible(only)) return null;
+  const keep = new Set([only]), eids = new Set();
+  visEdges().forEach(e=>{
+    if(e.from === only || e.to === only){
+      keep.add(e.from); keep.add(e.to); eids.add(e.id);
+    }
+  });
+  return {keep, eids};
+}
+
+function draw(){
+  const nb = neighbourhood();
+  gNodes.innerHTML = visNodes().map(n=>{
+    let c = '';
+    if(S.sel.has(n.id)) c = 'selected';
+    else if(nb && !nb.keep.has(n.id)) c = 'faded';
+    else if(S.filter && !n.name.toLowerCase().includes(S.filter)) c = 'faded';
+    return nodeMarkup(n, c);
+  }).join('');
+  drawEdges();
+  applyTransform();
+}
+
+function drawEdges(){
+  const nb = neighbourhood();
+  gEdges.innerHTML = visEdges().map(e=>{
+    let c = '';
+    if(nb) c = nb.eids.has(e.id) ? 'active' : 'faded';
+    if(e.id === S.selEdge) c += ' picked';
+    return edgeMarkup(e, S.graph, c);
+  }).join('');
+  drawHandles();
+}
+
