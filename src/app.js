@@ -15,7 +15,13 @@ const S = {
   layout:{algo:'hier', dir:'TB', labels:true},
   selected:null, filter:'',
   t:{x:0, y:0, k:1},
-  fileName:'willibald.yaml'
+  fileName:'willibald.yaml',
+  // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht
+  mode:'komplett',          // 'komplett' | 'hierarchie'
+  outline:null,             // Baum aus buildOutline()
+  outlineText:'',           // Quelle der Übersicht (YAML)
+  hierSel:null,             // Kennung des gewählten Diagramms
+  hierOpen:null             // Set aufgeklappter Knoten
 };
 
 const $ = id => document.getElementById(id);

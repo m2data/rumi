@@ -55,3 +55,91 @@ function outlineFlat(roots){
   walk(roots);
   return out;
 }
+
+/* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
+function parseOutline(){
+  if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
+  S.outline = buildOutline(S.outlineText, S.model);
+  // Ordner anfangs aufgeklappt
+  S.hierOpen = new Set(outlineFlat(S.outline.roots).filter(n => n.kinder.length).map(n => n.id));
+}
+
+/* ---------- Baum links oben ---------- */
+function renderOutlineTree(){
+  const box = $('hierTree');
+  if(!S.outline){ box.innerHTML = ''; return; }
+  const twig = (node, depth)=>{
+    const kids = node.kinder.length;
+    const open = S.hierOpen.has(node.id);
+    const sel = node.id === S.hierSel;
+    let s = `<div class="dnode${sel ? ' sel' : ''}" data-id="${esc(node.id)}" role="treeitem"`
+          + ` aria-selected="${sel}" style="padding-left:${6 + depth * 15}px">`;
+    s += kids
+      ? `<span class="tw" data-toggle="${esc(node.id)}">${open ? '▾' : '▸'}</span>`
+      : `<span class="tw leaf">·</span>`;
+    s += `<span class="lbl">${esc(node.name)}</span>`;
+    s += `<span class="cnt">${node.objekte.length}</span></div>`;
+    if(kids && open) s += node.kinder.map(k => twig(k, depth + 1)).join('');
+    return s;
+  };
+  box.innerHTML = S.outline.roots.map(r => twig(r, 0)).join('');
+}
+
+/* ---------- Beschreibung links unten (Phase 2: schlichter Text) ---------- */
+function renderOutlineDesc(){
+  const box = $('hierDesc');
+  const node = S.hierSel && S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
+  if(!node){ box.innerHTML = '<div class="empty">Ein Diagramm in der Hierarchie wählen.</div>'; return; }
+  const txt = (node.beschreibung || '').trim();
+  const abs = txt
+    ? '<p>' + esc(txt).replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>') + '</p>'
+    : '<div class="empty">Noch keine Beschreibung.</div>';
+  box.innerHTML = `<h2 class="hd-title">${esc(node.name)}</h2><div class="hd-text">${abs}</div>`;
+}
+
+/* ---------- Ordner auf-/zuklappen ---------- */
+function toggleOutline(id){
+  if(S.hierOpen.has(id)) S.hierOpen.delete(id); else S.hierOpen.add(id);
+  renderOutlineTree();
+}
+
+/* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
+function selectDiagram(id){
+  S.hierSel = id;
+  renderOutlineTree();
+  renderOutlineDesc();
+  const node = id && S.outline ? outlineFind(S.outline.roots, id) : null;
+  if(node) showDiagram(node);
+}
+
+/* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. */
+function showDiagram(node){
+  S.graph = makeGraph(S.model, 1);
+  const sichtbar = new Set(node.objekte.map(o => 'o:' + o));
+  S.graph.nodes.forEach(n=>{ n.hidden = !sichtbar.has(n.id); });
+  S.sel = new Set(); S.selected = null; S.selEdge = null;
+  applyAutoLayout(S.graph);
+  draw();
+  renderLegend();
+  renderContentMenu();
+  updateAlignBar();
+  fit();
+}
+
+/* ---------- Modus wechseln ---------- */
+function setMode(mode){
+  S.mode = mode;
+  document.body.classList.toggle('modus-hierarchie', mode === 'hierarchie');
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
+  $('komplettPanel').hidden = mode !== 'komplett';
+  $('hierPanel').hidden = mode !== 'hierarchie';
+  if(mode === 'hierarchie'){
+    if(!S.outline) parseOutline();
+    const gewaehlt = S.hierSel && outlineFind(S.outline.roots, S.hierSel);
+    const erst = outlineFlat(S.outline.roots)[0];
+    selectDiagram((gewaehlt || erst || {}).id || null);
+  } else {
+    setView(S.view);
+  }
+}

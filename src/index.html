@@ -33,6 +33,11 @@
     </div>
   </div>
 
+  <div class="modes" role="tablist" aria-label="Darstellung">
+    <button class="mode-btn" role="tab" data-mode="komplett" aria-selected="true">Komplettansicht</button>
+    <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
+  </div>
+
   <div class="views" role="tablist" aria-label="Ansichten">
     <button class="view-btn" role="tab" data-view="1" aria-selected="true">
       <span class="num">ANSICHT 1</span><span class="lbl">Geschäftsobjektmodell</span>
@@ -98,6 +103,7 @@
 
 <main>
   <aside id="sidebar">
+   <div id="komplettPanel">
     <div class="sidetabs" role="tablist" aria-label="Seitenleiste">
       <button class="sidetab" role="tab" data-pane="objects" aria-selected="true">Objekte</button>
       <button class="sidetab" role="tab" data-pane="details" aria-selected="false">Details</button>
@@ -126,6 +132,12 @@
     </div>
 
     <div class="pane" id="pane-messages"><div id="msgList"></div></div>
+   </div>
+
+   <div id="hierPanel" hidden>
+    <div class="hier-tree" id="hierTree" role="tree" aria-label="Diagramm-Hierarchie"></div>
+    <div class="hier-desc" id="hierDesc"></div>
+   </div>
   </aside>
 
   <div class="canvas-wrap" id="canvasWrap">

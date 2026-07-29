@@ -80,6 +80,7 @@ function adoptLayoutFile(obj){
 }
 
 function persist(){
+  if(S.mode === 'hierarchie') return;   // Diagramm-Layouts speichert Phase 5 getrennt
   const m = {};
   S.graph.nodes.forEach(n=>{ m[n.id] = {x:n.x, y:n.y}; });
   S.saved[S.view] = m;
@@ -726,6 +727,16 @@ document.querySelectorAll('.view-btn').forEach(b=> b.onclick = ()=> setView(+b.d
 document.querySelectorAll('.sidetab').forEach(t=> t.onclick = ()=> setSidePane(t.dataset.pane));
 $('btnFit').onclick = fit;
 
+// Modus Komplettansicht ↔ Hierarchie
+document.querySelectorAll('.mode-btn').forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
+// Baum: Ordner klappen oder Diagramm wählen
+$('hierTree').addEventListener('click', ev=>{
+  const tw = ev.target.closest('[data-toggle]');
+  if(tw){ toggleOutline(tw.dataset.toggle); return; }
+  const row = ev.target.closest('.dnode');
+  if(row) selectDiagram(row.dataset.id);
+});
+
 const DIR_NAME = {TB:'oben nach unten', BT:'unten nach oben', LR:'links nach rechts', RL:'rechts nach links'};
 
 function syncLayoutMenu(){
@@ -929,6 +940,7 @@ async function loadYaml(text, name, preset){
     S.routes = {1:{}, 2:{}, 3:{}};
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
+    S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);
@@ -938,6 +950,7 @@ async function loadYaml(text, name, preset){
     renderMessages();
     syncLayoutMenu();
     setView(preset && preset.view ? preset.view : S.view);
+    if(S.mode === 'hierarchie') setMode('hierarchie');
     const bad = model.messages.filter(m => m.level !== 'info').length;
     toast(bad ? `${Object.keys(model.objects).length} Objekte geladen · ${bad} Hinweise`
               : `${Object.keys(model.objects).length} Objekte geladen`);

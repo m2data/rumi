@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -309,6 +309,32 @@ console.log('== Herkunft und Lizenz des Modells ==');
   const box = document.getElementById('herkunft');
   t('Namensnennung in der Seitenleiste', !box.hidden && box.textContent.includes('DDVUG'));
   t('Namensnennung nennt die Lizenz', box.textContent.includes('CC BY 4.0'));
+}
+
+console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
+{
+  api.setMode('hierarchie');
+  t('Modus ist Hierarchie', S.mode === 'hierarchie');
+  t('Hierarchie-Panel an, Komplett-Panel aus',
+    document.getElementById('hierPanel').hidden === false
+    && document.getElementById('komplettPanel').hidden === true);
+  const rows = document.getElementById('hierTree').querySelectorAll('.dnode');
+  t('Baum zeigt mehrere Diagramme', rows.length >= 4, rows.length + ' Knoten');
+  const ziel = [...rows].find(r => r.dataset.id.endsWith('›Lieferung'));
+  t('Unterdiagramm „Lieferung“ im Baum', !!ziel, ziel && ziel.dataset.id);
+  if(ziel){
+    api.selectDiagram(ziel.dataset.id);
+    const sichtbar = S.graph.nodes.filter(n => !n.hidden).map(n => n.name).sort();
+    t('nur die Objekte des Diagramms sichtbar',
+      JSON.stringify(sichtbar) === JSON.stringify(['Bestellung','Kunde','Lieferadresse','Lieferung','Position']),
+      sichtbar.join(','));
+    t('Beschreibung zum gewählten Diagramm angezeigt',
+      (document.querySelector('.hd-title') || {}).textContent === 'Lieferung'
+      && (document.querySelector('.hd-text') || {}).textContent.length > 0);
+  }
+  api.setMode('komplett');
+  t('zurück in Komplettansicht mit allen Objekten',
+    S.mode === 'komplett' && S.graph.nodes.filter(n => !n.hidden).length === 11);
 }
 
 console.log('== Keine externen Quellen ==');
