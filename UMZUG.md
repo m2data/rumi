@@ -40,8 +40,9 @@ Zusammenbau nachweislich byte-identisch):
   Ereignis- und Bedienschicht. Sie ist von `app.js` durch die dazwischenliegenden
   `route.js`/`edit.js` getrennt und deshalb eine eigene Datei statt Teil von `app.js`.
 
-`model.test.js` und `layout.test.js` fehlen noch; der Rauchtest `smoke.js` deckt
-die Bedienwege bereits ab.
+`model.test.js` und `layout.test.js` liegen in `test/` und laufen über
+`harness.js`, das einzelne `src`-Module ohne Browser lädt. Zusammen mit dem
+Rauchtest `smoke.js` prüft der Pre-Commit-Hook alle drei.
 
 `build.js` ist bewusst simpel: Dateien einlesen, in das Gerüst einsetzen,
 schreiben. Kein Bündler, keine Abhängigkeiten, kein `node_modules`.

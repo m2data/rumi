@@ -18,6 +18,20 @@ der Aufruf in einen Pre-Commit-Hook oder eine Pipeline hängen.
 `dataset`, `innerHTML`, Ereignisverteilung. Gerade genug, um die App wirklich zu
 starten. Kein Browser, kein npm-Paket.
 
+**`harness.js`** lädt einzelne `src`-Module (statt der gebauten Datei) in einen
+gemeinsamen Gültigkeitsbereich und reicht `document`/`S` hinein. Damit prüfen
+Modell- und Layout-Test einzelne Funktionen, ohne die ganze App zu starten.
+
+**`model.test.js`** prüft `yaml.js` + `model.js`: YAML-Rundlauf (Tabs wie
+Leerzeichen), Aufbau von Objekten, Attributen und Beziehungen sowie die
+Prüfregeln (unbekanntes Ziel, fehlende Domain, doppelte Beziehung, Selbstbezug …)
+und einen Rundlauf am ausgelieferten Modell.
+
+**`layout.test.js`** prüft `layout.js` (mit `render.js` fürs orthogonale
+Verfahren): alle vier Anordnungsverfahren liefern brauchbare Koordinaten,
+`separate()` löst Überdeckungen auf, kein Knoten verdeckt einen anderen, und die
+Kantenführung bleibt bei einer Kette kreuzungsfrei.
+
 **`smoke.js`** lädt die HTML-Datei, führt ihr Skript aus und **klickt die App
 durch**: Kante anklicken, Stützpunkt einsetzen, ziehen, Anschlusspunkt versetzen,
 Teilstück verschieben, Ansicht wechseln, Knoten ziehen, Inhalt umschalten.
@@ -32,7 +46,7 @@ trotzdem unbenutzbar. Genau diese Lücke schließt der Rauchtest.
 
 ## Nach jeder Änderung
 
-    node build.js && node test/smoke.js && echo "ok"
+    node build.js && node test/smoke.js && node test/model.test.js && node test/layout.test.js && echo "ok"
 
 Bei neuen Funktionen gehört eine Prüfung dazu, die den **Bedienweg** abbildet,
 nicht nur das Ergebnis der Berechnung.
