@@ -1,0 +1,262 @@
+/* Rauchtest: startet die echte App im Mini-DOM und klickt sie durch.
+   Deckt genau die Wege ab, die sich durch reine Codeprüfung nicht sichern lassen. */
+const fs = require('fs');
+const path = require('path');
+const {createDom, dispatch} = require('./domshim');
+
+const FILE = process.argv[2] || path.join(__dirname, 'geschaeftsobjekt-explorer.html');
+const html = fs.readFileSync(FILE, 'utf8');
+const script = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+  .map(m => m[1]).filter(s => s.includes('function'))[0];
+
+const {document, root} = createDom(html);
+const win = {
+  addEventListener(){}, requestAnimationFrame(f){ f(0); },
+  setTimeout:(f)=>0, clearTimeout(){}, storage:undefined,
+  localStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
+  CSS:{ escape:s=>String(s).replace(/["\\]/g,'\\$&') },
+  URL:{ createObjectURL:()=>'blob:x', revokeObjectURL(){} },
+  Blob:function(){}, Image:function(){}, FileReader:function(){}
+};
+
+let fail = 0, pass = 0;
+const t = (name, cond, info)=>{
+  if(cond){ pass++; console.log('  ok   ' + name); }
+  else { fail++; console.log('  FEHL ' + name + (info ? '  → ' + info : '')); }
+};
+
+// App im eigenen Gültigkeitsbereich starten
+let S, api = {};
+const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf});');
+
+try{
+  runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
+         win.setTimeout, win.clearTimeout, o => { api = o; S = o.S; });
+}catch(err){
+  console.log('  FEHL App startet nicht  → ' + err.message);
+  console.log(err.stack.split('\n').slice(0,4).join('\n'));
+  process.exit(1);
+}
+
+// boot() ist asynchron — offene Mikrotasks abarbeiten lassen
+(async ()=>{
+for(let k=0;k<50;k++) await Promise.resolve();
+
+console.log('== Start ==');
+t('Modell geladen', S.model && Object.keys(S.model.objects).length === 11,
+  S.model ? Object.keys(S.model.objects).length + ' Objekte' : 'kein Modell');
+t('Graph aufgebaut', S.graph && S.graph.nodes.length > 0);
+t('Kanten gezeichnet', document.getElementById('edges').children.length > 0,
+  document.getElementById('edges').children.length + ' Gruppen');
+t('Knoten gezeichnet', document.getElementById('nodes').children.length > 0);
+
+console.log('== Kante auswählen ==');
+const svg = document.getElementById('canvas');
+const hit = document.getElementById('edges').querySelectorAll('.e-hit')[0];
+t('Klickfläche vorhanden', !!hit);
+if(hit){
+  dispatch(hit, 'pointerdown', {clientX:100, clientY:100});
+  t('Kante ist ausgewählt', !!S.selEdge, 'selEdge=' + S.selEdge);
+  const H = document.getElementById('handles');
+  t('Griffe erscheinen', H.children.length > 0, H.children.length + ' Elemente');
+  t('Anschlusspunkte vorhanden', H.querySelectorAll('.pt').length === 2,
+    H.querySelectorAll('.pt').length + ' Stück');
+}
+
+console.log('== Stützpunkt einsetzen und ziehen ==');
+const H = document.getElementById('handles');
+const ghost = H.querySelectorAll('.gh')[0];
+t('Geisterpunkt vorhanden', !!ghost);
+if(ghost){
+  const e = S.graph.edges.find(x => x.id === S.selEdge);
+  const vor = e.bends ? e.bends.length : 0;
+  dispatch(ghost, 'pointerdown', {clientX:100, clientY:100});
+  const nach = e.bends ? e.bends.length : 0;
+  t('Stützpunkte kamen dazu', nach > vor, vor + ' → ' + nach);
+  dispatch(svg, 'pointermove', {clientX:180, clientY:150});
+  dispatch(svg, 'pointerup', {clientX:180, clientY:150});
+  t('Kante gilt als von Hand bearbeitet', e.manual === true);
+}
+
+console.log('== Stützpunkt verschieben ==');
+const hnd = document.getElementById('handles').querySelectorAll('.hnd')[0];
+t('Stützpunktgriff vorhanden', !!hnd);
+if(hnd){
+  const e = S.graph.edges.find(x => x.id === S.selEdge);
+  const i = +hnd.dataset.bend;
+  const vor = {x:e.bends[i].x, y:e.bends[i].y};
+  dispatch(hnd, 'pointerdown', {clientX:200, clientY:200});
+  dispatch(svg, 'pointermove', {clientX:260, clientY:240});
+  dispatch(svg, 'pointerup', {});
+  t('Stützpunkt hat sich bewegt', e.bends[i].x !== vor.x || e.bends[i].y !== vor.y,
+    `${vor.x},${vor.y} → ${e.bends[i].x},${e.bends[i].y}`);
+}
+
+console.log('== Anschlusspunkt verschieben ==');
+const pt = document.getElementById('handles').querySelectorAll('.pt')[0];
+if(pt){
+  const e = S.graph.edges.find(x => x.id === S.selEdge);
+  const vor = e.portFrom ? e.portFrom.side + ':' + e.portFrom.t.toFixed(2) : 'keiner';
+  dispatch(pt, 'pointerdown', {clientX:300, clientY:300});
+  dispatch(svg, 'pointermove', {clientX:80, clientY:420});
+  dispatch(svg, 'pointerup', {});
+  const nach = e.portFrom ? e.portFrom.side + ':' + e.portFrom.t.toFixed(2) : 'keiner';
+  t('Anschlusspunkt hat sich geändert', vor !== nach, vor + ' → ' + nach);
+}
+
+console.log('== Segment einer rechtwinkligen Kante ==');
+document.getElementById('layoutMenu').querySelectorAll('[data-algo]')
+  .filter(b => b.dataset.algo === 'ortho').forEach(b => b.onclick && b.onclick());
+const eo = S.graph.edges.find(x => x.ortho && x.bends && x.bends.length);
+t('Orthogonal erzeugt Knicke', !!eo);
+if(eo){
+  S.selEdge = eo.id; api.draw();
+  const seg = document.getElementById('handles').querySelectorAll('.seg')[0];
+  t('Segmentbalken vorhanden', !!seg);
+  if(seg){
+    const before = JSON.stringify(eo.bends);
+    dispatch(seg, 'pointerdown', {clientX:400, clientY:400});
+    dispatch(svg, 'pointermove', {clientX:470, clientY:470});
+    dispatch(svg, 'pointerup', {});
+    t('Teilstück wurde verschoben', JSON.stringify(eo.bends) !== before);
+  }
+}
+
+console.log('== Kantenzüge überleben Ansichtswechsel ==');
+{
+  const e = S.graph.edges.find(x => x.manual && x.bends);
+  if(e){
+    const key = api.edgeKey(e), snap = JSON.stringify(e.bends);
+    api.setView(2); api.setView(1);
+    const back = S.graph.edges.find(x => api.edgeKey(x) === key);
+    t('Von Hand gelegter Zug ist wieder da', back && back.bends && back.bends.length > 0);
+  } else t('Von Hand gelegter Zug ist wieder da', false, 'keine manuelle Kante gefunden');
+}
+
+console.log('== Knoten und Auswahl ==');
+{
+  const g = document.getElementById('nodes').querySelectorAll('.node')[0];
+  const n = S.graph.byId.get(g.dataset.id);
+  const ox = n.x;
+  dispatch(g, 'pointerdown', {clientX:0, clientY:0});
+  dispatch(svg, 'pointermove', {clientX:60, clientY:30});
+  dispatch(svg, 'pointerup', {clientX:60, clientY:30});
+  t('Knoten verschoben', n.x !== ox, ox + ' → ' + n.x);
+}
+
+console.log('== Inhaltsauswahl ==');
+{
+  const btn = document.getElementById('contentList').querySelectorAll('[data-content]')
+    .filter(b => b.dataset.content === 'attrs')[0];
+  t('Schaltfläche Attribute vorhanden', !!btn);
+  if(btn){
+    const vorher = S.graph.byId.get('o:Bestellung').h;
+    btn.onclick();
+    const nachher = S.graph.byId.get('o:Bestellung').h;
+    t('Kasten wird höher mit Attributen', nachher > vorher, vorher + ' → ' + nachher);
+    const svgTxt = document.getElementById('nodes').innerHTML;
+    t('attr-Kürzel im Diagramm', svgTxt.includes('>attr<'));
+    t('Beschreibungsbox erst nach Auswahl', !svgTxt.includes('n-desc-bg'));
+    btn.onclick();
+  }
+}
+
+console.log('== Kein Text klebt am Kastenrand ==');
+{
+  // Misst den untersten gezeichneten Inhalt gegen die Kastenhöhe, in jeder
+  // Kombination der Inhaltsauswahl. Deckt Rundungs- und Additionsfehler in
+  // der Höhenrechnung auf, die man auf dem Bildschirm leicht übersieht.
+  const tief = n=>{
+    const mk = api.nodeMarkup(n, '');
+    let maxY = 0;
+    for(const m of mk.matchAll(/<text[^>]*\by="([-\d.]+)"/g)) maxY = Math.max(maxY, +m[1]);
+    for(const m of mk.matchAll(/<rect class="n-desc-bg"[^>]*\by="([-\d.]+)"[^>]*height="([-\d.]+)"/g))
+      maxY = Math.max(maxY, +m[1] + +m[2]);
+    return n.h - maxY;
+  };
+  const kombis = [
+    ['nur Beschreibung',  {desc:1}],
+    ['Beschreibung+Domain',{desc:1,domain:1}],
+    ['nur Domain',        {domain:1}],
+    ['nur Keys',          {keys:1}],
+    ['nur Quellen',       {sources:1}],
+    ['nur Attribute',     {attrs:1}],
+    ['Attribute ohne Typ',{attrs:1,types:0}],
+    ['alles',             {desc:1,domain:1,keys:1,sources:1,attrs:1,types:1}]
+  ];
+  let schlimmster = 99, wo = '';
+  kombis.forEach(([name, c])=>{
+    S.content[1] = Object.assign({desc:false,domain:false,keys:false,sources:false,attrs:false,keysOnly:false,types:true},
+      Object.fromEntries(Object.entries(c).map(([k,v])=>[k,!!v])));
+    api.setView(1);
+    S.graph.nodes.filter(n=>n.kind!=='source').forEach(n=>{
+      const d = tief(n);
+      if(d < schlimmster){ schlimmster = d; wo = name + '/' + n.name; }
+    });
+  });
+  t('Abstand Text zu Kastenrand mindestens 5 px', schlimmster >= 5, schlimmster + ' px bei ' + wo);
+  S.content[1] = {};
+  api.setView(1);
+}
+
+console.log('== Zweiter Weg: Kante aus dem Detailbereich ==');
+{
+  S.selEdge = null;
+  api.setView(1);
+  const nb = document.getElementById('objectList').querySelectorAll('button[data-id]')
+    .find(b => b.dataset.id === 'o:Kunde');
+  if(nb) dispatch(nb, 'click', {});
+  const pick = document.getElementById('detailBody').querySelectorAll('.pickedge')[0];
+  t('Schaltfläche "Kante" im Detailbereich', !!pick, pick ? pick.dataset.edge : '');
+  if(pick){
+    dispatch(pick, 'click', {});
+    t('Kante darüber ausgewählt', !!S.selEdge, 'selEdge=' + S.selEdge);
+    t('Griffe erscheinen', document.getElementById('handles').querySelectorAll('.pt').length === 2);
+  }
+}
+
+console.log('== Absicherung: Exportschalter bleibt nicht hängen ==');
+{
+  const vorher = document.getElementById('edges').querySelectorAll('.e-hit').length;
+  t('Klickflächen vor Export', vorher > 0, vorher + '');
+  t('Exportschalter aus', S.exporting === false);
+}
+
+console.log('== Absicherung: hängendes Ziehen blockiert nicht ==');
+{
+  const g = document.getElementById('nodes').querySelectorAll('.node')[0];
+  const n = S.graph.byId.get(g.dataset.id);
+  const hnd0 = document.getElementById('handles').querySelectorAll('.hnd')[0]
+            || document.getElementById('handles').querySelectorAll('.pt')[0];
+  if(hnd0) dispatch(hnd0, 'pointerdown', {clientX:0, clientY:0});   // pointerup fehlt absichtlich
+  const ox = n.x;
+  dispatch(g, 'pointerdown', {clientX:0, clientY:0});
+  dispatch(svg, 'pointermove', {clientX:44, clientY:22});
+  dispatch(svg, 'pointerup', {});
+  t('Knoten trotz abgebrochenem Ziehen beweglich', n.x !== ox, ox + ' → ' + n.x);
+}
+
+console.log('== Herkunft und Lizenz des Modells ==');
+{
+  const m = S.model.meta;
+  t('Modellkopf gelesen', !!(m && m.urheber && m.lizenz), m ? m.urheber + ' / ' + m.lizenz : 'fehlt');
+  const box = document.getElementById('herkunft');
+  t('Namensnennung in der Seitenleiste', !box.hidden && box.textContent.includes('DDVUG'));
+  t('Namensnennung nennt die Lizenz', box.textContent.includes('CC BY 4.0'));
+}
+
+console.log('== Keine externen Quellen ==');
+{
+  const roh = fs.readFileSync(FILE, 'utf8');
+  t('kein Google-Fonts-Verweis', !/fonts\.(googleapis|gstatic)\.com/.test(roh));
+  const laden = roh.match(/<(link|script)\b[^>]*\b(href|src)="https?:\/\/[^"]+"/gi) || [];
+  t('nichts wird nachgeladen', laden.length === 0, laden.join(' | '));
+  t('Marken für die Schrifteinbettung vorhanden',
+    roh.includes('/* SCHRIFTEN-ANFANG */') && roh.includes('/* SCHRIFTEN-ENDE */'));
+}
+
+console.log('\n' + (fail ? fail + ' von ' + (fail+pass) + ' Prüfungen fehlgeschlagen'
+                          : 'Alle ' + pass + ' Prüfungen bestanden'));
+process.exit(fail ? 1 : 0);
+})();
