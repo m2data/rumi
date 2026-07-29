@@ -62,7 +62,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
-  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown }
+  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
 
 function adoptLayoutFile(obj){
@@ -81,6 +81,7 @@ function adoptLayoutFile(obj){
     S.hierSaved = obj.hierarchie.anordnung || {};
     S.hierRoutes = obj.hierarchie.kantenzuege || {};
     S.hierShown = obj.hierarchie.sichtbar || {};
+    S.hierText = obj.hierarchie.text || {};
   }
   return true;
 }
@@ -988,7 +989,7 @@ async function loadYaml(text, name, preset){
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
     S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
-    S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {};
+    S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);

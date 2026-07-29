@@ -24,7 +24,9 @@ const S = {
   hierOpen:null,            // Set aufgeklappter Knoten
   hierSaved:{},             // je Diagramm: Knotenpositionen {id:{x,y}}
   hierRoutes:{},            // je Diagramm: Kantenzüge
-  hierShown:{}              // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
+  hierShown:{},             // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
+  hierText:{},              // je Diagramm: Beschreibung (Markdown), überschreibt die YAML-Vorlage
+  hierEditing:false         // Beschreibung gerade im Bearbeiten-Modus?
 };
 
 const $ = id => document.getElementById(id);

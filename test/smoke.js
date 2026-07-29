@@ -369,6 +369,24 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     t('hinzugeholtes Objekt bleibt im Diagramm', S.graph.byId.get(neuId).hidden === false);
     const chkWeg = [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => c.dataset.id === neuId);
     if(chkWeg){ chkWeg.checked = false; dispatch(chkWeg, 'change', {}); }   // zurücksetzen
+
+    // Beschreibung in der App bearbeiten: leichtes Markdown, gespeichert, gerendert
+    const beschrTab = [...document.querySelectorAll('.sidetab')].find(s => s.dataset.pane === 'beschreibung');
+    dispatch(beschrTab, 'click', {});
+    dispatch(document.getElementById('hdEdit'), 'click', {});
+    const area = document.getElementById('hdArea');
+    t('Bearbeiten öffnet ein Textfeld', !!area);
+    if(area){
+      area.value = '# Lieferkette\n\nEin **wichtiger** Ablauf.';
+      dispatch(document.getElementById('hdSave'), 'click', {});
+      t('Beschreibung gespeichert', S.hierText[S.hierSel] === '# Lieferkette\n\nEin **wichtiger** Ablauf.');
+      const rendered = document.querySelector('.hd-text').innerHTML;
+      t('Markdown gerendert (Überschrift + fett)',
+        rendered.includes('<h2>Lieferkette</h2>') && rendered.includes('<strong>wichtiger</strong>'));
+      api.selectDiagram('Übersicht'); api.selectDiagram(ziel.dataset.id);
+      t('bearbeitete Beschreibung überlebt den Diagrammwechsel',
+        S.hierText[ziel.dataset.id] === '# Lieferkette\n\nEin **wichtiger** Ablauf.');
+    }
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',

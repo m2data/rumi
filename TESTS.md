@@ -34,7 +34,9 @@ Kantenführung bleibt bei einer Kette kreuzungsfrei.
 
 **`outline.test.js`** prüft `hierarchie.js`: `buildOutline()` liest die Übersicht
 zu einem Diagramm-Baum (Beschreibung, Objektliste, Kinder), vergibt pfadbasierte
-Kennungen und meldet Objekte, die es im Modell nicht gibt.
+Kennungen und meldet Objekte, die es im Modell nicht gibt. Dazu der kleine
+Markdown-Renderer (`renderMarkdown`): Überschriften, fett/kursiv, Listen, Links
+und HTML-Maskierung gegen Einschleusen.
 
 **`smoke.js`** lädt die HTML-Datei, führt ihr Skript aus und **klickt die App
 durch**: Kante anklicken, Stützpunkt einsetzen, ziehen, Anschlusspunkt versetzen,

@@ -85,16 +85,74 @@ function renderOutlineTree(){
   box.innerHTML = S.outline.roots.map(r => twig(r, 0)).join('');
 }
 
-/* ---------- Beschreibung links unten (Phase 2: schlichter Text) ---------- */
+/* Sehr kleiner, offline Markdown-Renderer für die Diagramm-Beschreibung.
+   Unterstützt Überschriften (# ## ###), **fett**, *kursiv*, `code`, Listen
+   (- / * und 1.), Zitat (>), Links [Text](http…|mailto…), Absätze und
+   Zeilenumbrüche. HTML wird zuerst maskiert; nur die erzeugten Tags entstehen. */
+function renderMarkdown(md){
+  const roh = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const inline = s => roh(s)
+    .replace(/`([^`]+)`/g, (m,c)=>`<code>${c}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g,
+             (m,t,u)=>`<a href="${u}" target="_blank" rel="noopener">${t}</a>`);
+  const lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let para = [], list = null;
+  const flushPara = ()=>{ if(para.length){ out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; } };
+  const flushList = ()=>{ if(list){ out.push(`<${list.tag}>` + list.items.map(t=>`<li>${inline(t)}</li>`).join('') + `</${list.tag}>`); list = null; } };
+  let m;
+  for(const raw of lines){
+    const line = raw.replace(/\s+$/, '');
+    if(!line.trim()){ flushPara(); flushList(); continue; }
+    if((m = line.match(/^(#{1,3})\s+(.*)$/))){ flushPara(); flushList(); const lvl = m[1].length + 1; out.push(`<h${lvl}>${inline(m[2])}</h${lvl}>`); continue; }
+    if((m = line.match(/^\s*[-*]\s+(.*)$/))){ flushPara(); if(!list || list.tag !== 'ul'){ flushList(); list = {tag:'ul', items:[]}; } list.items.push(m[1]); continue; }
+    if((m = line.match(/^\s*\d+\.\s+(.*)$/))){ flushPara(); if(!list || list.tag !== 'ol'){ flushList(); list = {tag:'ol', items:[]}; } list.items.push(m[1]); continue; }
+    if((m = line.match(/^>\s?(.*)$/))){ flushPara(); flushList(); out.push(`<blockquote>${inline(m[1])}</blockquote>`); continue; }
+    para.push(line);
+  }
+  flushPara(); flushList();
+  return out.join('\n');
+}
+
+/* Wirksame Beschreibung: in der App bearbeiteter Text, sonst die YAML-Vorlage. */
+function diagramText(node){
+  return (S.hierText[node.id] !== undefined) ? S.hierText[node.id] : (node.beschreibung || '');
+}
+
+/* ---------- Beschreibung links unten: ansehen / bearbeiten ---------- */
 function renderOutlineDesc(){
   const box = $('hierDesc');
   const node = S.hierSel && S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
-  if(!node){ box.innerHTML = '<div class="empty">Ein Diagramm in der Hierarchie wählen.</div>'; return; }
-  const txt = (node.beschreibung || '').trim();
-  const abs = txt
-    ? '<p>' + esc(txt).replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>') + '</p>'
-    : '<div class="empty">Noch keine Beschreibung.</div>';
-  box.innerHTML = `<h2 class="hd-title">${esc(node.name)}</h2><div class="hd-text">${abs}</div>`;
+  if(!node){ S.hierEditing = false; box.innerHTML = '<div class="empty">Ein Diagramm in der Hierarchie wählen.</div>'; return; }
+  const txt = diagramText(node);
+  if(S.hierEditing){
+    box.innerHTML =
+      `<div class="hd-bar"><h2 class="hd-title">${esc(node.name)}</h2>
+         <span class="hd-actions"><button class="hd-btn ok" id="hdSave">Speichern</button>
+         <button class="hd-btn" id="hdCancel">Abbrechen</button></span></div>
+       <textarea class="hd-area" id="hdArea" spellcheck="false" aria-label="Beschreibung bearbeiten"></textarea>
+       <div class="hd-hint"># Überschrift · **fett** · *kursiv* · - Liste · [Text](https://…)</div>`;
+    const area = $('hdArea'); area.value = txt; area.focus();
+    $('hdSave').onclick = saveEditDesc;
+    $('hdCancel').onclick = ()=>{ S.hierEditing = false; renderOutlineDesc(); };
+  } else {
+    box.innerHTML =
+      `<div class="hd-bar"><h2 class="hd-title">${esc(node.name)}</h2>
+         <button class="hd-btn" id="hdEdit">Bearbeiten</button></div>
+       <div class="hd-text">${txt.trim() ? renderMarkdown(txt) : '<div class="empty">Noch keine Beschreibung. „Bearbeiten“ wählen.</div>'}</div>`;
+    $('hdEdit').onclick = ()=>{ S.hierEditing = true; renderOutlineDesc(); };
+  }
+}
+
+function saveEditDesc(){
+  const node = S.hierSel && S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
+  if(!node) return;
+  S.hierText[node.id] = $('hdArea').value;
+  S.hierEditing = false;
+  renderOutlineDesc();
+  writeStore();
 }
 
 /* ---------- Ordner auf-/zuklappen ---------- */
@@ -126,6 +184,7 @@ function hierPlaceFresh(){
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
 function selectDiagram(id){
   S.hierSel = id;
+  S.hierEditing = false;   // beim Diagrammwechsel nicht im Bearbeiten-Modus bleiben
   renderOutlineTree();
   renderOutlineDesc();
   const node = id && S.outline ? outlineFind(S.outline.roots, id) : null;

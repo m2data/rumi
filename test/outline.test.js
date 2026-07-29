@@ -11,8 +11,8 @@ const t = (name, cond, info)=>{
 };
 
 const {api} = load(['yaml.js', 'model.js', 'hierarchie.js'],
-  ['buildModel', 'buildOutline', 'outlineFind', 'outlineFlat']);
-const {buildModel, buildOutline, outlineFind, outlineFlat} = api;
+  ['buildModel', 'buildOutline', 'outlineFind', 'outlineFlat', 'renderMarkdown']);
+const {buildModel, buildOutline, outlineFind, outlineFlat, renderMarkdown} = api;
 const has = (msgs, level, frag)=> msgs.some(m => m.level === level && (m.title + ' ' + m.body).includes(frag));
 
 const model = buildModel(fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-attr.yaml'), 'utf8'));
@@ -57,6 +57,18 @@ const {messages: dm} = buildOutline(`Test:
 `, model);
 t('unbekanntes Objekt wird gemeldet', has(dm, 'warn', 'unbekannt'),
   dm.map(m => m.title).join(' | '));
+
+console.log('== Markdown-Renderer ==');
+t('Überschrift wird zu <h2>', renderMarkdown('# Titel') === '<h2>Titel</h2>', renderMarkdown('# Titel'));
+t('**fett** wird <strong>', renderMarkdown('a **b** c').includes('<strong>b</strong>'));
+t('*kursiv* wird <em>', renderMarkdown('a *b* c').includes('<em>b</em>'));
+t('Liste wird <ul><li>', renderMarkdown('- eins\n- zwei') === '<ul><li>eins</li><li>zwei</li></ul>',
+  renderMarkdown('- eins\n- zwei'));
+t('Link wird <a>', renderMarkdown('[x](https://e.de)').includes('<a href="https://e.de" target="_blank"'));
+t('HTML wird maskiert (keine Injektion)', (()=>{
+  const h = renderMarkdown('<script>alert(1)</script>');
+  return h.includes('&lt;script&gt;') && !h.includes('<script>');
+})());
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
