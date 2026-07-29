@@ -10,9 +10,10 @@ const t = (name, cond, info)=>{
   else { fail++; console.log('  FEHL ' + name + (info ? '  → ' + info : '')); }
 };
 
-const {api} = load(['yaml.js', 'model.js', 'hierarchie.js'],
-  ['buildModel', 'buildOutline', 'outlineFind', 'outlineFlat', 'renderMarkdown']);
-const {buildModel, buildOutline, outlineFind, outlineFlat, renderMarkdown} = api;
+const {api, S} = load(['yaml.js', 'model.js', 'hierarchie.js'],
+  ['buildModel', 'buildOutline', 'outlineFind', 'outlineFlat', 'renderMarkdown', 'outlineToYaml']);
+const {buildModel, buildOutline, outlineFind, outlineFlat, renderMarkdown, outlineToYaml} = api;
+S.hierShown = {}; S.hierText = {};   // Overlays leer für den Serializer
 const has = (msgs, level, frag)=> msgs.some(m => m.level === level && (m.title + ' ' + m.body).includes(frag));
 
 const model = buildModel(fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-attr.yaml'), 'utf8'));
@@ -57,6 +58,23 @@ const {messages: dm} = buildOutline(`Test:
 `, model);
 t('unbekanntes Objekt wird gemeldet', has(dm, 'warn', 'unbekannt'),
   dm.map(m => m.title).join(' | '));
+
+console.log('== YAML-Rundlauf der Übersicht ==');
+{
+  const proj = ns => ns.map(n => ({name:n.name, beschreibung:n.beschreibung, objekte:n.objekte, kinder:proj(n.kinder)}));
+  const yaml2 = outlineToYaml(roots);
+  const wieder = buildOutline(yaml2, model);
+  t('Struktur, Texte und Objekte überleben den Rundlauf',
+    JSON.stringify(proj(roots)) === JSON.stringify(proj(wieder.roots)));
+  // mehrzeiliger Text mit Raute (Markdown) muss verlustfrei zurückkommen
+  S.hierText = { [top.id]: 'Zeile eins\n\nZeile zwei # mit Raute\n- Punkt' };
+  const y3 = outlineToYaml(roots);
+  const rt = buildOutline(y3, model);
+  t('mehrzeilige Beschreibung mit Raute überlebt den Rundlauf',
+    rt.roots[0].beschreibung === 'Zeile eins\n\nZeile zwei # mit Raute\n- Punkt',
+    JSON.stringify(rt.roots[0].beschreibung));
+  S.hierText = {};
+}
 
 console.log('== Markdown-Renderer ==');
 t('Überschrift wird zu <h2>', renderMarkdown('# Titel') === '<h2>Titel</h2>', renderMarkdown('# Titel'));

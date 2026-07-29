@@ -56,6 +56,33 @@ function outlineFlat(roots){
   return out;
 }
 
+/* Die Übersicht (inkl. der in der App bearbeiteten Texte und Objektmengen)
+   zurück in das YAML-Format schreiben. Beschreibungen als doppelt quotierte
+   einzeilige Werte mit \n-Escapes, damit sie der Leser verlustfrei zurückliest. */
+function outlineToYaml(roots){
+  const q = s => '"' + String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
+  const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
+  const skalar = s => plain(s) ? s : q(s);
+  const lines = [];
+  const emit = (node, ind)=>{
+    const pad = '  '.repeat(ind);
+    lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
+    const txt = diagramText(node);
+    if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
+    const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
+    if(objs.length){
+      lines.push(`${pad}  objekte:`);
+      objs.forEach(o => lines.push(`${pad}    - ${skalar(o)}`));
+    }
+    if(node.kinder && node.kinder.length){
+      lines.push(`${pad}  Details:`);
+      node.kinder.forEach(k => emit(k, ind + 2));
+    }
+  };
+  roots.forEach(r => emit(r, 0));
+  return lines.join('\n') + '\n';
+}
+
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
   if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';

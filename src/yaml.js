@@ -11,10 +11,23 @@ function readYaml(text){
   if(src.includes('\t')) notes.push({level:'warn', title:'Tabulatoren in der Einrückung',
     body:`Die Datei rückt teilweise mit Tabulatoren ein. YAML erlaubt das nicht — ein normaler Parser bricht hier ab. Diese App rechnet einen Tab in ${TAB_WIDTH} Leerzeichen um.`});
 
+  // Kommentar ab '# ' entfernen, aber nur außerhalb von Anführungszeichen —
+  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert.
+  const stripComment = s=>{
+    let q = null;
+    for(let i=0; i<s.length; i++){
+      const c = s[i];
+      if(q){ if(c === q) q = null; continue; }
+      if(c === '"' || c === "'"){ q = c; continue; }
+      if(c === '#' && (i === 0 || /\s/.test(s[i-1]))) return s.slice(0, i);
+    }
+    return s;
+  };
+
   const lines = [];
   src.split('\n').forEach((raw, idx)=>{
     const expanded = raw.replace(/\t/g, ' '.repeat(TAB_WIDTH));
-    const stripped = expanded.replace(/\s+#.*$/, '');
+    const stripped = stripComment(expanded);
     if(!stripped.trim() || /^\s*#/.test(stripped)) return;
     lines.push({indent: stripped.match(/^ */)[0].length, content: stripped.trim(), n: idx+1});
   });
@@ -24,7 +37,10 @@ function readYaml(text){
 
   function scalar(v){
     if(v === '' || v === '~' || v === 'null') return null;
-    if(/^"(.*)"$/.test(v) || /^'(.*)'$/.test(v)) return v.slice(1,-1);
+    // Doppelte Anführungszeichen: Escapes auflösen (\n \t \" \\), damit
+    // mehrzeilige Texte einzeilig gespeichert und wieder gelesen werden können.
+    if(/^"(.*)"$/.test(v)) return v.slice(1,-1).replace(/\\(["\\nt])/g, (m,c)=> c === 'n' ? '\n' : c === 't' ? '\t' : c);
+    if(/^'(.*)'$/.test(v)) return v.slice(1,-1);
     if(/^(true|false)$/i.test(v)) return v.toLowerCase() === 'true';
     if(/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
     return v;

@@ -871,6 +871,11 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG();
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-anordnung.json', 'application/json');
+  if(a === 'uebersicht'){
+    if(!S.outline) parseOutline();
+    download(outlineToYaml(S.outline.roots), 'williibald-uebersicht.yaml', 'text/yaml');
+    toast('Übersicht als YAML gespeichert');
+  }
   if(a === 'reset'){
     if(S.mode === 'hierarchie'){
       if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }

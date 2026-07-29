@@ -431,6 +431,7 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
         <button data-act="svg">Diagramm als SVG speichern</button>
         <button data-act="png">Diagramm als PNG speichern</button>
         <button data-act="layout">Anordnung als JSON speichern</button>
+        <button data-act="uebersicht">Übersicht als YAML speichern</button>
         <hr>
         <button data-act="reset">Anordnung dieser Ansicht verwerfen</button>
       </div>
@@ -519,10 +520,23 @@ function readYaml(text){
   if(src.includes('\t')) notes.push({level:'warn', title:'Tabulatoren in der Einrückung',
     body:`Die Datei rückt teilweise mit Tabulatoren ein. YAML erlaubt das nicht — ein normaler Parser bricht hier ab. Diese App rechnet einen Tab in ${TAB_WIDTH} Leerzeichen um.`});
 
+  // Kommentar ab '# ' entfernen, aber nur außerhalb von Anführungszeichen —
+  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert.
+  const stripComment = s=>{
+    let q = null;
+    for(let i=0; i<s.length; i++){
+      const c = s[i];
+      if(q){ if(c === q) q = null; continue; }
+      if(c === '"' || c === "'"){ q = c; continue; }
+      if(c === '#' && (i === 0 || /\s/.test(s[i-1]))) return s.slice(0, i);
+    }
+    return s;
+  };
+
   const lines = [];
   src.split('\n').forEach((raw, idx)=>{
     const expanded = raw.replace(/\t/g, ' '.repeat(TAB_WIDTH));
-    const stripped = expanded.replace(/\s+#.*$/, '');
+    const stripped = stripComment(expanded);
     if(!stripped.trim() || /^\s*#/.test(stripped)) return;
     lines.push({indent: stripped.match(/^ */)[0].length, content: stripped.trim(), n: idx+1});
   });
@@ -532,7 +546,10 @@ function readYaml(text){
 
   function scalar(v){
     if(v === '' || v === '~' || v === 'null') return null;
-    if(/^"(.*)"$/.test(v) || /^'(.*)'$/.test(v)) return v.slice(1,-1);
+    // Doppelte Anführungszeichen: Escapes auflösen (\n \t \" \\), damit
+    // mehrzeilige Texte einzeilig gespeichert und wieder gelesen werden können.
+    if(/^"(.*)"$/.test(v)) return v.slice(1,-1).replace(/\\(["\\nt])/g, (m,c)=> c === 'n' ? '\n' : c === 't' ? '\t' : c);
+    if(/^'(.*)'$/.test(v)) return v.slice(1,-1);
     if(/^(true|false)$/i.test(v)) return v.toLowerCase() === 'true';
     if(/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
     return v;
@@ -2758,6 +2775,33 @@ function outlineFlat(roots){
   return out;
 }
 
+/* Die Übersicht (inkl. der in der App bearbeiteten Texte und Objektmengen)
+   zurück in das YAML-Format schreiben. Beschreibungen als doppelt quotierte
+   einzeilige Werte mit \n-Escapes, damit sie der Leser verlustfrei zurückliest. */
+function outlineToYaml(roots){
+  const q = s => '"' + String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
+  const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
+  const skalar = s => plain(s) ? s : q(s);
+  const lines = [];
+  const emit = (node, ind)=>{
+    const pad = '  '.repeat(ind);
+    lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
+    const txt = diagramText(node);
+    if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
+    const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
+    if(objs.length){
+      lines.push(`${pad}  objekte:`);
+      objs.forEach(o => lines.push(`${pad}    - ${skalar(o)}`));
+    }
+    if(node.kinder && node.kinder.length){
+      lines.push(`${pad}  Details:`);
+      node.kinder.forEach(k => emit(k, ind + 2));
+    }
+  };
+  roots.forEach(r => emit(r, 0));
+  return lines.join('\n') + '\n';
+}
+
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
   if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
@@ -3818,6 +3862,11 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG();
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-anordnung.json', 'application/json');
+  if(a === 'uebersicht'){
+    if(!S.outline) parseOutline();
+    download(outlineToYaml(S.outline.roots), 'williibald-uebersicht.yaml', 'text/yaml');
+    toast('Übersicht als YAML gespeichert');
+  }
   if(a === 'reset'){
     if(S.mode === 'hierarchie'){
       if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }
