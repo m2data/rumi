@@ -103,14 +103,18 @@
 
 <main>
   <aside id="sidebar">
-   <div id="komplettPanel">
+    <div class="hier-tree" id="hierTree" role="tree" aria-label="Diagramm-Hierarchie" hidden></div>
+
     <div class="sidetabs" role="tablist" aria-label="Seitenleiste">
+      <button class="sidetab tab-hier" role="tab" data-pane="beschreibung" aria-selected="false">Beschreibung</button>
       <button class="sidetab" role="tab" data-pane="objects" aria-selected="true">Objekte</button>
       <button class="sidetab" role="tab" data-pane="details" aria-selected="false">Details</button>
-      <button class="sidetab" role="tab" data-pane="messages" aria-selected="false">
+      <button class="sidetab tab-komplett" role="tab" data-pane="messages" aria-selected="false">
         Prüfung <span class="badge zero" id="msgBadge">0</span>
       </button>
     </div>
+
+    <div class="pane" id="pane-beschreibung"><div class="hier-desc" id="hierDesc"></div></div>
 
     <div class="pane active" id="pane-objects">
       <input class="search" id="search" type="search" placeholder="Objekt suchen …" aria-label="Objekt suchen">
@@ -132,12 +136,6 @@
     </div>
 
     <div class="pane" id="pane-messages"><div id="msgList"></div></div>
-   </div>
-
-   <div id="hierPanel" hidden>
-    <div class="hier-tree" id="hierTree" role="tree" aria-label="Diagramm-Hierarchie"></div>
-    <div class="hier-desc" id="hierDesc"></div>
-   </div>
   </aside>
 
   <div class="canvas-wrap" id="canvasWrap">

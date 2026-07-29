@@ -126,14 +126,17 @@ aside{
 .pane{display:none;overflow-y:auto;padding:12px;min-height:0;flex:1}
 .pane.active{display:block}
 
-/* Hierarchie-Seitenleiste: oben Baum, darunter (~2/3) die Beschreibung */
-#komplettPanel,#hierPanel{display:flex;flex-direction:column;min-height:0;flex:1}
-#komplettPanel[hidden],#hierPanel[hidden]{display:none}
+/* Reiter je Modus: Beschreibung nur in der Hierarchie, Prüfung nur komplett */
+.sidetab.tab-hier{display:none}
+body.modus-hierarchie .sidetab.tab-hier{display:flex}
+body.modus-hierarchie .sidetab.tab-komplett{display:none}
+/* Diagramm-Baum oben in der Hierarchie, darüber die Reiter */
 .hier-tree{
-  flex:0 1 auto;max-height:34%;overflow-y:auto;padding:8px 6px;
+  flex:0 1 auto;max-height:36%;overflow-y:auto;padding:8px 6px;
   border-bottom:1px solid var(--hair-soft);
 }
-.hier-desc{flex:1 1 auto;overflow-y:auto;padding:14px 16px;min-height:0}
+#pane-beschreibung{padding:0}
+.hier-desc{padding:14px 16px}
 .dnode{
   display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;
   cursor:pointer;font-size:12.5px;color:var(--ink);white-space:nowrap;line-height:1.5;

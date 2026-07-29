@@ -314,9 +314,9 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
 {
   api.setMode('hierarchie');
   t('Modus ist Hierarchie', S.mode === 'hierarchie');
-  t('Hierarchie-Panel an, Komplett-Panel aus',
-    document.getElementById('hierPanel').hidden === false
-    && document.getElementById('komplettPanel').hidden === true);
+  t('Baum sichtbar, Beschreibung-Reiter aktiv',
+    document.getElementById('hierTree').hidden === false
+    && !!document.querySelector('.sidetab[data-pane="beschreibung"][aria-selected="true"]'));
   const rows = document.getElementById('hierTree').querySelectorAll('.dnode');
   t('Baum zeigt mehrere Diagramme', rows.length >= 4, rows.length + ' Knoten');
   const ziel = [...rows].find(r => r.dataset.id.endsWith('›Lieferung'));
@@ -347,6 +347,28 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     const wieder = S.graph.byId.get(nodeId);
     t('gemerkte Anordnung überlebt den Diagrammwechsel',
       wieder && merk && Math.abs(wieder.x - merk.x) < 0.5, (merk && merk.x) + ' → ' + (wieder && wieder.x));
+
+    // Reiter „Objekte“: nur die Diagramm-Objekte, klickbar → „Details“
+    const listBtns = document.getElementById('objectList').querySelectorAll('button[data-id]');
+    t('Objektliste zeigt nur die Diagramm-Objekte', listBtns.length === 5, listBtns.length + '');
+    if(listBtns.length){
+      dispatch(listBtns[0], 'click', {});
+      const db = document.getElementById('detailBody');
+      t('Details-Reiter zeigt das gewählte Objekt', !db.hidden && db.textContent.length > 0);
+    }
+    // Häkchen blendet je Diagramm aus, ohne die Komplettsicht zu berühren
+    const chk = document.getElementById('objectList').querySelectorAll('.ochk')[0];
+    if(chk){
+      const oid = chk.dataset.id;
+      chk.checked = false; dispatch(chk, 'change', {});
+      t('Objekt im Diagramm ausgeblendet',
+        S.graph.byId.get(oid).hidden === true
+        && (S.hierHidden[S.hierSel] || []).includes(oid) && !S.hidden.has(oid));
+      api.selectDiagram('Übersicht'); api.selectDiagram(ziel.dataset.id);
+      t('Ausblenden je Diagramm bleibt erhalten', S.graph.byId.get(oid).hidden === true);
+      const chk2 = [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => c.dataset.id === oid);
+      if(chk2){ chk2.checked = true; dispatch(chk2, 'change', {}); }   // fürs Weitere wieder einblenden
+    }
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',

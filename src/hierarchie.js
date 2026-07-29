@@ -114,11 +114,13 @@ function selectDiagram(id){
 
 /* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. Eine einmal
    von Hand gelegte Anordnung des Diagramms wird wiederhergestellt; sonst wird
-   automatisch angeordnet und diese Erstanordnung gemerkt. */
+   automatisch angeordnet und diese Erstanordnung gemerkt. Über die Objektliste
+   je Diagramm ausgeblendete Objekte bleiben verborgen. */
 function showDiagram(node){
   S.graph = makeGraph(S.model, 1);
-  const sichtbar = new Set(node.objekte.map(o => 'o:' + o));
-  S.graph.nodes.forEach(n=>{ n.hidden = !sichtbar.has(n.id); });
+  const mitglied = new Set(node.objekte.map(o => 'o:' + o));
+  const versteckt = new Set(S.hierHidden[node.id] || []);
+  S.graph.nodes.forEach(n=>{ n.hidden = !mitglied.has(n.id) || versteckt.has(n.id); });
   S.sel = new Set(); S.selected = null; S.selEdge = null;
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
@@ -133,6 +135,8 @@ function showDiagram(node){
     hierPersist();
   }
   draw();
+  renderObjectList();
+  renderDetails();
   renderLegend();
   renderContentMenu();
   updateAlignBar();
@@ -145,14 +149,17 @@ function setMode(mode){
   document.body.classList.toggle('modus-hierarchie', mode === 'hierarchie');
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
-  $('komplettPanel').hidden = mode !== 'komplett';
-  $('hierPanel').hidden = mode !== 'hierarchie';
+  $('hierTree').hidden = mode !== 'hierarchie';
   if(mode === 'hierarchie'){
     if(!S.outline) parseOutline();
+    setSidePane('beschreibung');
     const gewaehlt = S.hierSel && outlineFind(S.outline.roots, S.hierSel);
     const erst = outlineFlat(S.outline.roots)[0];
     selectDiagram((gewaehlt || erst || {}).id || null);
   } else {
+    // die nur in der Hierarchie sinnvolle „Beschreibung“ nicht in der Komplettsicht stehen lassen
+    const aktiv = (document.querySelector('.sidetab[aria-selected="true"]') || {}).dataset;
+    if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
     setView(S.view);
   }
 }

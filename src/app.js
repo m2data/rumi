@@ -23,7 +23,8 @@ const S = {
   hierSel:null,             // Kennung des gewählten Diagramms
   hierOpen:null,            // Set aufgeklappter Knoten
   hierSaved:{},             // je Diagramm: Knotenpositionen {id:{x,y}}
-  hierRoutes:{}             // je Diagramm: Kantenzüge
+  hierRoutes:{},            // je Diagramm: Kantenzüge
+  hierHidden:{}             // je Diagramm: darin ausgeblendete Objekte [id,…]
 };
 
 const $ = id => document.getElementById(id);
