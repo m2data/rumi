@@ -112,7 +112,8 @@ function drawHandles(){
 /* Kantenzüge sind an das Modell gebunden, nicht an die laufende Nummer */
 function edgeKey(e){ return e.from + '\u203a' + e.to + '#' + (e.ord || 0); }
 
-function captureRoutes(){
+/* Kantenzüge des aktuellen Graphen als speicherbare Abbildung. */
+function routesSnapshot(){
   const m = {};
   S.graph.edges.forEach(e=>{
     if(!e.bends && !e.portFrom) return;
@@ -122,11 +123,11 @@ function captureRoutes(){
       o: !!e.ortho, man: !!e.manual
     };
   });
-  S.routes[S.view] = m;
+  return m;
 }
 
-function applyRoutes(){
-  const m = S.routes[S.view] || {};
+function applyRoutesFrom(m){
+  m = m || {};
   S.graph.edges.forEach(e=>{
     const r = m[edgeKey(e)];
     if(!r) return;
@@ -137,6 +138,9 @@ function applyRoutes(){
     e.manual = !!r.man;
   });
 }
+
+function captureRoutes(){ S.routes[S.view] = routesSnapshot(); }
+function applyRoutes(){ applyRoutesFrom(S.routes[S.view]); }
 
 function applyTransform(){
   gViewport.setAttribute('transform', `translate(${S.t.x},${S.t.y}) scale(${S.t.k})`);

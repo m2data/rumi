@@ -112,13 +112,26 @@ function selectDiagram(id){
   if(node) showDiagram(node);
 }
 
-/* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. */
+/* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. Eine einmal
+   von Hand gelegte Anordnung des Diagramms wird wiederhergestellt; sonst wird
+   automatisch angeordnet und diese Erstanordnung gemerkt. */
 function showDiagram(node){
   S.graph = makeGraph(S.model, 1);
   const sichtbar = new Set(node.objekte.map(o => 'o:' + o));
   S.graph.nodes.forEach(n=>{ n.hidden = !sichtbar.has(n.id); });
   S.sel = new Set(); S.selected = null; S.selEdge = null;
-  applyAutoLayout(S.graph);
+  const saved = S.hierSaved[node.id] || {};
+  const vis = visNodes();
+  const known = vis.filter(n => saved[n.id]);
+  if(known.length === vis.length && known.length){
+    S.graph.nodes.forEach(n=>{ if(saved[n.id]){ n.x = saved[n.id].x; n.y = saved[n.id].y; } });
+    applyRoutesFrom(S.hierRoutes[node.id] || {});
+  } else {
+    applyAutoLayout(S.graph);
+    known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
+    if(known.length) separate(vis);
+    hierPersist();
+  }
   draw();
   renderLegend();
   renderContentMenu();

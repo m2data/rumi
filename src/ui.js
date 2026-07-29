@@ -56,12 +56,13 @@ const store = {
 };
 
 const layoutFile = ()=> ({
-  version: 4,
+  version: 5,
   verfahren: S.layout,
   ansichten: S.saved,
   kantenzuege: S.routes,
   inhalt: S.content,
-  ausgeblendet: [...S.hidden]
+  ausgeblendet: [...S.hidden],
+  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes }
 });
 
 function adoptLayoutFile(obj){
@@ -76,19 +77,39 @@ function adoptLayoutFile(obj){
   if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
+  if(obj.hierarchie){
+    S.hierSaved = obj.hierarchie.anordnung || {};
+    S.hierRoutes = obj.hierarchie.kantenzuege || {};
+  }
   return true;
 }
 
-function persist(){
-  if(S.mode === 'hierarchie') return;   // Diagramm-Layouts speichert Phase 5 getrennt
+function positionsSnapshot(){
   const m = {};
   S.graph.nodes.forEach(n=>{ m[n.id] = {x:n.x, y:n.y}; });
-  S.saved[S.view] = m;
-  captureRoutes();
+  return m;
+}
+
+function writeStore(){
   const blob = layoutFile();
   store.set('layouts:' + S.fileName, JSON.stringify(blob));
   store.set('sitzung', JSON.stringify(
     Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, blob)));
+}
+
+function persist(){
+  if(S.mode === 'hierarchie'){ hierPersist(); return; }
+  S.saved[S.view] = positionsSnapshot();
+  captureRoutes();
+  writeStore();
+}
+
+/* Anordnung des aktuell gewählten Diagramms merken (wie persist() für Ansichten). */
+function hierPersist(){
+  if(!S.hierSel) return;
+  S.hierSaved[S.hierSel] = positionsSnapshot();
+  S.hierRoutes[S.hierSel] = routesSnapshot();
+  writeStore();
 }
 
 /* =====================================================================
@@ -260,16 +281,12 @@ function attributionLine(){
 }
 
 function renderHerkunft(){
+  // Herkunft/Lizenz wird nicht mehr in der Seitenleiste angezeigt; der Hinweis
+  // steht in der README. Die Modell-Metadaten (S.model.meta) bleiben als Daten
+  // erhalten und wandern beim YAML-Speichern mit.
   const box = $('herkunft');
-  const m = S.model && S.model.meta;
-  if(!m || (!m.urheber && !m.lizenz)){ box.hidden = true; box.innerHTML = ''; return; }
-  box.hidden = false;
-  box.innerHTML = `<strong>HERKUNFT DES MODELLS</strong>` +
-    esc('Datenmodell' + (m.titel ? ' „' + m.titel + '"' : '') + (m.urheber ? ' © ' + m.urheber : '')) +
-    (m.lizenz ? ', lizenziert unter ' + (m.lizenzUrl
-        ? `<a href="${esc(m.lizenzUrl)}" target="_blank" rel="noopener">${esc(m.lizenz)}</a>`
-        : esc(m.lizenz)) : '') +
-    '.' + (m.hinweis ? ' ' + esc(m.hinweis) : '');
+  box.hidden = true;
+  box.innerHTML = '';
 }
 
 function renderLegend(){
@@ -830,7 +847,14 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG();
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-anordnung.json', 'application/json');
-  if(a === 'reset'){ delete S.saved[S.view]; S.saved[S.view] = {}; setView(S.view); toast('Anordnung verworfen'); }
+  if(a === 'reset'){
+    if(S.mode === 'hierarchie'){
+      if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }
+    } else {
+      S.saved[S.view] = {}; setView(S.view);
+    }
+    toast('Anordnung verworfen');
+  }
 });
 
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
@@ -941,6 +965,7 @@ async function loadYaml(text, name, preset){
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
     S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
+    S.hierSaved = {}; S.hierRoutes = {};
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);

@@ -21,7 +21,9 @@ const S = {
   outline:null,             // Baum aus buildOutline()
   outlineText:'',           // Quelle der Übersicht (YAML)
   hierSel:null,             // Kennung des gewählten Diagramms
-  hierOpen:null             // Set aufgeklappter Knoten
+  hierOpen:null,            // Set aufgeklappter Knoten
+  hierSaved:{},             // je Diagramm: Knotenpositionen {id:{x,y}}
+  hierRoutes:{}             // je Diagramm: Kantenzüge
 };
 
 const $ = id => document.getElementById(id);

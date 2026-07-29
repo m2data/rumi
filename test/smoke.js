@@ -302,13 +302,12 @@ console.log('== Absicherung: hängendes Ziehen blockiert nicht ==');
   t('Knoten trotz abgebrochenem Ziehen beweglich', n.x !== ox, ox + ' → ' + n.x);
 }
 
-console.log('== Herkunft und Lizenz des Modells ==');
+console.log('== Herkunft: Metadaten gelesen, aber nicht angezeigt ==');
 {
   const m = S.model.meta;
   t('Modellkopf gelesen', !!(m && m.urheber && m.lizenz), m ? m.urheber + ' / ' + m.lizenz : 'fehlt');
   const box = document.getElementById('herkunft');
-  t('Namensnennung in der Seitenleiste', !box.hidden && box.textContent.includes('DDVUG'));
-  t('Namensnennung nennt die Lizenz', box.textContent.includes('CC BY 4.0'));
+  t('Herkunft nicht in der Seitenleiste angezeigt', box.hidden === true && box.textContent === '');
 }
 
 console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
@@ -331,6 +330,23 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     t('Beschreibung zum gewählten Diagramm angezeigt',
       (document.querySelector('.hd-title') || {}).textContent === 'Lieferung'
       && (document.querySelector('.hd-text') || {}).textContent.length > 0);
+
+    // Editierbar wie die Komplettansicht: Knoten ziehen, je Diagramm gemerkt
+    const g = document.getElementById('nodes').querySelectorAll('.node')[0];
+    const node = S.graph.byId.get(g.dataset.id);
+    const nodeId = node.id, ox = node.x;
+    dispatch(g, 'pointerdown', {clientX:120, clientY:120});
+    dispatch(svg, 'pointermove', {clientX:230, clientY:190});
+    dispatch(svg, 'pointerup', {});
+    t('Knoten im Diagramm verschiebbar', node.x !== ox, ox + ' → ' + node.x);
+    const merk = S.hierSaved[S.hierSel] && S.hierSaved[S.hierSel][nodeId];
+    t('Anordnung je Diagramm gemerkt', merk && Math.abs(merk.x - node.x) < 0.5);
+    // anderes Diagramm und zurück: Position bleibt erhalten
+    api.selectDiagram('Übersicht');
+    api.selectDiagram(ziel.dataset.id);
+    const wieder = S.graph.byId.get(nodeId);
+    t('gemerkte Anordnung überlebt den Diagrammwechsel',
+      wieder && merk && Math.abs(wieder.x - merk.x) < 0.5, (merk && merk.x) + ' → ' + (wieder && wieder.x));
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',
