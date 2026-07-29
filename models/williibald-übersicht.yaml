@@ -1,0 +1,43 @@
+# Hierarchie der redaktionellen Diagramme.
+# Jeder Knoten ist eine Map mit:
+#   beschreibung: Text zum Diagramm (Platzhalter – bitte redaktionell ersetzen)
+#   objekte:      Geschäftsobjekte, die das Diagramm zeigt
+#   Details:      untergeordnete Diagramme (gleiche Struktur), optional
+Übersicht:
+  beschreibung: Überblick über das Geschäftsobjektmodell mit den zentralen Objekten Kunde und Bestellung.
+  objekte:
+    - Kunde
+    - Bestellung
+  Details:
+    webshop:
+      beschreibung: Bestellprozess im Webshop – von der Bestellung über die Position bis zur Lieferung.
+      objekte:
+        - Bestellung
+        - Position
+        - Lieferung
+      Details:
+        Produkt:
+          beschreibung: Produktkatalog – Produkte und ihre Kategorien.
+          objekte:
+            - Produkt
+            - Kategorie
+        Lieferung:
+          beschreibung: Ablauf einer Lieferung mit Bestellung, Position, Kunde, Lieferadresse und Lieferung.
+          objekte:
+            - Bestellung
+            - Position
+            - Kunde
+            - Lieferadresse
+            - Lieferung
+    roadshow:
+      beschreibung: Roadshow-Sicht mit Vereinspartnern, Kunden und Bestellungen.
+      objekte:
+        - VereinsPartner
+        - Kunde
+        - Bestellung
+      Details:
+        Produkt:
+          beschreibung: Produkte und Kategorien im Roadshow-Kontext.
+          objekte:
+            - Produkt
+            - Kategorie
