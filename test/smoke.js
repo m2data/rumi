@@ -105,6 +105,36 @@ if(pt){
   t('Anschlusspunkt hat sich geändert', vor !== nach, vor + ' → ' + nach);
 }
 
+console.log('== Anschlusspunkt ohne Stützpunkt verschieben ==');
+{
+  // Zustand wie nach einem Knotenzug: beide Ports gelöscht, kein Stützpunkt.
+  // Genau hier ließ sich der Anschlusspunkt früher erst nach dem Setzen eines
+  // Stützpunkts verschieben (Bug: routePoints beachtete einen einzelnen Port nicht).
+  const e = S.graph.edges.find(x => x.from !== x.to
+    && !S.graph.byId.get(x.from).hidden && !S.graph.byId.get(x.to).hidden);
+  t('Kante vorhanden', !!e);
+  if(e){
+    e.portFrom = null; e.portTo = null; e.bends = null; e.manual = false;
+    S.selEdge = e.id; api.draw();
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    const vor = api.routePoints(e, A, B)[0];
+    const griff = document.getElementById('handles').querySelectorAll('.pt')
+      .find(c => c.dataset.port === 'from');
+    t('Anschlusspunktgriff vorhanden', !!griff);
+    if(griff){
+      dispatch(griff, 'pointerdown', {clientX:120, clientY:120});
+      dispatch(svg, 'pointermove', {clientX:60, clientY:480});
+      dispatch(svg, 'pointerup', {});
+      const nach = api.routePoints(e, A, B)[0];
+      t('Endpunkt bewegt sich ohne Stützpunkt',
+        Math.abs(nach.x - vor.x) > 0.5 || Math.abs(nach.y - vor.y) > 0.5,
+        `(${vor.x.toFixed(1)},${vor.y.toFixed(1)}) → (${nach.x.toFixed(1)},${nach.y.toFixed(1)})`);
+      t('ein einzelner Anschlusspunkt genügt (der andere bleibt frei)',
+        !!e.portFrom && !e.portTo && (!e.bends || !e.bends.length));
+    }
+  }
+}
+
 console.log('== Segment einer rechtwinkligen Kante ==');
 document.getElementById('layoutMenu').querySelectorAll('[data-algo]')
   .filter(b => b.dataset.algo === 'ortho').forEach(b => b.onclick && b.onclick());
