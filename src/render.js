@@ -138,10 +138,14 @@ function edgeMarkup(e, g, cls){
     a2 = Math.atan2(pts[pts.length-2].y - p2.y, pts[pts.length-2].x - p2.x);
     mid = e.bends[Math.floor((e.bends.length-1)/2)];
   }
-  else if(e.portFrom && e.portTo){                   // direkte Nachbarebene mit Anschlusspunkten
-    p1 = portPoint(A, e.portFrom); p2 = portPoint(B, e.portTo);
+  else if(e.portFrom || e.portTo){                   // mindestens ein gesetzter Anschlusspunkt
+    // Jeder Anschlusspunkt unabhängig — dieselbe Regel wie in routePoints():
+    // gesetzt zählt der Port, sonst der Schnitt Richtung Nachbarmitte. (Früher
+    // verlangte dieser Zweig beide Ports, der einzeln gezogene wirkte dann nicht.)
+    p1 = e.portFrom ? portPoint(A, e.portFrom) : clipToBox(A, {x:B.x+B.w/2, y:B.y+B.h/2});
+    p2 = e.portTo   ? portPoint(B, e.portTo)   : clipToBox(B, {x:A.x+A.w/2, y:A.y+A.h/2});
     if(e.ortho){
-      const vert = e.portFrom.side === 'T' || e.portFrom.side === 'B';
+      const vert = (e.portFrom || e.portTo).side === 'T' || (e.portFrom || e.portTo).side === 'B';
       const pts = vert
         ? [p1, {x:p1.x, y:(p1.y+p2.y)/2}, {x:p2.x, y:(p1.y+p2.y)/2}, p2]
         : [p1, {x:(p1.x+p2.x)/2, y:p1.y}, {x:(p1.x+p2.x)/2, y:p2.y}, p2];

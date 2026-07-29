@@ -117,7 +117,13 @@ console.log('== Anschlusspunkt ohne Stützpunkt verschieben ==');
     e.portFrom = null; e.portTo = null; e.bends = null; e.manual = false;
     S.selEdge = e.id; api.draw();
     const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    const pfadD = ()=>{
+      const g = document.getElementById('edges').querySelector('[data-id="' + e.id + '"]');
+      const p = g && g.querySelector('.e-path');
+      return p ? p.getAttribute('d') : null;
+    };
     const vor = api.routePoints(e, A, B)[0];
+    const dVor = pfadD();
     const griff = document.getElementById('handles').querySelectorAll('.pt')
       .find(c => c.dataset.port === 'from');
     t('Anschlusspunktgriff vorhanden', !!griff);
@@ -126,9 +132,11 @@ console.log('== Anschlusspunkt ohne Stützpunkt verschieben ==');
       dispatch(svg, 'pointermove', {clientX:60, clientY:480});
       dispatch(svg, 'pointerup', {});
       const nach = api.routePoints(e, A, B)[0];
-      t('Endpunkt bewegt sich ohne Stützpunkt',
+      t('Griffpunkt bewegt sich ohne Stützpunkt',
         Math.abs(nach.x - vor.x) > 0.5 || Math.abs(nach.y - vor.y) > 0.5,
         `(${vor.x.toFixed(1)},${vor.y.toFixed(1)}) → (${nach.x.toFixed(1)},${nach.y.toFixed(1)})`);
+      // Der eigentliche Fehler: der Griff wanderte, die gezeichnete Kante nicht.
+      t('gezeichnete Kante folgt dem Anschlusspunkt', pfadD() && pfadD() !== dVor);
       t('ein einzelner Anschlusspunkt genügt (der andere bleibt frei)',
         !!e.portFrom && !e.portTo && (!e.bends || !e.bends.length));
     }
