@@ -72,7 +72,13 @@ function drawHandles(){
   if(band) extra += `<rect class="band" x="${Math.min(band.x0,band.x1)}" y="${Math.min(band.y0,band.y1)}" width="${Math.abs(band.x1-band.x0)}" height="${Math.abs(band.y1-band.y0)}"/>`;
   const e = S.selEdge && S.graph.edges.find(x => x.id === S.selEdge);
   const A = e && S.graph.byId.get(e.from), B = e && S.graph.byId.get(e.to);
-  if(!e || !A || !B || A.hidden || B.hidden || A === B){ gHandles.innerHTML = extra; return; }
+  if(!e || !A || !B || A.hidden || B.hidden){ gHandles.innerHTML = extra; return; }
+  if(A === B){                                       // Selbstbezug: ein Griff am Scheitel
+    const g = loopGeom(A, e);
+    gHandles.innerHTML = extra +
+      `<circle class="pt lp" cx="${g.apex.x.toFixed(1)}" cy="${g.apex.y.toFixed(1)}" r="6" data-loop="1"><title>Selbstbezug verschieben</title></circle>`;
+    return;
+  }
   const pts = routePoints(e, A, B);
   let s = '';
   if(e.ortho){
@@ -116,10 +122,11 @@ function edgeKey(e){ return e.from + '\u203a' + e.to + '#' + (e.ord || 0); }
 function routesSnapshot(){
   const m = {};
   S.graph.edges.forEach(e=>{
-    if(!e.bends && !e.portFrom) return;
+    if(!e.bends && !e.portFrom && !e.loop) return;
     m[edgeKey(e)] = {
       b: e.bends ? e.bends.map(q=>[Math.round(q.x), Math.round(q.y)]) : null,
       pf: e.portFrom || null, pt: e.portTo || null,
+      lp: e.loop || null,
       o: !!e.ortho, man: !!e.manual
     };
   });
@@ -134,6 +141,7 @@ function applyRoutesFrom(m){
     e.bends = r.b ? r.b.map(([x,y])=>({x, y})) : null;
     e.portFrom = r.pf || null;
     e.portTo = r.pt || null;
+    e.loop = r.lp || null;
     e.ortho = !!r.o;
     e.manual = !!r.man;
   });

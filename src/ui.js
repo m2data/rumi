@@ -473,14 +473,24 @@ function setSidePane(name){
 /* =====================================================================
    9 — Maus, Touch, Tastatur
    ===================================================================== */
-let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null;
+let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null;
 
 svg.addEventListener('pointerdown', ev=>{
   // Sicherheitsnetz: ein nicht beendetes Ziehen (verlorenes pointerup) würde
   // sonst alle folgenden Bewegungen abfangen.
-  bendDrag = segDrag = portDrag = null;
+  bendDrag = segDrag = portDrag = loopDrag = null;
   if(drag && !drag.moved) drag = null;
   const t = ev.target;
+
+  // Selbstbezug-Schleife am Scheitel verschieben (vor dem Anschlusspunkt prüfen)
+  if(t.dataset && t.dataset.loop){
+    const e = S.graph.edges.find(x => x.id === S.selEdge);
+    const n = e && S.graph.byId.get(e.from);
+    if(!e || !n) return;
+    svg.setPointerCapture(ev.pointerId);
+    loopDrag = {e, n};
+    ev.preventDefault(); return;
+  }
 
   // Stützpunkt greifen oder entfernen
   if(t.classList && t.classList.contains('hnd')){
@@ -626,6 +636,16 @@ svg.addEventListener('pointerdown', ev=>{
 });
 
 svg.addEventListener('pointermove', ev=>{
+  if(loopDrag){
+    const r = svg.getBoundingClientRect();
+    const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
+    const wy = (ev.clientY - r.top  - S.t.y)/S.t.k;
+    const n = loopDrag.n;
+    loopDrag.e.loop = {dx: Math.round(wx - (n.x + n.w/2)), dy: Math.round(wy - (n.y + n.h/2))};
+    loopDrag.e.manual = true;
+    drawEdges();
+    return;
+  }
   if(portDrag){
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
@@ -699,6 +719,7 @@ svg.addEventListener('pointermove', ev=>{
 });
 
 function endPointer(ev){
+  if(loopDrag){ loopDrag = null; persist(); }
   if(portDrag){
     // Ortho-Kante ohne Knick, die jetzt schräg läuft, in echte Ecken überführen —
     // damit Segment- und Stützpunktgriffe erscheinen und sie bearbeitbar bleibt.

@@ -75,6 +75,31 @@ function edgeEnd(node, port, toward){
   return port ? portPoint(node, port) : clipToBox(node, toward);
 }
 
+/* Geometrie einer Selbstbezug-Schleife. Der Scheitel liegt bei e.loop (Versatz
+   zur Knotenmitte, damit die Schleife beim Verschieben des Knotens mitwandert);
+   ohne e.loop steht sie oben rechts außen. Die zwei Anschlusspunkte ergeben sich
+   aus der Richtung zum Scheitel. */
+function loopGeom(A, e){
+  const O = {x:A.x + A.w/2, y:A.y + A.h/2};
+  const off = e.loop || {dx:A.w/2 + 34, dy:-(A.h/2 + 26)};
+  const apex = {x:O.x + off.dx, y:O.y + off.dy};
+  let ux = apex.x - O.x, uy = apex.y - O.y;
+  const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
+  const nx = -uy, ny = ux;
+  const gap = Math.max(14, Math.min(A.w, A.h) * 0.22);
+  const p1 = clipToBox(A, {x:O.x + ux*1e4 + nx*gap, y:O.y + uy*1e4 + ny*gap});
+  const p2 = clipToBox(A, {x:O.x + ux*1e4 - nx*gap, y:O.y + uy*1e4 - ny*gap});
+  const k = 34;
+  const c1 = {x:apex.x + nx*k, y:apex.y + ny*k};
+  const c2 = {x:apex.x - nx*k, y:apex.y - ny*k};
+  return {
+    p1, p2, apex, c1, c2,
+    a1: Math.atan2(c1.y - p1.y, c1.x - p1.x),
+    a2: Math.atan2(c2.y - p2.y, c2.x - p2.x),
+    mid: {x:(p1.x + 3*c1.x + 3*c2.x + p2.x)/8, y:(p1.y + 3*c1.y + 3*c2.y + p2.y)/8}
+  };
+}
+
 const fx = v => v.toFixed(1);
 
 /* Weicher Zug durch die Stützpunkte */
@@ -131,11 +156,9 @@ function edgeMarkup(e, g, cls){
   let path, p1, p2, a1, a2, mid;
 
   if(A === B){                                       // Schleife auf sich selbst
-    const x = A.x + A.w, y = A.y + A.h*0.35;
-    const x2 = A.x + A.w*0.62, y2 = A.y;
-    path = `M${x} ${y}C${x+52} ${y} ${x2} ${y2-56} ${x2} ${y2}`;
-    p1 = {x, y}; p2 = {x:x2, y:y2}; a1 = 0; a2 = -Math.PI/2;
-    mid = {x: x + 30, y: y2 - 24};
+    const g = loopGeom(A, e);
+    path = `M${fx(g.p1.x)} ${fx(g.p1.y)}C${fx(g.c1.x)} ${fx(g.c1.y)} ${fx(g.c2.x)} ${fx(g.c2.y)} ${fx(g.p2.x)} ${fx(g.p2.y)}`;
+    p1 = g.p1; p2 = g.p2; a1 = g.a1; a2 = g.a2; mid = g.mid;
   }
   else if(e.bends && e.bends.length){                // geführte Kante über Stützpunkte
     p1 = edgeEnd(A, e.portFrom, e.bends[0]);

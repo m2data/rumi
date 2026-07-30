@@ -411,6 +411,26 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     S.mode === 'komplett' && S.graph.nodes.filter(n => !n.hidden).length === 11);
 }
 
+console.log('== Selbstbezug verschiebbar ==');
+{
+  S.selEdge = null; api.setView(1);
+  const e = S.graph.edges.find(x => x.from === x.to);
+  t('Selbstbezug-Kante vorhanden', !!e, e ? e.from : 'keine');
+  if(e){
+    S.selEdge = e.id; api.draw();
+    const h = document.getElementById('handles').querySelector('.pt[data-loop]');
+    t('Scheitel-Griff erscheint', !!h);
+    if(h){
+      const vor = JSON.stringify(e.loop || null);
+      dispatch(h, 'pointerdown', {clientX:100, clientY:100});
+      dispatch(svg, 'pointermove', {clientX:280, clientY:60});
+      dispatch(svg, 'pointerup', {});
+      t('Schleife lässt sich verschieben',
+        !!e.loop && JSON.stringify(e.loop) !== vor, JSON.stringify(e.loop));
+    }
+  }
+}
+
 console.log('== Keine externen Quellen ==');
 {
   const roh = fs.readFileSync(FILE, 'utf8');

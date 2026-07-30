@@ -1643,6 +1643,31 @@ function edgeEnd(node, port, toward){
   return port ? portPoint(node, port) : clipToBox(node, toward);
 }
 
+/* Geometrie einer Selbstbezug-Schleife. Der Scheitel liegt bei e.loop (Versatz
+   zur Knotenmitte, damit die Schleife beim Verschieben des Knotens mitwandert);
+   ohne e.loop steht sie oben rechts außen. Die zwei Anschlusspunkte ergeben sich
+   aus der Richtung zum Scheitel. */
+function loopGeom(A, e){
+  const O = {x:A.x + A.w/2, y:A.y + A.h/2};
+  const off = e.loop || {dx:A.w/2 + 34, dy:-(A.h/2 + 26)};
+  const apex = {x:O.x + off.dx, y:O.y + off.dy};
+  let ux = apex.x - O.x, uy = apex.y - O.y;
+  const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
+  const nx = -uy, ny = ux;
+  const gap = Math.max(14, Math.min(A.w, A.h) * 0.22);
+  const p1 = clipToBox(A, {x:O.x + ux*1e4 + nx*gap, y:O.y + uy*1e4 + ny*gap});
+  const p2 = clipToBox(A, {x:O.x + ux*1e4 - nx*gap, y:O.y + uy*1e4 - ny*gap});
+  const k = 34;
+  const c1 = {x:apex.x + nx*k, y:apex.y + ny*k};
+  const c2 = {x:apex.x - nx*k, y:apex.y - ny*k};
+  return {
+    p1, p2, apex, c1, c2,
+    a1: Math.atan2(c1.y - p1.y, c1.x - p1.x),
+    a2: Math.atan2(c2.y - p2.y, c2.x - p2.x),
+    mid: {x:(p1.x + 3*c1.x + 3*c2.x + p2.x)/8, y:(p1.y + 3*c1.y + 3*c2.y + p2.y)/8}
+  };
+}
+
 const fx = v => v.toFixed(1);
 
 /* Weicher Zug durch die Stützpunkte */
@@ -1699,11 +1724,9 @@ function edgeMarkup(e, g, cls){
   let path, p1, p2, a1, a2, mid;
 
   if(A === B){                                       // Schleife auf sich selbst
-    const x = A.x + A.w, y = A.y + A.h*0.35;
-    const x2 = A.x + A.w*0.62, y2 = A.y;
-    path = `M${x} ${y}C${x+52} ${y} ${x2} ${y2-56} ${x2} ${y2}`;
-    p1 = {x, y}; p2 = {x:x2, y:y2}; a1 = 0; a2 = -Math.PI/2;
-    mid = {x: x + 30, y: y2 - 24};
+    const g = loopGeom(A, e);
+    path = `M${fx(g.p1.x)} ${fx(g.p1.y)}C${fx(g.c1.x)} ${fx(g.c1.y)} ${fx(g.c2.x)} ${fx(g.c2.y)} ${fx(g.p2.x)} ${fx(g.p2.y)}`;
+    p1 = g.p1; p2 = g.p2; a1 = g.a1; a2 = g.a2; mid = g.mid;
   }
   else if(e.bends && e.bends.length){                // geführte Kante über Stützpunkte
     p1 = edgeEnd(A, e.portFrom, e.bends[0]);
@@ -2639,7 +2662,13 @@ function drawHandles(){
   if(band) extra += `<rect class="band" x="${Math.min(band.x0,band.x1)}" y="${Math.min(band.y0,band.y1)}" width="${Math.abs(band.x1-band.x0)}" height="${Math.abs(band.y1-band.y0)}"/>`;
   const e = S.selEdge && S.graph.edges.find(x => x.id === S.selEdge);
   const A = e && S.graph.byId.get(e.from), B = e && S.graph.byId.get(e.to);
-  if(!e || !A || !B || A.hidden || B.hidden || A === B){ gHandles.innerHTML = extra; return; }
+  if(!e || !A || !B || A.hidden || B.hidden){ gHandles.innerHTML = extra; return; }
+  if(A === B){                                       // Selbstbezug: ein Griff am Scheitel
+    const g = loopGeom(A, e);
+    gHandles.innerHTML = extra +
+      `<circle class="pt lp" cx="${g.apex.x.toFixed(1)}" cy="${g.apex.y.toFixed(1)}" r="6" data-loop="1"><title>Selbstbezug verschieben</title></circle>`;
+    return;
+  }
   const pts = routePoints(e, A, B);
   let s = '';
   if(e.ortho){
@@ -2683,10 +2712,11 @@ function edgeKey(e){ return e.from + '\u203a' + e.to + '#' + (e.ord || 0); }
 function routesSnapshot(){
   const m = {};
   S.graph.edges.forEach(e=>{
-    if(!e.bends && !e.portFrom) return;
+    if(!e.bends && !e.portFrom && !e.loop) return;
     m[edgeKey(e)] = {
       b: e.bends ? e.bends.map(q=>[Math.round(q.x), Math.round(q.y)]) : null,
       pf: e.portFrom || null, pt: e.portTo || null,
+      lp: e.loop || null,
       o: !!e.ortho, man: !!e.manual
     };
   });
@@ -2701,6 +2731,7 @@ function applyRoutesFrom(m){
     e.bends = r.b ? r.b.map(([x,y])=>({x, y})) : null;
     e.portFrom = r.pf || null;
     e.portTo = r.pt || null;
+    e.loop = r.lp || null;
     e.ortho = !!r.o;
     e.manual = !!r.man;
   });
@@ -3615,14 +3646,24 @@ function setSidePane(name){
 /* =====================================================================
    9 — Maus, Touch, Tastatur
    ===================================================================== */
-let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null;
+let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null;
 
 svg.addEventListener('pointerdown', ev=>{
   // Sicherheitsnetz: ein nicht beendetes Ziehen (verlorenes pointerup) würde
   // sonst alle folgenden Bewegungen abfangen.
-  bendDrag = segDrag = portDrag = null;
+  bendDrag = segDrag = portDrag = loopDrag = null;
   if(drag && !drag.moved) drag = null;
   const t = ev.target;
+
+  // Selbstbezug-Schleife am Scheitel verschieben (vor dem Anschlusspunkt prüfen)
+  if(t.dataset && t.dataset.loop){
+    const e = S.graph.edges.find(x => x.id === S.selEdge);
+    const n = e && S.graph.byId.get(e.from);
+    if(!e || !n) return;
+    svg.setPointerCapture(ev.pointerId);
+    loopDrag = {e, n};
+    ev.preventDefault(); return;
+  }
 
   // Stützpunkt greifen oder entfernen
   if(t.classList && t.classList.contains('hnd')){
@@ -3768,6 +3809,16 @@ svg.addEventListener('pointerdown', ev=>{
 });
 
 svg.addEventListener('pointermove', ev=>{
+  if(loopDrag){
+    const r = svg.getBoundingClientRect();
+    const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
+    const wy = (ev.clientY - r.top  - S.t.y)/S.t.k;
+    const n = loopDrag.n;
+    loopDrag.e.loop = {dx: Math.round(wx - (n.x + n.w/2)), dy: Math.round(wy - (n.y + n.h/2))};
+    loopDrag.e.manual = true;
+    drawEdges();
+    return;
+  }
   if(portDrag){
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
@@ -3841,6 +3892,7 @@ svg.addEventListener('pointermove', ev=>{
 });
 
 function endPointer(ev){
+  if(loopDrag){ loopDrag = null; persist(); }
   if(portDrag){
     // Ortho-Kante ohne Knick, die jetzt schräg läuft, in echte Ecken überführen —
     // damit Segment- und Stützpunktgriffe erscheinen und sie bearbeitbar bleibt.
