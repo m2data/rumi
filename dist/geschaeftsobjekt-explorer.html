@@ -1647,26 +1647,31 @@ function edgeEnd(node, port, toward){
    zur Knotenmitte, damit die Schleife beim Verschieben des Knotens mitwandert);
    ohne e.loop steht sie oben rechts außen. Die zwei Anschlusspunkte ergeben sich
    aus der Richtung zum Scheitel. */
+const SIDE_OUT = {T:{x:0, y:-1}, B:{x:0, y:1}, L:{x:-1, y:0}, R:{x:1, y:0}};
+const isManyCard = c => !!c && /many/.test(c);
+
 function loopGeom(A, e){
   const O = {x:A.x + A.w/2, y:A.y + A.h/2};
-  const off = e.loop || {dx:A.w/2 + 34, dy:-(A.h/2 + 26)};
+  const off = e.loop || {dx:A.w/2 + 42, dy:-(A.h/2 + 42)};
   const apex = {x:O.x + off.dx, y:O.y + off.dy};
-  let ux = apex.x - O.x, uy = apex.y - O.y;
-  const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
-  const nx = -uy, ny = ux;
-  const gap = Math.max(14, Math.min(A.w, A.h) * 0.22);
-  // Anschlusspunkte: gesetzte Ports zählen, sonst aus der Scheitel-Richtung abgeleitet
-  const p1def = clipToBox(A, {x:O.x + ux*1e4 + nx*gap, y:O.y + uy*1e4 + ny*gap});
-  const p2def = clipToBox(A, {x:O.x + ux*1e4 - nx*gap, y:O.y + uy*1e4 - ny*gap});
-  const p1 = e.portFrom ? portPoint(A, e.portFrom) : p1def;
-  const p2 = e.portTo   ? portPoint(A, e.portTo)   : p2def;
-  const k = 34;
-  const c1 = {x:apex.x + nx*k, y:apex.y + ny*k};
-  const c2 = {x:apex.x - nx*k, y:apex.y - ny*k};
+  // Standard: die "eins"-Seite geht rechts hinaus, die "viele"-Seite oben hinein.
+  let s1 = 'R', t1 = 0.35, s2 = 'T', t2 = 0.62;
+  if(isManyCard(e.fromCard) && !isManyCard(e.toCard)){ s1 = 'T'; t1 = 0.62; s2 = 'R'; t2 = 0.35; }
+  const side1 = e.portFrom ? e.portFrom.side : s1;
+  const side2 = e.portTo   ? e.portTo.side   : s2;
+  const p1 = e.portFrom ? portPoint(A, e.portFrom) : portPoint(A, {side:s1, t:t1});
+  const p2 = e.portTo   ? portPoint(A, e.portTo)   : portPoint(A, {side:s2, t:t2});
+  // Die Kurve verlässt jeden Anschlusspunkt senkrecht zur Kastenseite (saubere
+  // Marken); Steglänge wächst mit dem Abstand zum Scheitel (Größe der Schleife).
+  const d1 = SIDE_OUT[side1] || SIDE_OUT.R, d2 = SIDE_OUT[side2] || SIDE_OUT.T;
+  const r1 = Math.max(46, Math.hypot(apex.x - p1.x, apex.y - p1.y) * 0.7);
+  const r2 = Math.max(46, Math.hypot(apex.x - p2.x, apex.y - p2.y) * 0.7);
+  const c1 = {x:p1.x + d1.x*r1, y:p1.y + d1.y*r1};
+  const c2 = {x:p2.x + d2.x*r2, y:p2.y + d2.y*r2};
   return {
     p1, p2, apex, c1, c2,
-    a1: Math.atan2(c1.y - p1.y, c1.x - p1.x),
-    a2: Math.atan2(c2.y - p2.y, c2.x - p2.x),
+    a1: Math.atan2(d1.y, d1.x),
+    a2: Math.atan2(d2.y, d2.x),
     mid: {x:(p1.x + 3*c1.x + 3*c2.x + p2.x)/8, y:(p1.y + 3*c1.y + 3*c2.y + p2.y)/8}
   };
 }

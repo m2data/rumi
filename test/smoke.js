@@ -418,6 +418,16 @@ console.log('== Selbstbezug verschiebbar ==');
   t('Selbstbezug-Kante vorhanden', !!e, e ? e.from : 'keine');
   if(e){
     S.selEdge = e.id; api.draw();
+    // Standardausrichtung: "eins"-Seite (exactly_one) rechts, "viele"-Seite oben
+    {
+      const A0 = S.graph.byId.get(e.from);
+      const ps = [...document.getElementById('handles').querySelectorAll('.pt[data-port]')];
+      const fH = ps.find(c => c.dataset.port === 'from'), tH = ps.find(c => c.dataset.port === 'to');
+      t('Standard: eins-Seite rechts hinaus, viele-Seite oben hinein',
+        fH && tH && Math.abs(+fH.getAttribute('cx') - (A0.x + A0.w)) < 2
+        && Math.abs(+tH.getAttribute('cy') - A0.y) < 2,
+        fH ? `from.cx=${fH.getAttribute('cx')} (rechts=${A0.x + A0.w}), to.cy=${tH.getAttribute('cy')} (oben=${A0.y})` : 'keine Ports');
+    }
     const h = document.getElementById('handles').querySelector('.pt[data-loop]');
     t('Scheitel-Griff erscheint', !!h);
     if(h){
