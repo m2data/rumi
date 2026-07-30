@@ -428,6 +428,19 @@ console.log('== Selbstbezug verschiebbar ==');
       t('Schleife lässt sich verschieben',
         !!e.loop && JSON.stringify(e.loop) !== vor, JSON.stringify(e.loop));
     }
+    // zwei Anschlusspunkte am Selbstbezug, einzeln verschiebbar
+    const H = document.getElementById('handles');
+    const ports = [...H.querySelectorAll('.pt[data-port]')];
+    t('zwei Anschlusspunkt-Griffe am Selbstbezug', ports.length === 2, ports.length + '');
+    const pf = ports.find(c => c.dataset.port === 'from');
+    if(pf){
+      const vorP = JSON.stringify(e.portFrom || null);
+      dispatch(pf, 'pointerdown', {clientX:120, clientY:120});
+      dispatch(svg, 'pointermove', {clientX:60, clientY:420});
+      dispatch(svg, 'pointerup', {});
+      t('Anschlusspunkt am Selbstbezug verschiebbar',
+        !!e.portFrom && JSON.stringify(e.portFrom) !== vorP, JSON.stringify(e.portFrom));
+    }
   }
 }
 

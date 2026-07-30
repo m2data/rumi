@@ -519,8 +519,15 @@ svg.addEventListener('pointerdown', ev=>{
     const n = S.graph.byId.get(which === 'portFrom' ? e.from : e.to);
     if(!n) return;
     if(!e[which]){
-      const o = S.graph.byId.get(which === 'portFrom' ? e.to : e.from);
-      e[which] = nearestPort(n, o.x + o.w/2, o.y + o.h/2);
+      if(e.from === e.to){
+        // Selbstbezug: aus der aktuellen Schleifengeometrie übernehmen, damit
+        // der Anschlusspunkt beim Anfassen nicht wegspringt.
+        const g = loopGeom(n, e), p = which === 'portFrom' ? g.p1 : g.p2;
+        e[which] = nearestPort(n, p.x, p.y);
+      } else {
+        const o = S.graph.byId.get(which === 'portFrom' ? e.to : e.from);
+        e[which] = nearestPort(n, o.x + o.w/2, o.y + o.h/2);
+      }
     }
     svg.setPointerCapture(ev.pointerId);
     portDrag = {e, which, n};

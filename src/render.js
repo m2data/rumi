@@ -87,8 +87,11 @@ function loopGeom(A, e){
   const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
   const nx = -uy, ny = ux;
   const gap = Math.max(14, Math.min(A.w, A.h) * 0.22);
-  const p1 = clipToBox(A, {x:O.x + ux*1e4 + nx*gap, y:O.y + uy*1e4 + ny*gap});
-  const p2 = clipToBox(A, {x:O.x + ux*1e4 - nx*gap, y:O.y + uy*1e4 - ny*gap});
+  // Anschlusspunkte: gesetzte Ports zählen, sonst aus der Scheitel-Richtung abgeleitet
+  const p1def = clipToBox(A, {x:O.x + ux*1e4 + nx*gap, y:O.y + uy*1e4 + ny*gap});
+  const p2def = clipToBox(A, {x:O.x + ux*1e4 - nx*gap, y:O.y + uy*1e4 - ny*gap});
+  const p1 = e.portFrom ? portPoint(A, e.portFrom) : p1def;
+  const p2 = e.portTo   ? portPoint(A, e.portTo)   : p2def;
   const k = 34;
   const c1 = {x:apex.x + nx*k, y:apex.y + ny*k};
   const c2 = {x:apex.x - nx*k, y:apex.y - ny*k};

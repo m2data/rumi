@@ -73,10 +73,12 @@ function drawHandles(){
   const e = S.selEdge && S.graph.edges.find(x => x.id === S.selEdge);
   const A = e && S.graph.byId.get(e.from), B = e && S.graph.byId.get(e.to);
   if(!e || !A || !B || A.hidden || B.hidden){ gHandles.innerHTML = extra; return; }
-  if(A === B){                                       // Selbstbezug: ein Griff am Scheitel
+  if(A === B){                                       // Selbstbezug: Scheitel + zwei Anschlusspunkte
     const g = loopGeom(A, e);
     gHandles.innerHTML = extra +
-      `<circle class="pt lp" cx="${g.apex.x.toFixed(1)}" cy="${g.apex.y.toFixed(1)}" r="6" data-loop="1"><title>Selbstbezug verschieben</title></circle>`;
+      `<circle class="pt lp" cx="${g.apex.x.toFixed(1)}" cy="${g.apex.y.toFixed(1)}" r="6" data-loop="1"><title>Schleife verschieben</title></circle>` +
+      `<circle class="pt" cx="${g.p1.x.toFixed(1)}" cy="${g.p1.y.toFixed(1)}" r="5.5" data-port="from"><title>Anschlusspunkt an ${esc(A.name)} verschieben</title></circle>` +
+      `<circle class="pt" cx="${g.p2.x.toFixed(1)}" cy="${g.p2.y.toFixed(1)}" r="5.5" data-port="to"><title>Anschlusspunkt an ${esc(A.name)} verschieben</title></circle>`;
     return;
   }
   const pts = routePoints(e, A, B);
