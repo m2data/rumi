@@ -1,0 +1,23 @@
+#!/bin/sh
+# Zusammenbau + alle Tests vor jedem Commit: haelt Kaputtes aus dem Verzeichnis.
+# (UMZUG.md: "Als pre-commit-Hook eingetragen, kommt nichts Kaputtes ins Verzeichnis.")
+#
+# Aktivieren (einmalig pro Klon):  git config core.hooksPath hooks
+#
+# Zusaetzlich ein nicht blockierender Hinweis, wenn Code (src/) ohne einen Test
+# (test/) geaendert wird -- als Erinnerung an die Definition of Done in TESTS.md.
+# Nicht blockierend, weil reines Refactoring legitim ohne neuen Test auskommt.
+
+changed=$(git diff --cached --name-only)
+if echo "$changed" | grep -q '^src/' && ! echo "$changed" | grep -q '^test/'; then
+  echo "" >&2
+  echo "pre-commit HINWEIS: src/ geaendert, aber keine Datei in test/." >&2
+  echo "  Jeder Fehler braucht einen Test, der auf dem alten Stand fehlschlaegt;" >&2
+  echo "  jedes Feature einen Bedienweg-Test. Reines Refactoring darf ohne neuen Test." >&2
+  echo "" >&2
+fi
+
+node build.js && node test/smoke.js && node test/model.test.js && node test/layout.test.js && node test/outline.test.js || {
+  echo "pre-commit: Zusammenbau oder Test fehlgeschlagen, Commit abgebrochen." >&2
+  exit 1
+}

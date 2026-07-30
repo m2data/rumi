@@ -54,5 +54,27 @@ trotzdem unbenutzbar. Genau diese Lücke schließt der Rauchtest.
 
     node build.js && node test/smoke.js && node test/model.test.js && node test/layout.test.js && node test/outline.test.js && echo "ok"
 
-Bei neuen Funktionen gehört eine Prüfung dazu, die den **Bedienweg** abbildet,
-nicht nur das Ergebnis der Berechnung.
+## Definition of Done
+
+Jede Änderung gilt erst als fertig, wenn sie einen Test hat:
+
+- **Fehlerbehebung:** ein Test, der auf dem *alten* Stand **fehlschlägt** und mit
+  dem Fix besteht. Nur so ist bewiesen, dass der Test den Fehler wirklich
+  abdeckt (Beispiel: Selbstbezug verschiebbar — der Test scheitert, solange die
+  Schleife keinen Griff bekommt).
+- **Feature:** ein Test, der den **Bedienweg** abbildet (klicken, ziehen,
+  umschalten), nicht nur das Rechenergebnis.
+- **Reines Refactoring** darf ohne neuen Test auskommen, wenn die
+  Verhaltensgleichheit anders belegt ist (z. B. byte-/zeichengleiche Ausgabe).
+
+## Absicherung im Hook
+
+Der Pre-Commit-Hook liegt versioniert unter `hooks/` und wird pro Klon einmalig
+aktiviert:
+
+    git config core.hooksPath hooks
+
+Er baut zusammen, lässt alle Tests laufen (bricht bei rot ab) und **weist darauf
+hin**, wenn `src/` ohne `test/` geändert wurde — als Erinnerung an die Definition
+of Done. Der Hinweis blockiert nicht (Refactorings sind erlaubt), macht das
+Weglassen eines Tests aber sichtbar.
