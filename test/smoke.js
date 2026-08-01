@@ -331,6 +331,18 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
       (document.querySelector('.hd-title') || {}).textContent === 'Lieferung'
       && (document.querySelector('.hd-text') || {}).textContent.length > 0);
 
+    // Inhalt einblenden darf den Ausschnitt nicht auf alle Objekte aufblähen
+    {
+      const cbtn = document.getElementById('contentList').querySelectorAll('[data-content]')[0];
+      t('Inhalt-Schaltfläche vorhanden', !!cbtn);
+      if(cbtn){
+        cbtn.onclick();
+        t('Inhalt umschalten behält den Diagramm-Ausschnitt',
+          S.graph.nodes.filter(n => !n.hidden).length === 5,
+          S.graph.nodes.filter(n => !n.hidden).length + ' sichtbar');
+      }
+    }
+
     // Editierbar wie die Komplettansicht: Knoten ziehen, je Diagramm gemerkt
     const g = document.getElementById('nodes').querySelectorAll('.node')[0];
     const node = S.graph.byId.get(g.dataset.id);

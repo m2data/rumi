@@ -434,33 +434,49 @@ function alignSelection(mode){
 
 $('alignBar').querySelectorAll('button').forEach(b=> b.onclick = ()=> alignSelection(b.dataset.al));
 
+/* Welche Ansicht steuert den Kasteninhalt: in der Hierarchie stets Ansicht 1
+   (showDiagram baut den Ausschnitt wie Ansicht 1), sonst die aktuelle Ansicht. */
+function contentView(){ return S.mode === 'hierarchie' ? 1 : S.view; }
+
 function renderContentMenu(){
-  const C = contentOf(S.view);
-  $('contentHead').textContent = 'IM KASTEN ZEIGEN — ANSICHT ' + S.view;
+  const view = contentView();
+  const C = contentOf(view);
+  $('contentHead').textContent = S.mode === 'hierarchie' ? 'IM KASTEN ZEIGEN' : ('IM KASTEN ZEIGEN — ANSICHT ' + view);
   let html = '';
   CONTENT_FIELDS.forEach(f=>{
-    const locked = f.k === 'sources' && S.view === 3;
+    const locked = f.k === 'sources' && view === 3;
     const off = (f.sub && !C[f.sub]) || locked;
     html += `<button class="opt${f.sub ? ' indent' : ''}${off ? ' off' : ''}" data-content="${f.k}"
       role="menuitemcheckbox" aria-checked="${!locked && !!C[f.k]}">${esc(f.label)}<span class="tick">✓</span></button>`;
   });
-  if(S.view === 3) html += `<div class="note">Quellen stehen in dieser Ansicht als eigene Knoten.</div>`;
+  if(view === 3) html += `<div class="note">Quellen stehen in dieser Ansicht als eigene Knoten.</div>`;
   $('contentList').innerHTML = html;
   $('contentList').querySelectorAll('[data-content]').forEach(b=> b.onclick = ()=>{
     if(b.classList.contains('off')) return;
     const k = b.dataset.content;
-    const cur = contentOf(S.view);
-    S.content[S.view] = Object.assign({}, cur, {[k]: !cur[k]});
+    const cur = contentOf(view);
+    S.content[view] = Object.assign({}, cur, {[k]: !cur[k]});
     applyContent();
   });
 }
 
 /* Inhalt geändert: Kästen neu vermessen, Lagen der Knoten behalten */
 function applyContent(){
-  const keep = {};
-  S.graph.nodes.forEach(n=>{ keep[n.id] = {x:n.x, y:n.y}; });
-  S.saved[S.view] = Object.assign({}, S.saved[S.view], keep);
-  setView(S.view, {autoFit:false});
+  if(S.mode === 'hierarchie'){
+    // Ausschnitt behalten: nur die Lagen der sichtbaren Knoten sichern und das
+    // Diagramm neu aufbauen (showDiagram misst die Kästen neu). NICHT setView,
+    // das wuerde alle Geschäftsobjekte einblenden.
+    const keep = {};
+    visNodes().forEach(n=>{ keep[n.id] = {x:n.x, y:n.y}; });
+    if(S.hierSel) S.hierSaved[S.hierSel] = Object.assign({}, S.hierSaved[S.hierSel], keep);
+    const node = S.hierSel && S.outline ? outlineFind(S.outline.roots, S.hierSel) : null;
+    if(node) showDiagram(node);
+  } else {
+    const keep = {};
+    S.graph.nodes.forEach(n=>{ keep[n.id] = {x:n.x, y:n.y}; });
+    S.saved[S.view] = Object.assign({}, S.saved[S.view], keep);
+    setView(S.view, {autoFit:false});
+  }
   renderContentMenu();
   toast('Inhalt geändert — bei Bedarf neu anordnen');
 }
