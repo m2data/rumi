@@ -459,7 +459,16 @@ console.log('== Verknüpfte Objekte ins Diagramm holen ==');
   const bt = probe('BT');
   t('BT: Seiten gedreht (zu 1 unten, zu n oben)', bt.regel && bt.oben > 0 && bt.unten > 0,
     `oben ${bt.oben}, unten ${bt.unten}`);
+
+  // Objekt selbst wird mitgeholt, wenn es noch nicht im Diagramm ist
+  S.hierShown['Übersicht'] = [];
   S.layout.dir = 'TB';
+  api.selectDiagram('Übersicht');
+  t('Diagramm zunächst leer', S.graph.nodes.filter(n => !n.hidden).length === 0);
+  api.addRelated('o:Bestellung');
+  t('Objekt selbst wird mitgeholt', S.graph.byId.get('o:Bestellung').hidden === false);
+  t('und die verknüpften Objekte dazu', S.graph.nodes.filter(n => !n.hidden).length > 1);
+
   api.setMode('komplett');
 }
 

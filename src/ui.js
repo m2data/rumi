@@ -236,12 +236,23 @@ function addRelated(id){
     neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
   });
   const neu = [...neigh.values()].filter(v => v.node.hidden);
-  if(!neu.length){ toast(neigh.size ? 'Alle Verknüpften sind bereits im Diagramm' : 'Keine verknüpften Objekte'); return; }
+  const selbst = A.hidden;                                   // Objekt selbst noch nicht im Diagramm?
+  if(!neu.length && !selbst){ toast(neigh.size ? 'Alle Verknüpften sind bereits im Diagramm' : 'Keine verknüpften Objekte'); return; }
 
   const dir = (ALGOS[S.layout.algo] || ALGOS.hier).dir ? S.layout.dir : 'TB';
   const vertical = dir === 'TB' || dir === 'BT';
   const oneSign = (dir === 'TB' || dir === 'LR') ? -1 : 1;   // Anfang der Flussrichtung
   const GAP = 40, SEP = 24;
+
+  if(selbst){                                                // Objekt selbst einblenden und platzieren
+    A.hidden = false; markVisible(A.id, true);
+    const others = visNodes().filter(n => n !== A);
+    if(others.length){
+      const x0 = Math.min(...others.map(n=>n.x)), x1 = Math.max(...others.map(n=>n.x + n.w));
+      const y1 = Math.max(...others.map(n=>n.y + n.h));
+      A.x = Math.round((x0 + x1)/2 - A.w/2); A.y = Math.round(y1 + 120);
+    } else { A.x = 0; A.y = 0; }
+  }
 
   neu.forEach(v => { v.node.hidden = false; markVisible(v.node.id, true); });   // sichtbar + in der Menge merken
 
@@ -262,7 +273,8 @@ function addRelated(id){
 
   S.selEdge = null;
   draw(); renderObjectList(); renderDetails(); updateAlignBar(); persist();
-  toast(neu.length + (neu.length === 1 ? ' verknüpftes Objekt hinzugefügt' : ' verknüpfte Objekte hinzugefügt'));
+  const total = neu.length + (selbst ? 1 : 0);
+  toast(total + (total === 1 ? ' Objekt hinzugefügt' : ' Objekte hinzugefügt'));
 }
 
 function renderDetails(){
