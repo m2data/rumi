@@ -126,6 +126,53 @@ console.log('== 1:n-Richtung wird eingehalten ==');
     E.y + E.h <= K.y, `Eltern y=${E.y}, Kind y=${K.y}`);
 }
 
+console.log('== 1:1 steht nebeneinander ==');
+const beside = (A, B) =>                             // B rechts neben A, senkrecht überlappend
+  B.x >= A.x + A.w - 1 && B.y < A.y + A.h && B.y + B.h > A.y;
+{
+  // Haupt hat ein 1:n-Kind (bleibt unten) und ein 1:1-Detail (soll daneben).
+  const m = buildModel(`BusinessObjects:
+  Haupt:
+    relationships:
+    - to: Kind
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Detail
+      cardinality:
+        from: exactly_one
+        to: exactly_one
+  Kind:
+    Domain: x
+  Detail:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const H = g.byId.get('o:Haupt'), D = g.byId.get('o:Detail'), K = g.byId.get('o:Kind');
+  t('1:1-Detail steht neben dem Hauptobjekt', beside(H, D),
+    `Haupt(${H.x},${H.y},${H.w}), Detail(${D.x},${D.y})`);
+  t('1:n-Kind bleibt darunter', K.y >= H.y + H.h, `Haupt y=${H.y}, Kind y=${K.y}`);
+}
+{
+  // reines 1:1-Paar: die beiden nur miteinander verbunden -> nebeneinander
+  const m = buildModel(`BusinessObjects:
+  Aaa:
+    relationships:
+    - to: Bbb
+      cardinality:
+        from: exactly_one
+        to: exactly_one
+  Bbb:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const A = g.byId.get('o:Aaa'), B = g.byId.get('o:Bbb');
+  t('reines 1:1-Paar steht nebeneinander', beside(A, B) || beside(B, A),
+    `Aaa(${A.x},${A.y}), Bbb(${B.x},${B.y})`);
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

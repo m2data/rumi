@@ -1067,11 +1067,17 @@ function layered(nodes, edges, dir, ortho){
   });
   const nodeAll = new Map(nodes.map(n=>[n.id, n]));
   const sat = new Map(), isSat = new Set();
+  const isOne = c => c === 'exactly_one' || c === 'zero_or_one';
+  const oneToOne = e => isOne(e.fromCard) && isOne(e.toCard);   // beide ausdrücklich „eins"
   nodes.forEach(n=>{
-    if(n.kind !== 'source' || deg.get(n.id) !== 1) return;
+    if(deg.get(n.id) !== 1) return;
     const e = inc.get(n.id)[0];
     const pid = e.from === n.id ? e.to : e.from;
-    if(deg.get(pid) <= 1) return;                 // Paar aus zwei Sackgassen bleibt
+    const is11 = n.kind !== 'source' && oneToOne(e);
+    if(n.kind !== 'source' && !is11) return;                 // 1:n-Blatt bleibt in der Hierarchie (unten)
+    if(n.kind === 'source' && deg.get(pid) <= 1) return;     // Paar aus zwei Quell-Sackgassen bleibt
+    if(is11 && deg.get(pid) === 1 && n.id < pid) return;     // reines 1:1-Paar: der „kleinere" bleibt Anker
+    if(isSat.has(pid)) return;                               // nicht an einen Trabanten hängen
     if(!sat.has(pid)) sat.set(pid, []);
     sat.get(pid).push(n);
     isSat.add(n.id);
