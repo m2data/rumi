@@ -323,29 +323,50 @@ function layered(nodes, edges, dir, ortho){
       if(r[k].c > cap) r[k].c = cap;
     }
   };
-  for(let pass=0; pass<12; pass++){
+  /* Prioritäts-Ausrichtung (nach Sugiyama): jeder Knoten möchte auf den Median
+     seiner Nachbarn (in Bezugsrichtung). Knoten mit mehr Nachbarn und vor allem
+     Stützpunkte (halten lange Kanten gerade) haben Vorrang — sie dürfen ihre
+     schwächeren Nachbarn verschieben, aber nicht umgekehrt. Das zentriert den
+     Baum, ohne dass sich eine einseitige Drift aufschaukelt. */
+  const sep = (a,b) => cs(a)/2 + gap(a,b) + cs(b)/2;        // Mindestabstand Mitte–Mitte
+  const prio = it => it.dummy ? Infinity : ((up.get(it)||[]).length + (down.get(it)||[]).length);
+  const alignRow = (i, ref)=>{
+    const row = rows[i], n = row.length;
+    const want = row.map(it=>medianOf((ref.get(it)||[]).map(y=>y.c)));
+    const orderIdx = row.map((_,k)=>k).sort((a,b)=> prio(row[b])-prio(row[a]) || a-b);
+    for(const k of orderIdx){
+      const d = want[k];
+      if(d === null) continue;
+      if(d > row[k].c){                                    // nach rechts, bis zur nächsten „Wand"
+        let limit = Infinity, acc = 0;
+        for(let j=k+1;j<n;j++){
+          acc += sep(row[j-1], row[j]);
+          if(prio(row[j]) >= prio(row[k])){ limit = row[j].c - acc; break; }
+        }
+        row[k].c = Math.min(d, limit);
+        for(let j=k+1;j<n;j++){
+          const need = row[j-1].c + sep(row[j-1], row[j]);
+          if(row[j].c < need) row[j].c = need; else break;
+        }
+      } else if(d < row[k].c){                             // symmetrisch nach links
+        let limit = -Infinity, acc = 0;
+        for(let j=k-1;j>=0;j--){
+          acc += sep(row[j], row[j+1]);
+          if(prio(row[j]) >= prio(row[k])){ limit = row[j].c + acc; break; }
+        }
+        row[k].c = Math.max(d, limit);
+        for(let j=k-1;j>=0;j--){
+          const cap = row[j+1].c - sep(row[j], row[j+1]);
+          if(row[j].c > cap) row[j].c = cap; else break;
+        }
+      }
+    }
+  };
+  for(let pass=0; pass<14; pass++){
     const godown = pass % 2 === 0;
     for(let k=1;k<L;k++){
       const i = godown ? k : L-1-k;
-      const ref = godown ? up : down;
-      rows[i].forEach(it=>{
-        const m = medianOf((ref.get(it)||[]).map(y=>y.c));
-        if(m !== null) it.c = m;
-      });
-      tidy(rows[i]);
-    }
-  }
-  /* Ausgleich über beide Seiten: jeden Knoten auf den Median ALLER Nachbarn
-     (oben und unten) zentrieren. Die reinen „nur oben"/„nur unten"-Läufe lassen
-     sonst eine Schräglage stehen — der ganze untere Teil driftet zur Seite. */
-  for(let pass=0; pass<10; pass++){
-    for(let i=0;i<L;i++){
-      rows[i].forEach(it=>{
-        const nb = [...(up.get(it)||[]), ...(down.get(it)||[])].map(y=>y.c);
-        const m = medianOf(nb);
-        if(m !== null) it.c = m;
-      });
-      tidy(rows[i]);
+      alignRow(i, godown ? up : down);
     }
   }
 
