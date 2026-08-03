@@ -226,6 +226,67 @@ console.log('== Einzelnes to-many-Kind steht genau unter dem Elternteil ==');
     `links=${Math.round(cx('o:LinksKind'))}, rechts=${Math.round(cx('o:RechtsKind'))}`);
 }
 
+console.log('== Zusammenlaufender Baum bleibt zentriert (keine Seitendrift) ==');
+{
+  // Vier Eltern auf ein Kind, darunter eine Kette. Der untere Teil soll mittig
+  // unter der breiten Elternreihe bleiben und das Diagramm nicht verbreitern —
+  // früher rutschte er zur Seite (lange, schräge Kanten).
+  const m = buildModel(`BusinessObjects:
+  P1:
+    relationships:
+    - to: Hub
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  P2:
+    relationships:
+    - to: Hub
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  P3:
+    relationships:
+    - to: Hub
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  P4:
+    relationships:
+    - to: Hub
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Hub:
+    relationships:
+    - to: Tail1
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Tail1:
+    relationships:
+    - to: Tail2
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Tail2:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const cx = id => { const n = g.byId.get(id); return n.x + n.w/2; };
+  const ps = ['o:P1','o:P2','o:P3','o:P4'].map(cx).sort((a,b)=>a-b);
+  const W = Math.max(...g.nodes.map(n=>n.x+n.w)) - Math.min(...g.nodes.map(n=>n.x));
+  const topW = ps[3] - ps[0] + g.byId.get('o:P1').w;      // Breite der Elternreihe
+  t('untere Kette senkrecht ausgerichtet',
+    Math.abs(cx('o:Hub')-cx('o:Tail1'))<=1 && Math.abs(cx('o:Tail1')-cx('o:Tail2'))<=1,
+    [cx('o:Hub'),cx('o:Tail1'),cx('o:Tail2')].map(Math.round).join(' , '));
+  t('Kette bleibt in der Spanne der Elternreihe (keine Drift)',
+    cx('o:Hub') >= ps[0]-1 && cx('o:Hub') <= ps[3]+1,
+    `Hub=${Math.round(cx('o:Hub'))}, Eltern ${Math.round(ps[0])}..${Math.round(ps[3])}`);
+  t('Diagramm wird durch den unteren Teil nicht breiter',
+    W <= topW + 40, `Breite=${Math.round(W)}, Elternreihe=${Math.round(topW)}`);
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

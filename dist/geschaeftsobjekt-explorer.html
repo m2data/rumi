@@ -1311,6 +1311,19 @@ function layered(nodes, edges, dir, ortho){
       tidy(rows[i]);
     }
   }
+  /* Ausgleich über beide Seiten: jeden Knoten auf den Median ALLER Nachbarn
+     (oben und unten) zentrieren. Die reinen „nur oben"/„nur unten"-Läufe lassen
+     sonst eine Schräglage stehen — der ganze untere Teil driftet zur Seite. */
+  for(let pass=0; pass<10; pass++){
+    for(let i=0;i<L;i++){
+      rows[i].forEach(it=>{
+        const nb = [...(up.get(it)||[]), ...(down.get(it)||[])].map(y=>y.c);
+        const m = medianOf(nb);
+        if(m !== null) it.c = m;
+      });
+      tidy(rows[i]);
+    }
+  }
 
   /* 5b — Einzelnes „to many"-Kind genau unter sein Elternteil rücken.
           Hat ein Objekt nur diese eine Kante nach unten (genau eine 1:n-Beziehung)
