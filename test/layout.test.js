@@ -105,6 +105,27 @@ const chain = buildModel(`BusinessObjects:
   t('Modell: hierarchisch kreuzt nicht mehr als kreisförmig', ch <= cc, `hier ${ch}, circ ${cc}`);
 }
 
+console.log('== 1:n-Richtung wird eingehalten ==');
+{
+  // Beziehung „verkehrt herum" notiert: from=Kind ist die n-Seite (viele),
+  // to=Eltern die 1-Seite. Trotzdem muss Eltern (1) oben stehen (TB).
+  const m = buildModel(`BusinessObjects:
+  Kind:
+    relationships:
+    - to: Eltern
+      cardinality:
+        from: zero_or_many
+        to: exactly_one
+  Eltern:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const E = g.byId.get('o:Eltern'), K = g.byId.get('o:Kind');
+  t('1-Seite oben, n-Seite unten (TB) trotz verkehrter Notation',
+    E.y + E.h <= K.y, `Eltern y=${E.y}, Kind y=${K.y}`);
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

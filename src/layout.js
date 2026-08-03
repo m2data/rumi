@@ -148,7 +148,19 @@ function layered(nodes, edges, dir, ortho){
     }
   }
 
-  const {idx, out} = adjacency(nodes, edges);
+  /* Rangfolge nach der 1:n-Richtung: die „viele"-Seite ist das Kind (tiefere
+     Ebene), die „1"-Seite der Elternteil. Nur wenn die Kardinalität nichts
+     hergibt, zählt die notierte Kantenrichtung from->to. */
+  const idx = new Map(nodes.map((n,i)=>[n.id, i]));
+  const out = nodes.map(()=>[]);
+  edges.forEach(e=>{
+    const a = idx.get(e.from), b = idx.get(e.to);
+    if(a === undefined || b === undefined || a === b) return;
+    const fromMany = isManyCard(e.fromCard), toMany = isManyCard(e.toCard);
+    let parent = a, child = b;                       // Standard: from -> to
+    if(fromMany && !toMany){ parent = b; child = a; } // from ist die n-Seite -> umkehren
+    out[parent].push(child);
+  });
 
   /* 1 — Zyklen brechen (Rückwärtskanten der Tiefensuche verwerfen) */
   const color = new Array(N).fill(0), fwd = nodes.map(()=>[]);
