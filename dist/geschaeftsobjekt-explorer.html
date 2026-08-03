@@ -1031,8 +1031,8 @@ function runByComponent(nodes, edges, dir, fn){
   });
 
   boxes.sort((a,b)=> b.w*b.h - a.w*a.h);
-  const gap = 70;
-  const target = Math.sqrt(boxes.reduce((s,b)=> s + (b.w+gap)*(b.h+gap), 0) * 1.7);
+  const gap = 34;
+  const target = Math.sqrt(boxes.reduce((s,b)=> s + (b.w+gap)*(b.h+gap), 0) * 1.5);
   let x = 0, y = 0, rowH = 0;
   boxes.forEach(b=>{
     if(x > 0 && x + b.w > target){ x = 0; y += rowH + gap; rowH = 0; }
@@ -1050,7 +1050,7 @@ function layered(nodes, edges, dir, ortho){
   const vertical = dir === 'TB' || dir === 'BT';
   const flip = dir === 'BT' || dir === 'RL';
   const SIB = vertical ? 40 : 26;
-  const LAY = vertical ? 96 : 116;
+  const LAY = vertical ? 84 : 100;
   const SAT_GAP = 24, SAT_SEP = 14;
   const allNodes = nodes;
   if(!nodes.length) return;
@@ -1235,6 +1235,32 @@ function layered(nodes, edges, dir, ortho){
   }
   for(let i=0;i<L;i++) rows[i] = best[i];
 
+  /* 4b — Transponieren: benachbarte Knoten einer Ebene tauschen, solange es die
+          lokalen Kreuzungen senkt. Räumt Kreuzungen weg, die die Median-Ordnung
+          stehen lässt. */
+  const pairCross = (i, x, y)=>{                       // Kreuzungen, wenn x links von y
+    let c = 0;
+    for(const [rel, adj] of [[up, rows[i-1]], [down, rows[i+1]]]){
+      if(!adj) continue;
+      const pos = new Map(adj.map((n,k)=>[n,k]));
+      const px = (rel.get(x)||[]).map(n=>pos.get(n)).filter(v=>v!==undefined);
+      const py = (rel.get(y)||[]).map(n=>pos.get(n)).filter(v=>v!==undefined);
+      for(const a of px) for(const b of py) if(a > b) c++;
+    }
+    return c;
+  };
+  for(let pass=0, moved=true; moved && pass<8; pass++){
+    moved = false;
+    for(let i=0;i<L;i++){
+      const row = rows[i];
+      for(let j=0;j<row.length-1;j++){
+        if(pairCross(i, row[j], row[j+1]) > pairCross(i, row[j+1], row[j])){
+          const t = row[j]; row[j] = row[j+1]; row[j+1] = t; moved = true;
+        }
+      }
+    }
+  }
+
   /* 5 — Querkoordinaten: dicht packen, dann per Median geraderücken */
   rows.forEach(r=>{
     let c = 0;
@@ -1345,7 +1371,7 @@ function layered(nodes, edges, dir, ortho){
   for(const list of ports.values()){
     if(list.length < 2) continue;
     list.sort((p,q)=> crossOf(p) - crossOf(q));
-    const spread = 0.62 / (list.length - 1);
+    const spread = 0.36 / (list.length - 1);
     list.forEach((ref,i)=>{
       ref.e[ref.which].t = 0.5 + (i - (list.length-1)/2) * spread;
     });
