@@ -121,5 +121,18 @@ CC BY 4.0 zur Verfügung.
 ## Entwicklung
 
 Die App wird aus `src/` mit `node build.js` zu
-`dist/geschaeftsobjekt-explorer.html` zusammengebaut. Zu Tests und Absicherung
-siehe [TESTS.md](TESTS.md), zur Projektstruktur [UMZUG.md](UMZUG.md).
+`dist/geschaeftsobjekt-explorer.html` zusammengebaut — kein Bündler, keine
+Abhängigkeiten. Zu Tests und Absicherung siehe [TESTS.md](TESTS.md).
+
+Projektstruktur:
+
+    src/        Quellen: index.html (Gerüst), style.css/svg.css und die
+                JS-Module (yaml, model, layout, render, app, route, edit,
+                hierarchie, ui)
+    build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
+    dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
+    models/     Beispiel-YAML (Geschäftsobjekte + Hierarchie)
+    test/       Rauch-/Modell-/Layout-/Outline-Tests (nur Node, ohne Abhängigkeiten)
+    hooks/      pre-commit (baut, testet, warnt bei Code ohne Test);
+                aktiv über: git config core.hooksPath hooks
+    fonts-einbetten.js   Schriften optional lokal einbetten
