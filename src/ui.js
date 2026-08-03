@@ -989,14 +989,6 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'html') exportHTML();
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG();
-  if(a === 'reset'){
-    if(S.mode === 'hierarchie'){
-      if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }
-    } else {
-      S.saved[S.view] = {}; setView(S.view);
-    }
-    toast('Anordnung verworfen');
-  }
 });
 
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};

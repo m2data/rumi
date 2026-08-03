@@ -449,8 +449,6 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
         <button data-act="html">Stand als HTML sichern</button>
         <button data-act="svg">Diagramm als SVG</button>
         <button data-act="png">Diagramm als PNG</button>
-        <hr>
-        <button data-act="reset">Anordnung verwerfen</button>
       </div>
     </div>
   </div>
@@ -4181,14 +4179,6 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'html') exportHTML();
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG();
-  if(a === 'reset'){
-    if(S.mode === 'hierarchie'){
-      if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }
-    } else {
-      S.saved[S.view] = {}; setView(S.view);
-    }
-    toast('Anordnung verworfen');
-  }
 });
 
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
