@@ -336,6 +336,29 @@ function layered(nodes, edges, dir, ortho){
     }
   }
 
+  /* 5b — Einzelnes „to many"-Kind genau unter sein Elternteil rücken.
+          Hat ein Objekt nur diese eine Kante nach unten (genau eine 1:n-Beziehung)
+          und hängt das Kind nur an diesem einen Elternteil, stehen beide in einer
+          senkrechten Linie. tidy() rückt sie danach nur auseinander, wenn die Reihe
+          es sonst überfüllt — „solange nichts dagegen spricht". */
+  // Trabanten hängen bei senkrechtem Fluss rechts am Elternteil, das dabei
+  // linksbündig bleibt — die reale Mitte des Elternteils liegt dann links von c.
+  const parentC = p=>{
+    const s = shrunk.get(p.n.id);
+    return (vertical && s) ? p.c - (cs(p)/2 - s.w/2) : p.c;
+  };
+  for(let pass=0; pass<6; pass++)
+    for(let i=1;i<L;i++)
+      rows[i].forEach(k=>{
+        if(k.dummy) return;
+        const ups = up.get(k) || [];
+        if(ups.length !== 1 || ups[0].dummy) return;     // genau ein echtes Elternteil
+        const p = ups[0];
+        if((down.get(p) || []).length !== 1) return;      // Elternteil hat nur dieses eine Kind
+        k.c = parentC(p);
+        tidy(rows[i]);
+      });
+
   /* 6 — Längsachse und Rückschreiben */
   const order = [];
   for(let i=0;i<L;i++) order.push(i);

@@ -173,6 +173,59 @@ const beside = (A, B) =>                             // B rechts neben A, senkre
     `Aaa(${A.x},${A.y}), Bbb(${B.x},${B.y})`);
 }
 
+console.log('== Einzelnes to-many-Kind steht genau unter dem Elternteil ==');
+{
+  // Kette, jedes Objekt hat genau ein 1:n-Kind -> alle senkrecht in einer Linie.
+  const m = buildModel(`BusinessObjects:
+  Kopf:
+    relationships:
+    - to: Rumpf
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Rumpf:
+    relationships:
+    - to: Fuss
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Fuss:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const cx = id => { const n = g.byId.get(id); return n.x + n.w/2; };
+  t('Kette 1:n: Kind genau unter Elternteil (senkrecht ausgerichtet)',
+    Math.abs(cx('o:Kopf') - cx('o:Rumpf')) <= 1 && Math.abs(cx('o:Rumpf') - cx('o:Fuss')) <= 1,
+    [cx('o:Kopf'), cx('o:Rumpf'), cx('o:Fuss')].map(v=>Math.round(v)).join(' , '));
+}
+{
+  // Zwei to-many-Kinder: das Elternteil steht mittig, die Kinder daneben verteilt
+  // (nicht beide senkrecht unter dem Elternteil).
+  const m = buildModel(`BusinessObjects:
+  Haupt:
+    relationships:
+    - to: LinksKind
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: RechtsKind
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  LinksKind:
+    Domain: x
+  RechtsKind:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+  const cx = id => { const n = g.byId.get(id); return n.x + n.w/2; };
+  t('Zwei Kinder werden verteilt (nicht beide unter dem Elternteil)',
+    Math.abs(cx('o:LinksKind') - cx('o:RechtsKind')) > 1,
+    `links=${Math.round(cx('o:LinksKind'))}, rechts=${Math.round(cx('o:RechtsKind'))}`);
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);
