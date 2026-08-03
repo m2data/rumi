@@ -240,7 +240,7 @@ console.log('== Klick markiert und behält die Auswahl ==');
   t('dritter Klick markiert wieder', S.sel.has(id) && S.sel.size === 1);
 }
 
-console.log('== Auswahl anordnen bewegt nur die Auswahl ==');
+console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert ist ==');
 {
   api.setView(1);
   const ids = ['o:LieferDienst', 'o:Lieferung', 'o:Position'].filter(id => S.graph.byId.get(id));
@@ -249,7 +249,9 @@ console.log('== Auswahl anordnen bewegt nur die Auswahl ==');
   ids.forEach((id, i) => { const n = S.graph.byId.get(id); n.x = i * 4; n.y = i * 4; });
   const posBefore = new Map(S.graph.nodes.filter(n => !n.hidden).map(n => [n.id, n.x + ',' + n.y]));
   api.setSelection(ids);
-  api.arrangeSelection();
+  // wie in der App: ein Verfahren aus dem Menü wählen, während der Bereich markiert ist
+  [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
+    .find(b => b.dataset.algo === 'hier').onclick();
   let othersMoved = 0;
   posBefore.forEach((v, id) => { if(!sel.has(id) && (S.graph.byId.get(id).x + ',' + S.graph.byId.get(id).y) !== v) othersMoved++; });
   t('nicht markierte Objekte bleiben liegen', othersMoved === 0, othersMoved + ' bewegt');

@@ -16,9 +16,10 @@ läuft offline und lädt nichts nach.
   und hat einen Beschreibungstext (leichtes Markdown). Diagramme sind frei
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen.
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
-  Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben. Mit „Auswahl
-  anordnen" lässt sich auch nur ein markierter Teil neu ordnen — der übrige Plan
-  bleibt liegen.
+  Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben. Ist ein Bereich
+  markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
+  so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
+  Plan bleibt liegen.
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Laden/Speichern** der drei Dateien (siehe unten) und **Export** als

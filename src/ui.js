@@ -914,7 +914,6 @@ function syncLayoutMenu(){
     b.setAttribute('aria-checked', String(b.dataset.dir === S.layout.dir)));
   $('optLabels').setAttribute('aria-checked', String(S.layout.labels !== false));
   $('routeOne').disabled = !S.selEdge;
-  $('arrangeSel').disabled = [...S.sel].filter(id => isVisible(id)).length < 2;
   $('dirGrid').classList.toggle('off', noDir);
   $('dirHead').classList.toggle('off', noDir);
 }
@@ -957,8 +956,15 @@ function relayout(announce){
   if(announce) toast(a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name + ' angeordnet');
 }
 
+// Ist ein Bereich markiert (>=2 sichtbare Knoten), wirkt das Verfahren nur auf
+// ihn — so lässt sich für einen Teil ein anderes Auto-Layout wählen.
+const selArrange = ()=> [...S.sel].filter(id => isVisible(id)).length >= 2;
+function applyLayoutChoice(){
+  if(selArrange()){ arrangeSelection(); syncLayoutMenu(); }
+  else relayout(true);
+}
 $('layoutMenu').querySelectorAll('.opt[data-algo]').forEach(b => b.onclick = ()=>{
-  S.layout.algo = b.dataset.algo; relayout(true);
+  S.layout.algo = b.dataset.algo; applyLayoutChoice();
 });
 $('layoutMenu').querySelectorAll('[data-route]').forEach(b => b.onclick = ()=>{
   if(b.disabled) return;
@@ -975,11 +981,6 @@ $('layoutMenu').querySelectorAll('[data-route]').forEach(b => b.onclick = ()=>{
   }
   syncLayoutMenu();
 });
-$('arrangeSel').onclick = ()=>{
-  if($('arrangeSel').disabled) return;
-  arrangeSelection();
-  syncLayoutMenu();
-};
 
 $('optLabels').onclick = ()=>{
   S.layout.labels = S.layout.labels === false;
@@ -989,7 +990,7 @@ $('optLabels').onclick = ()=>{
 $('dirGrid').querySelectorAll('button').forEach(b => b.onclick = ()=>{
   S.layout.dir = b.dataset.dir;
   if(!(ALGOS[S.layout.algo] || ALGOS.hier).dir) S.layout.algo = 'hier';
-  relayout(true);
+  applyLayoutChoice();
 });
 
 $('search').addEventListener('input', e=>{ S.filter = e.target.value.trim().toLowerCase(); draw(); });
