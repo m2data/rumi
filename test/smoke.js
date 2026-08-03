@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -238,6 +238,29 @@ console.log('== Klick markiert und behält die Auswahl ==');
   dispatch(c, 'pointerdown', {clientX:0, clientY:0});
   dispatch(svg, 'pointerup', {clientX:0, clientY:0});
   t('dritter Klick markiert wieder', S.sel.has(id) && S.sel.size === 1);
+}
+
+console.log('== Auswahl anordnen bewegt nur die Auswahl ==');
+{
+  api.setView(1);
+  const ids = ['o:LieferDienst', 'o:Lieferung', 'o:Position'].filter(id => S.graph.byId.get(id));
+  const sel = new Set(ids);
+  // Auswahl absichtlich übereinanderlegen, damit das Anordnen sie trennen muss
+  ids.forEach((id, i) => { const n = S.graph.byId.get(id); n.x = i * 4; n.y = i * 4; });
+  const posBefore = new Map(S.graph.nodes.filter(n => !n.hidden).map(n => [n.id, n.x + ',' + n.y]));
+  api.setSelection(ids);
+  api.arrangeSelection();
+  let othersMoved = 0;
+  posBefore.forEach((v, id) => { if(!sel.has(id) && (S.graph.byId.get(id).x + ',' + S.graph.byId.get(id).y) !== v) othersMoved++; });
+  t('nicht markierte Objekte bleiben liegen', othersMoved === 0, othersMoved + ' bewegt');
+  const sn = ids.map(id => S.graph.byId.get(id));
+  let overlap = 0;
+  for(let i = 0; i < sn.length; i++) for(let j = i + 1; j < sn.length; j++){
+    const a = sn[i], b = sn[j];
+    if(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlap++;
+  }
+  t('die angeordnete Auswahl überlappt sich nicht mehr', overlap === 0, overlap + ' Überlappungen');
+  api.setSelection([]);
 }
 
 console.log('== Inhaltsauswahl ==');

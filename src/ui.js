@@ -425,7 +425,7 @@ function setSelection(ids){
   S.selEdge = null;
   S.sel = new Set(ids);
   S.selected = ids.length ? ids[ids.length-1] : null;
-  draw(); syncListSelection(); renderDetails(); updateAlignBar();
+  draw(); syncListSelection(); renderDetails(); updateAlignBar(); syncLayoutMenu();
 }
 
 function select(id, center, additive){
@@ -444,6 +444,7 @@ function select(id, center, additive){
   syncListSelection();
   renderDetails();
   updateAlignBar();
+  syncLayoutMenu();
   if(S.selected && center && !additive){
     setSidePane('details');
     const n = S.graph.byId.get(S.selected);
@@ -913,8 +914,37 @@ function syncLayoutMenu(){
     b.setAttribute('aria-checked', String(b.dataset.dir === S.layout.dir)));
   $('optLabels').setAttribute('aria-checked', String(S.layout.labels !== false));
   $('routeOne').disabled = !S.selEdge;
+  $('arrangeSel').disabled = [...S.sel].filter(id => isVisible(id)).length < 2;
   $('dirGrid').classList.toggle('off', noDir);
   $('dirHead').classList.toggle('off', noDir);
+}
+
+/* Nur die markierten Objekte mit dem gewählten Verfahren anordnen. Der übrige
+   Plan bleibt liegen: die Auswahl wird nach dem Anordnen an ihre alte Mitte
+   zurückgeschoben. Kanten mit einem Ende in der Auswahl werden neu gezogen. */
+function arrangeSelection(){
+  const sel = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
+  if(sel.length < 2){ toast('Mindestens zwei Objekte markieren'); return; }
+  const ids = new Set(sel.map(n => n.id));
+  const sub = S.graph.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  const bbox = list=>{
+    const x0 = Math.min(...list.map(n=>n.x)), y0 = Math.min(...list.map(n=>n.y));
+    const x1 = Math.max(...list.map(n=>n.x+n.w)), y1 = Math.max(...list.map(n=>n.y+n.h));
+    return {cx:(x0+x1)/2, cy:(y0+y1)/2};
+  };
+  const before = bbox(sel);
+  S.graph.edges.forEach(e=>{                    // Kanten an der Auswahl lösen
+    if(ids.has(e.from) || ids.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; e.manual = false; }
+  });
+  const algo = ALGOS[S.layout.algo] || ALGOS.hier;
+  runByComponent(sel, sub, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  const after = bbox(sel);
+  const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
+  sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte
+  sub.forEach(e=>{ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); });
+  S.selEdge = null; persist(); draw();
+  const a = ALGOS[S.layout.algo] || ALGOS.hier;
+  toast(sel.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');
 }
 
 function relayout(announce){
@@ -945,6 +975,11 @@ $('layoutMenu').querySelectorAll('[data-route]').forEach(b => b.onclick = ()=>{
   }
   syncLayoutMenu();
 });
+$('arrangeSel').onclick = ()=>{
+  if($('arrangeSel').disabled) return;
+  arrangeSelection();
+  syncLayoutMenu();
+};
 
 $('optLabels').onclick = ()=>{
   S.layout.labels = S.layout.labels === false;
