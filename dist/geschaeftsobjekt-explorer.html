@@ -3979,8 +3979,11 @@ svg.addEventListener('pointerdown', ev=>{
     const n = S.graph.byId.get(g.dataset.id);
     if(!n) return;
     g.setPointerCapture(ev.pointerId);
-    // Wird ein Knoten aus der Auswahl gegriffen, wandert die ganze Auswahl mit
-    if(!S.sel.has(n.id)) setSelection([n.id]);
+    const wasSel = S.sel.has(n.id);
+    const additive = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+    // Wird ein Knoten aus der Auswahl gegriffen, wandert die ganze Auswahl mit.
+    // Bei additivem Klick nicht vorwählen — das erledigt select() beim Loslassen.
+    if(!wasSel && !additive) setSelection([n.id]);
     const moving = new Set(S.sel.size ? S.sel : [n.id]);
     const items = [...moving].map(id=>{
       const nn = S.graph.byId.get(id);
@@ -3996,7 +3999,7 @@ svg.addEventListener('pointerdown', ev=>{
       if(a && b && e.bends) inner.push({e, orig: e.bends.map(q=>({x:q.x, y:q.y}))});
       else if(a !== b && !e.manual){ e.bends = null; e.portFrom = null; e.portTo = null; }
     });
-    drag = {n, g, items, inner, sx:ev.clientX, sy:ev.clientY, moved:false};
+    drag = {n, g, items, inner, sx:ev.clientX, sy:ev.clientY, moved:false, wasSel, additive};
     ev.preventDefault();
     return;
   }
@@ -4110,7 +4113,9 @@ function endPointer(ev){
   if(bendDrag){ bendDrag = null; persist(); }
   if(drag){
     if(drag.moved) persist();
-    else select(drag.n.id, false, ev && (ev.shiftKey || ev.ctrlKey || ev.metaKey));
+    else if(drag.additive) select(drag.n.id, false, true);        // additiv umschalten
+    else if(drag.wasSel && S.sel.size === 1) setSelection([]);    // erneuter Klick auf einzelne Auswahl -> abwählen
+    else setSelection([drag.n.id]);                               // einfacher Klick -> markiert lassen
     drag = null;
   }
   if(band){
