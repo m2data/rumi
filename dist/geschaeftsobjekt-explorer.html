@@ -266,6 +266,13 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
   font-size:11.5px;line-height:1.5;color:#3C4C58;background:var(--paper);
   border:1px solid var(--hair-soft);border-radius:3px;padding:7px 9px;margin:6px 0 2px;
 }
+.relbtn{
+  appearance:none;display:block;width:100%;margin:8px 0 4px;padding:6px 10px;
+  font-family:var(--ui);font-size:11.5px;font-weight:600;cursor:pointer;
+  border:1px solid var(--obj);border-radius:6px;background:var(--obj-soft);color:var(--obj);
+}
+.relbtn:hover{background:var(--obj);color:#fff}
+.relbtn:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
 .attrs{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .attrs td{padding:3px 0;vertical-align:baseline;border-bottom:1px dotted var(--hair-soft)}
 .attrs .an{font-size:11px;color:var(--ink)}
@@ -3397,6 +3404,57 @@ function setAllVisible(on){
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
+/* Zu einer Entität alle über Beziehungen verknüpften Entitäten ins Diagramm
+   holen. „zu 1"-Nachbarn (Kardinalität auf der Nachbarseite ist nicht „viele")
+   an den Anfang der Flussrichtung, „zu n" ans Ende — TB: 1 oben / n unten,
+   BT umgekehrt, LR: 1 links / n rechts, RL umgekehrt. Nur noch nicht enthaltene
+   (versteckte) Objekte werden eingeblendet und platziert; vorhandene bleiben. */
+function addRelated(id){
+  const A = S.graph.byId.get(id);
+  if(!A) return;
+  const neigh = new Map();
+  S.graph.edges.forEach(e=>{
+    if(e.from === e.to) return;                       // Selbstbezug übersprungen
+    let nb, card;
+    if(e.from === id){ nb = e.to; card = e.toCard; }
+    else if(e.to === id){ nb = e.from; card = e.fromCard; }
+    else return;
+    const node = S.graph.byId.get(nb);
+    if(!node) return;
+    const many = /many/.test(card || '');
+    const cur = neigh.get(nb);
+    neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
+  });
+  const neu = [...neigh.values()].filter(v => v.node.hidden);
+  if(!neu.length){ toast(neigh.size ? 'Alle Verknüpften sind bereits im Diagramm' : 'Keine verknüpften Objekte'); return; }
+
+  const dir = (ALGOS[S.layout.algo] || ALGOS.hier).dir ? S.layout.dir : 'TB';
+  const vertical = dir === 'TB' || dir === 'BT';
+  const oneSign = (dir === 'TB' || dir === 'LR') ? -1 : 1;   // Anfang der Flussrichtung
+  const GAP = 40, SEP = 24;
+
+  neu.forEach(v => { v.node.hidden = false; markVisible(v.node.id, true); });   // sichtbar + in der Menge merken
+
+  const place = (group, sign)=>{
+    if(!group.length) return;
+    if(vertical){
+      const base = sign < 0 ? A.y - GAP : A.y + A.h + GAP;
+      let x = A.x + A.w/2 - (group.reduce((t,v)=> t + v.node.w + SEP, -SEP)) / 2;
+      group.forEach(v=>{ v.node.x = Math.round(x); v.node.y = Math.round(sign < 0 ? base - v.node.h : base); x += v.node.w + SEP; });
+    } else {
+      const base = sign < 0 ? A.x - GAP : A.x + A.w + GAP;
+      let y = A.y + A.h/2 - (group.reduce((t,v)=> t + v.node.h + SEP, -SEP)) / 2;
+      group.forEach(v=>{ v.node.x = Math.round(sign < 0 ? base - v.node.w : base); v.node.y = Math.round(y); y += v.node.h + SEP; });
+    }
+  };
+  place(neu.filter(v => !v.many), oneSign);                 // „zu 1" an den Anfang
+  place(neu.filter(v => v.many), -oneSign);                 // „zu n" ans Ende
+
+  S.selEdge = null;
+  draw(); renderObjectList(); renderDetails(); updateAlignBar(); persist();
+  toast(neu.length + (neu.length === 1 ? ' verknüpftes Objekt hinzugefügt' : ' verknüpfte Objekte hinzugefügt'));
+}
+
 function renderDetails(){
   const box = $('detailBody'), empty = $('detailEmpty');
   const n = S.selected && S.graph.byId.get(S.selected);
@@ -3430,6 +3488,7 @@ function renderDetails(){
     box.innerHTML =
       `<div class="grouphead">GESCHÄFTSOBJEKT</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
+       <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
@@ -3462,6 +3521,8 @@ function renderDetails(){
     b.addEventListener('click', ()=> select(b.dataset.goto, true)));
   box.querySelectorAll('[data-edge]').forEach(b=>
     b.addEventListener('click', ()=> selectEdgeByPair(b.dataset.edge)));
+  box.querySelectorAll('[data-related]').forEach(b=>
+    b.addEventListener('click', ()=> addRelated(n.id)));
 }
 
 function renderMessages(){

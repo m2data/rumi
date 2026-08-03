@@ -247,6 +247,13 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
   font-size:11.5px;line-height:1.5;color:#3C4C58;background:var(--paper);
   border:1px solid var(--hair-soft);border-radius:3px;padding:7px 9px;margin:6px 0 2px;
 }
+.relbtn{
+  appearance:none;display:block;width:100%;margin:8px 0 4px;padding:6px 10px;
+  font-family:var(--ui);font-size:11.5px;font-weight:600;cursor:pointer;
+  border:1px solid var(--obj);border-radius:6px;background:var(--obj-soft);color:var(--obj);
+}
+.relbtn:hover{background:var(--obj);color:#fff}
+.relbtn:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
 .attrs{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .attrs td{padding:3px 0;vertical-align:baseline;border-bottom:1px dotted var(--hair-soft)}
 .attrs .an{font-size:11px;color:var(--ink)}

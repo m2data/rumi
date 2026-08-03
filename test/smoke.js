@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -421,6 +421,46 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',
     S.mode === 'komplett' && S.graph.nodes.filter(n => !n.hidden).length === 11);
+}
+
+console.log('== Verknüpfte Objekte ins Diagramm holen ==');
+{
+  api.setMode('hierarchie');
+  S.layout.algo = 'hier';
+  // an Bestellung verankern, Ausschnitt zunächst nur Bestellung -> „zu 1" (Kunde)
+  // und „zu n" (Kinder) sind versteckt und werden beide platziert.
+  const manySide = nid => S.graph.edges.some(e =>
+    (e.from === 'o:Bestellung' && e.to === nid && /many/.test(e.toCard || '')) ||
+    (e.to === 'o:Bestellung' && e.from === nid && /many/.test(e.fromCard || '')));
+
+  const probe = (dir)=>{
+    S.hierShown['Übersicht'] = ['o:Bestellung'];
+    S.layout.dir = dir;
+    api.selectDiagram('Übersicht');
+    api.addRelated('o:Bestellung');
+    const B = S.graph.byId.get('o:Bestellung');
+    const neu = S.graph.nodes.filter(n => !n.hidden && n.id !== 'o:Bestellung');
+    let oben = 0, unten = 0, regel = neu.length > 0;
+    neu.forEach(n=>{
+      const istOben = n.y + n.h <= B.y, istUnten = n.y >= B.y + B.h;
+      if(istOben) oben++; if(istUnten) unten++;
+      // Flussanfang bei TB oben, bei BT unten
+      const eins = dir === 'TB' ? istOben : istUnten;
+      const viele = dir === 'TB' ? istUnten : istOben;
+      if(manySide(n.id)){ if(!viele) regel = false; } else { if(!eins) regel = false; }
+    });
+    return {neu:neu.length, oben, unten, regel};
+  };
+
+  const tb = probe('TB');
+  t('verknüpfte Objekte hinzugefügt', tb.neu > 0, tb.neu + ' neu');
+  t('TB: zu 1 oberhalb, zu n unterhalb', tb.regel && tb.oben > 0 && tb.unten > 0,
+    `oben ${tb.oben}, unten ${tb.unten}`);
+  const bt = probe('BT');
+  t('BT: Seiten gedreht (zu 1 unten, zu n oben)', bt.regel && bt.oben > 0 && bt.unten > 0,
+    `oben ${bt.oben}, unten ${bt.unten}`);
+  S.layout.dir = 'TB';
+  api.setMode('komplett');
 }
 
 console.log('== Selbstbezug verschiebbar ==');
