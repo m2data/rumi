@@ -218,12 +218,16 @@ console.log('== Klick markiert und behält die Auswahl ==');
   const nodeById = id => [...document.getElementById('nodes').querySelectorAll('.node')]
     .find(e => e.dataset.id === id);
   S.sel = new Set(); S.selected = null;                       // sauber leer starten
+  const edgeSig = ()=> JSON.stringify(S.graph.edges.map(e=>
+    (e.portFrom ? e.portFrom.side : '-') + ':' + (e.bends ? e.bends.length : 0)));
   const first = document.getElementById('nodes').querySelectorAll('.node')[0];
   const id = first.dataset.id;
+  const sigVor = edgeSig();
   dispatch(first, 'pointerdown', {clientX:0, clientY:0});
   dispatch(svg, 'pointerup', {clientX:0, clientY:0});          // Klick ohne Verschieben
   t('einfacher Klick markiert den Knoten', S.sel.has(id) && S.sel.size === 1,
     'sel=[' + [...S.sel].join(',') + ']');
+  t('Klick ohne Verschieben zieht die Kanten nicht neu', edgeSig() === sigVor);
 
   const again = nodeById(id);                                 // draw() hat neu gezeichnet
   dispatch(again, 'pointerdown', {clientX:0, clientY:0});

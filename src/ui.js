@@ -701,14 +701,16 @@ svg.addEventListener('pointerdown', ev=>{
         : null;
     }).filter(x => x && x.g);
 
-    // Kanten innerhalb der Auswahl wandern starr mit, Kanten nach außen werden gelöst
-    const inner = [];
+    // Kanten innerhalb der Auswahl wandern starr mit; Kanten nach außen werden
+    // gelöst und neu gezogen — aber erst beim tatsächlichen Verschieben (siehe
+    // pointermove), nicht schon beim bloßen Anklicken.
+    const inner = [], outer = [];
     S.graph.edges.forEach(e=>{
       const a = moving.has(e.from), b = moving.has(e.to);
       if(a && b && e.bends) inner.push({e, orig: e.bends.map(q=>({x:q.x, y:q.y}))});
-      else if(a !== b && !e.manual){ e.bends = null; e.portFrom = null; e.portTo = null; }
+      else if(a !== b && !e.manual) outer.push(e);
     });
-    drag = {n, g, items, inner, sx:ev.clientX, sy:ev.clientY, moved:false, wasSel, additive};
+    drag = {n, g, items, inner, outer, sx:ev.clientX, sy:ev.clientY, moved:false, wasSel, additive};
     ev.preventDefault();
     return;
   }
@@ -789,7 +791,11 @@ svg.addEventListener('pointermove', ev=>{
   }
   if(drag){
     const dx = (ev.clientX - drag.sx)/S.t.k, dy = (ev.clientY - drag.sy)/S.t.k;
-    if(Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+    if(!drag.moved && Math.abs(dx) + Math.abs(dy) > 2){
+      drag.moved = true;
+      // jetzt erst die Kanten über die Auswahlgrenze lösen und neu ziehen
+      drag.outer.forEach(e=>{ e.bends = null; e.portFrom = null; e.portTo = null; });
+    }
     drag.items.forEach(it=>{
       it.n.x = Math.round(it.ox + dx); it.n.y = Math.round(it.oy + dy);
       it.g.setAttribute('transform', `translate(${it.n.x},${it.n.y})`);
