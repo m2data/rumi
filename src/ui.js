@@ -970,26 +970,25 @@ document.addEventListener('click', ()=> closeMenus());
 menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   closeMenus();
   const a = b.dataset.act;
+  // Laden
   if(a === 'open') $('fileInput').click();
-  if(a === 'yamlClean'){
-    const base = slug(S.fileName.replace(/\.[^.]+$/, ''));
-    download(modelToYaml(S.model), base + '-bereinigt.yaml', 'text/yaml');
-    toast('Bereinigtes YAML gespeichert');
-  }
-  if(a === 'yamlRaw'){
-    download(S.yamlText, S.fileName.replace(/\.[^.]+$/, '') + '.yaml', 'text/yaml');
-    toast('Originaltext gespeichert');
-  }
+  if(a === 'loadUebersicht') $('uebersichtInput').click();
   if(a === 'loadLayout') $('layoutInput').click();
-  if(a === 'html') exportHTML();
-  if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
-  if(a === 'png') exportPNG();
-  if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-anordnung.json', 'application/json');
+  // Speichern
+  if(a === 'saveGO'){
+    download(S.yamlText, S.fileName.replace(/\.[^.]+$/, '') + '.yaml', 'text/yaml');
+    toast('Geschäftsobjekte gespeichert');
+  }
   if(a === 'uebersicht'){
     if(!S.outline) parseOutline();
     download(outlineToYaml(S.outline.roots), 'williibald-uebersicht.yaml', 'text/yaml');
-    toast('Übersicht als YAML gespeichert');
+    toast('Hierarchiebeschreibung gespeichert');
   }
+  if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
+  // Diagramm exportieren
+  if(a === 'html') exportHTML();
+  if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
+  if(a === 'png') exportPNG();
   if(a === 'reset'){
     if(S.mode === 'hierarchie'){
       if(S.hierSel){ delete S.hierSaved[S.hierSel]; delete S.hierRoutes[S.hierSel]; writeStore(); selectDiagram(S.hierSel); }
@@ -1082,10 +1081,31 @@ $('layoutInput').addEventListener('change', e=>{
     try{
       adoptLayoutFile(JSON.parse(t));
       syncLayoutMenu(); setView(S.view);
-      toast('Anordnung übernommen');
+      if(S.mode === 'hierarchie') setMode('hierarchie');
+      toast('Positionsinformationen übernommen');
     }
     catch(_){ toast('Die JSON-Datei lässt sich nicht lesen'); }
   });
+  e.target.value = '';
+});
+
+/* Hierarchiebeschreibung aus einer Datei laden. Ersetzt die Übersicht; die je
+   Diagramm gespeicherten Bearbeitungen (die auf die alten Kennungen zeigen)
+   werden dabei verworfen. */
+function loadUebersicht(text){
+  S.outlineText = text;
+  S.outline = null; S.hierSel = null;
+  S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
+  parseOutline();
+  writeStore();
+  if(S.mode === 'hierarchie') setMode('hierarchie');
+  const bad = S.outline.messages.filter(m => m.level !== 'info').length;
+  toast(bad ? `Hierarchiebeschreibung geladen · ${bad} Hinweise` : 'Hierarchiebeschreibung geladen');
+}
+
+$('uebersichtInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadUebersicht(t));
   e.target.value = '';
 });
 

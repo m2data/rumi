@@ -84,19 +84,20 @@
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
-        <div class="head">DATEI</div>
-        <button data-act="open">YAML-Datei laden …</button>
-        <button data-act="yamlClean">YAML speichern (bereinigt)</button>
-        <button data-act="yamlRaw">YAML speichern (Original)</button>
-        <button data-act="loadLayout">Anordnung importieren …</button>
-        <div class="head">EXPORT</div>
+        <div class="head">LADEN</div>
+        <button data-act="open">Geschäftsobjekte (YAML) …</button>
+        <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
+        <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
+        <div class="head">SPEICHERN</div>
+        <button data-act="saveGO">Geschäftsobjekte (YAML)</button>
+        <button data-act="uebersicht">Hierarchiebeschreibung (YAML)</button>
+        <button data-act="layout">Positionsinformationen (JSON)</button>
+        <div class="head">DIAGRAMM EXPORTIEREN</div>
         <button data-act="html">Stand als HTML sichern</button>
-        <button data-act="svg">Diagramm als SVG speichern</button>
-        <button data-act="png">Diagramm als PNG speichern</button>
-        <button data-act="layout">Anordnung als JSON speichern</button>
-        <button data-act="uebersicht">Übersicht als YAML speichern</button>
+        <button data-act="svg">Diagramm als SVG</button>
+        <button data-act="png">Diagramm als PNG</button>
         <hr>
-        <button data-act="reset">Anordnung dieser Ansicht verwerfen</button>
+        <button data-act="reset">Anordnung verwerfen</button>
       </div>
     </div>
   </div>
@@ -173,6 +174,7 @@
 
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
+<input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>
 
 <script>

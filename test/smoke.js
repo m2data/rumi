@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -513,6 +513,20 @@ console.log('== Selbstbezug verschiebbar ==');
         !!e.portFrom && JSON.stringify(e.portFrom) !== vorP, JSON.stringify(e.portFrom));
     }
   }
+}
+
+console.log('== Hierarchiebeschreibung laden ==');
+{
+  const y = 'Testwurzel:\n  objekte:\n    - Kunde\n  Details:\n    Unterthema:\n      objekte:\n        - Bestellung\n';
+  api.loadUebersicht(y);
+  const roots = S.outline.roots;
+  t('geladene Übersicht ersetzt die alte', roots.length === 1 && roots[0].name === 'Testwurzel',
+    roots.map(r => r.name).join(','));
+  t('geladene Struktur enthält das Unterthema',
+    roots[0].kinder.length === 1 && roots[0].kinder[0].name === 'Unterthema');
+  t('outlineText übernommen', S.outlineText.includes('Testwurzel'));
+  t('Diagramm-Bearbeitungen zurückgesetzt',
+    Object.keys(S.hierShown).length === 0 && Object.keys(S.hierSaved).length === 0);
 }
 
 console.log('== Keine externen Quellen ==');
