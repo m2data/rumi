@@ -565,7 +565,10 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
       }
       if(i < pts.length - 2) res.push(pts[i+1]);
     }
-    e.bends = res.length ? res : null;
+    // Rücklaufende/kollineare Zwischenpunkte raus (sonst Haken an den Ecken).
+    // pts[0]/pts[letzter] sind die Anschlusspunkte und dienen nur als Anker.
+    const clean = dropCollinear([pts[0], ...res, pts[pts.length-1]]);
+    e.bends = clean.length > 2 ? clean.slice(1, -1) : (res.length ? res : null);
   }
 }
 

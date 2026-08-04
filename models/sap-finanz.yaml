@@ -1,0 +1,921 @@
+```yaml
+BusinessObjects:
+
+  KNA1:
+    Domain: SAP_Stammdaten
+    desc: >
+      Repräsentiert die allgemeinen, mandantenweit gültigen Stammdaten
+      eines SAP-Kunden aus der Tabelle KNA1.
+    business_keys:
+      - Mandant
+      - KundeID
+    sources:
+      - KNA1
+    attributes:
+      - name: Mandant
+        source: KNA1.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: KundeID
+        source: KNA1.KUNNR
+        type: char(10)
+        nullable: false
+        primary_key: true
+
+      - name: Land
+        source: KNA1.LAND1
+        type: char(3)
+        nullable: true
+
+      - name: Name1
+        source: KNA1.NAME1
+        type: varchar(35)
+        nullable: true
+
+      - name: Name2
+        source: KNA1.NAME2
+        type: varchar(35)
+        nullable: true
+
+      - name: Ort
+        source: KNA1.ORT01
+        type: varchar(35)
+        nullable: true
+
+      - name: Postleitzahl
+        source: KNA1.PSTLZ
+        type: varchar(10)
+        nullable: true
+
+      - name: Region
+        source: KNA1.REGIO
+        type: char(3)
+        nullable: true
+
+      - name: Straße
+        source: KNA1.STRAS
+        type: varchar(35)
+        nullable: true
+
+      - name: Sprache
+        source: KNA1.SPRAS
+        type: char(1)
+        nullable: true
+
+      - name: Kundengruppe
+        source: KNA1.KTOKD
+        type: char(4)
+        nullable: true
+
+      - name: Erstellungsdatum
+        source: KNA1.ERDAT
+        type: date
+        nullable: true
+
+      - name: Löschkennzeichen
+        source: KNA1.LOEVM
+        type: char(1)
+        nullable: true
+
+    relationships:
+      - to: Auftrag
+        name: erteilt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Rechnung
+        name: erhält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+
+  MARA:
+    Domain: SAP_Stammdaten
+    desc: >
+      Repräsentiert die allgemeinen, mandantenweit gültigen Materialstammdaten
+      aus der SAP-Tabelle MARA.
+    business_keys:
+      - Mandant
+      - MaterialID
+    sources:
+      - MARA
+    attributes:
+      - name: Mandant
+        source: MARA.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: MaterialID
+        source: MARA.MATNR
+        type: char(40)
+        nullable: false
+        primary_key: true
+
+      - name: Materialart
+        source: MARA.MTART
+        type: char(4)
+        nullable: true
+
+      - name: Branche
+        source: MARA.MBRSH
+        type: char(1)
+        nullable: true
+
+      - name: Materialgruppe
+        source: MARA.MATKL
+        type: char(9)
+        nullable: true
+
+      - name: Basismengeneinheit
+        source: MARA.MEINS
+        type: char(3)
+        nullable: true
+
+      - name: Sparte
+        source: MARA.SPART
+        type: char(2)
+        nullable: true
+
+      - name: Bruttogewicht
+        source: MARA.BRGEW
+        type: decimal(13,3)
+        nullable: true
+
+      - name: Nettogewicht
+        source: MARA.NTGEW
+        type: decimal(13,3)
+        nullable: true
+
+      - name: Gewichtseinheit
+        source: MARA.GEWEI
+        type: char(3)
+        nullable: true
+
+      - name: Erstellungsdatum
+        source: MARA.ERSDA
+        type: date
+        nullable: true
+
+      - name: Löschkennzeichen
+        source: MARA.LVORM
+        type: char(1)
+        nullable: true
+
+    relationships:
+      - to: MARC
+        name: besitzt_Werksdaten
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Bestellposition
+        name: wird_bestellt_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Auftragsposition
+        name: wird_verkauft_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Rechnungsposition
+        name: wird_abgerechnet_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+
+  T001W:
+    Domain: SAP_Organisation
+    desc: >
+      Repräsentiert ein SAP-Werk beziehungsweise eine organisatorische
+      Betriebsstätte aus der Tabelle T001W.
+    business_keys:
+      - Mandant
+      - WerkID
+    sources:
+      - T001W
+    attributes:
+      - name: Mandant
+        source: T001W.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: WerkID
+        source: T001W.WERKS
+        type: char(4)
+        nullable: false
+        primary_key: true
+
+      - name: Werkname
+        source: T001W.NAME1
+        type: varchar(30)
+        nullable: true
+
+      - name: Bewertungsbereich
+        source: T001W.BWKEY
+        type: char(4)
+        nullable: true
+
+      - name: KundenID
+        source: T001W.KUNNR
+        type: char(10)
+        nullable: true
+
+      - name: LieferantenID
+        source: T001W.LIFNR
+        type: char(10)
+        nullable: true
+
+      - name: Einkaufsorganisation
+        source: T001W.EKORG
+        type: char(4)
+        nullable: true
+
+      - name: Verkaufsorganisation
+        source: T001W.VKORG
+        type: char(4)
+        nullable: true
+
+      - name: Vertriebsweg
+        source: T001W.VTWEG
+        type: char(2)
+        nullable: true
+
+      - name: Land
+        source: T001W.LAND1
+        type: char(3)
+        nullable: true
+
+      - name: Region
+        source: T001W.REGIO
+        type: char(3)
+        nullable: true
+
+    relationships:
+      - to: MARC
+        name: führt_Materialien
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Bestellposition
+        name: empfängt_Bestellpositionen
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Auftragsposition
+        name: liefert_Auftragspositionen
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+
+  MARC:
+    Domain: SAP_Stammdaten
+    desc: >
+      Repräsentiert die werksspezifischen Materialstammdaten.
+      Ein MARC-Datensatz gehört genau zu einem Material und einem Werk.
+    business_keys:
+      - Mandant
+      - MaterialID
+      - WerkID
+    sources:
+      - MARC
+    attributes:
+      - name: Mandant
+        source: MARC.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: MaterialID
+        source: MARC.MATNR
+        type: char(40)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: MARA.MaterialID
+
+      - name: WerkID
+        source: MARC.WERKS
+        type: char(4)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: T001W.WerkID
+
+      - name: Dispositionsmerkmal
+        source: MARC.DISMM
+        type: char(2)
+        nullable: true
+
+      - name: Disponent
+        source: MARC.DISPO
+        type: char(3)
+        nullable: true
+
+      - name: Beschaffungsart
+        source: MARC.BESKZ
+        type: char(1)
+        nullable: true
+
+      - name: Sonderbeschaffungsart
+        source: MARC.SOBSL
+        type: char(2)
+        nullable: true
+
+      - name: Planlieferzeit
+        source: MARC.PLIFZ
+        type: decimal(3,0)
+        nullable: true
+
+      - name: Wareneingangsbearbeitungszeit
+        source: MARC.WEBAZ
+        type: decimal(3,0)
+        nullable: true
+
+      - name: Sicherheitsbestand
+        source: MARC.EISBE
+        type: decimal(13,3)
+        nullable: true
+
+      - name: Losgrößenverfahren
+        source: MARC.DISLS
+        type: char(2)
+        nullable: true
+
+      - name: Löschkennzeichen
+        source: MARC.LVORM
+        type: char(1)
+        nullable: true
+
+  Bestellung:
+    Domain: SAP_Einkauf
+    desc: >
+      Repräsentiert den Kopf einer Einkaufsbestellung aus der SAP-Tabelle EKKO.
+      Die zugehörigen Positionen werden separat über EKPO modelliert.
+    business_keys:
+      - Mandant
+      - BestellungID
+    sources:
+      - EKKO
+    attributes:
+      - name: Mandant
+        source: EKKO.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: BestellungID
+        source: EKKO.EBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+
+      - name: Bestellart
+        source: EKKO.BSART
+        type: char(4)
+        nullable: true
+
+      - name: Belegkategorie
+        source: EKKO.BSTYP
+        type: char(1)
+        nullable: true
+
+      - name: LieferantID
+        source: EKKO.LIFNR
+        type: char(10)
+        nullable: true
+
+      - name: Buchungskreis
+        source: EKKO.BUKRS
+        type: char(4)
+        nullable: true
+
+      - name: Einkaufsorganisation
+        source: EKKO.EKORG
+        type: char(4)
+        nullable: true
+
+      - name: Einkäufergruppe
+        source: EKKO.EKGRP
+        type: char(3)
+        nullable: true
+
+      - name: Belegdatum
+        source: EKKO.BEDAT
+        type: date
+        nullable: true
+
+      - name: Erstellungsdatum
+        source: EKKO.AEDAT
+        type: date
+        nullable: true
+
+      - name: Währung
+        source: EKKO.WAERS
+        type: char(5)
+        nullable: true
+
+      - name: Zahlungsbedingung
+        source: EKKO.ZTERM
+        type: char(4)
+        nullable: true
+
+      - name: Löschkennzeichen
+        source: EKKO.LOEKZ
+        type: char(1)
+        nullable: true
+
+    relationships:
+      - to: Bestellposition
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: one_or_many
+
+
+  Bestellposition:
+    Domain: SAP_Einkauf
+    desc: >
+      Repräsentiert eine Position einer Einkaufsbestellung aus der Tabelle EKPO.
+    business_keys:
+      - Mandant
+      - BestellungID
+      - BestellpositionID
+    sources:
+      - EKPO
+    attributes:
+      - name: Mandant
+        source: EKPO.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: BestellungID
+        source: EKPO.EBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Bestellung.BestellungID
+
+      - name: BestellpositionID
+        source: EKPO.EBELP
+        type: char(5)
+        nullable: false
+        primary_key: true
+
+      - name: MaterialID
+        source: EKPO.MATNR
+        type: char(40)
+        nullable: true
+        foreign_key: true
+        references: MARA.MaterialID
+
+      - name: WerkID
+        source: EKPO.WERKS
+        type: char(4)
+        nullable: true
+        foreign_key: true
+        references: T001W.WerkID
+
+      - name: Lagerort
+        source: EKPO.LGORT
+        type: char(4)
+        nullable: true
+
+      - name: Kurztext
+        source: EKPO.TXZ01
+        type: varchar(40)
+        nullable: true
+
+      - name: Bestellmenge
+        source: EKPO.MENGE
+        type: decimal(13,3)
+        nullable: true
+
+      - name: Bestellmengeneinheit
+        source: EKPO.MEINS
+        type: char(3)
+        nullable: true
+
+      - name: Nettopreis
+        source: EKPO.NETPR
+        type: decimal(11,2)
+        nullable: true
+
+      - name: Preiseinheit
+        source: EKPO.PEINH
+        type: decimal(5,0)
+        nullable: true
+
+      - name: Nettobestellwert
+        source: EKPO.NETWR
+        type: decimal(15,2)
+        nullable: true
+
+      - name: Lieferabschluss
+        source: EKPO.ELIKZ
+        type: char(1)
+        nullable: true
+
+      - name: Endrechnungskennzeichen
+        source: EKPO.EREKZ
+        type: char(1)
+        nullable: true
+
+      - name: Löschkennzeichen
+        source: EKPO.LOEKZ
+        type: char(1)
+        nullable: true
+
+
+
+  Auftrag:
+    Domain: SAP_Vertrieb
+    desc: >
+      Repräsentiert den Kopf eines Kundenauftrags beziehungsweise
+      Verkaufsbelegs aus der SAP-Tabelle VBAK.
+    business_keys:
+      - Mandant
+      - AuftragID
+    sources:
+      - VBAK
+    attributes:
+      - name: Mandant
+        source: VBAK.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: AuftragID
+        source: VBAK.VBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+
+      - name: Auftragsart
+        source: VBAK.AUART
+        type: char(4)
+        nullable: true
+
+      - name: KundeID
+        source: VBAK.KUNNR
+        type: char(10)
+        nullable: true
+        foreign_key: true
+        references: KNA1.KundeID
+
+      - name: Verkaufsorganisation
+        source: VBAK.VKORG
+        type: char(4)
+        nullable: true
+
+      - name: Vertriebsweg
+        source: VBAK.VTWEG
+        type: char(2)
+        nullable: true
+
+      - name: Sparte
+        source: VBAK.SPART
+        type: char(2)
+        nullable: true
+
+      - name: Verkaufsbüro
+        source: VBAK.VKBUR
+        type: char(4)
+        nullable: true
+
+      - name: Belegdatum
+        source: VBAK.AUDAT
+        type: date
+        nullable: true
+
+      - name: Erstellungsdatum
+        source: VBAK.ERDAT
+        type: date
+        nullable: true
+
+      - name: Währung
+        source: VBAK.WAERK
+        type: char(5)
+        nullable: true
+
+      - name: Nettowert
+        source: VBAK.NETWR
+        type: decimal(15,2)
+        nullable: true
+
+      - name: Kundenreferenz
+        source: VBAK.BSTNK
+        type: varchar(35)
+        nullable: true
+
+    relationships:
+      - to: Auftragsposition
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: one_or_many
+
+      - to: Rechnung
+        name: wird_abgerechnet_durch
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+
+  Auftragsposition:
+    Domain: SAP_Vertrieb
+    desc: >
+      Repräsentiert eine Position eines Kundenauftrags aus der SAP-Tabelle VBAP.
+    business_keys:
+      - Mandant
+      - AuftragID
+      - AuftragspositionID
+    sources:
+      - VBAP
+    attributes:
+      - name: Mandant
+        source: VBAP.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: AuftragID
+        source: VBAP.VBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Auftrag.AuftragID
+
+      - name: AuftragspositionID
+        source: VBAP.POSNR
+        type: char(6)
+        nullable: false
+        primary_key: true
+
+      - name: MaterialID
+        source: VBAP.MATNR
+        type: char(40)
+        nullable: true
+        foreign_key: true
+        references: MARA.MaterialID
+
+      - name: WerkID
+        source: VBAP.WERKS
+        type: char(4)
+        nullable: true
+        foreign_key: true
+        references: T001W.WerkID
+
+      - name: Positionstyp
+        source: VBAP.PSTYV
+        type: char(4)
+        nullable: true
+
+      - name: Kurztext
+        source: VBAP.ARKTX
+        type: varchar(40)
+        nullable: true
+
+      - name: Auftragsmenge
+        source: VBAP.KWMENG
+        type: decimal(15,3)
+        nullable: true
+
+      - name: Verkaufsmengeneinheit
+        source: VBAP.VRKME
+        type: char(3)
+        nullable: true
+
+      - name: Nettowert
+        source: VBAP.NETWR
+        type: decimal(15,2)
+        nullable: true
+
+      - name: Währung
+        source: VBAP.WAERK
+        type: char(5)
+        nullable: true
+
+      - name: Materialgruppe
+        source: VBAP.MATKL
+        type: char(9)
+        nullable: true
+
+      - name: Ablehnungsgrund
+        source: VBAP.ABGRU
+        type: char(2)
+        nullable: true
+
+    relationships:
+      - to: MARA
+        name: verkauft_Material
+        cardinality:
+          from: zero_or_one
+          to: exactly_one
+
+      - to: Rechnungsposition
+        name: wird_abgerechnet_durch
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+
+  Rechnung:
+    Domain: SAP_Fakturierung
+    desc: >
+      Repräsentiert den Kopf eines SD-Fakturabelegs beziehungsweise
+      einer Kundenrechnung aus der SAP-Tabelle VBRK.
+    business_keys:
+      - Mandant
+      - RechnungID
+    sources:
+      - VBRK
+    attributes:
+      - name: Mandant
+        source: VBRK.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: RechnungID
+        source: VBRK.VBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+
+      - name: Fakturaart
+        source: VBRK.FKART
+        type: char(4)
+        nullable: true
+
+      - name: KundeID
+        source: VBRK.KUNAG
+        type: char(10)
+        nullable: true
+        foreign_key: true
+        references: KNA1.KundeID
+
+      - name: RechnungsempfängerID
+        source: VBRK.KUNRG
+        type: char(10)
+        nullable: true
+
+      - name: Fakturadatum
+        source: VBRK.FKDAT
+        type: date
+        nullable: true
+
+      - name: Erstellungsdatum
+        source: VBRK.ERDAT
+        type: date
+        nullable: true
+
+      - name: Buchungskreis
+        source: VBRK.BUKRS
+        type: char(4)
+        nullable: true
+
+      - name: Verkaufsorganisation
+        source: VBRK.VKORG
+        type: char(4)
+        nullable: true
+
+      - name: Vertriebsweg
+        source: VBRK.VTWEG
+        type: char(2)
+        nullable: true
+
+      - name: Sparte
+        source: VBRK.SPART
+        type: char(2)
+        nullable: true
+
+      - name: Währung
+        source: VBRK.WAERK
+        type: char(5)
+        nullable: true
+
+      - name: Nettowert
+        source: VBRK.NETWR
+        type: decimal(15,2)
+        nullable: true
+
+      - name: Storniert
+        source: VBRK.FKSTO
+        type: char(1)
+        nullable: true
+
+      - name: Buchungsstatus
+        source: VBRK.RFBSK
+        type: char(1)
+        nullable: true
+
+    relationships:
+      - to: Rechnungsposition
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: one_or_many
+
+
+  Rechnungsposition:
+    Domain: SAP_Fakturierung
+    desc: >
+      Repräsentiert eine Position eines SD-Fakturabelegs aus der Tabelle VBRP.
+      Die Referenz zum Kundenauftrag erfolgt über AUBEL und AUPOS.
+    business_keys:
+      - Mandant
+      - RechnungID
+      - RechnungspositionID
+    sources:
+      - VBRP
+    attributes:
+      - name: Mandant
+        source: VBRP.MANDT
+        type: char(3)
+        nullable: false
+        primary_key: true
+
+      - name: RechnungID
+        source: VBRP.VBELN
+        type: char(10)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Rechnung.RechnungID
+
+      - name: RechnungspositionID
+        source: VBRP.POSNR
+        type: char(6)
+        nullable: false
+        primary_key: true
+
+      - name: MaterialID
+        source: VBRP.MATNR
+        type: char(40)
+        nullable: true
+        foreign_key: true
+        references: MARA.MaterialID
+
+      - name: ReferenzauftragID
+        source: VBRP.AUBEL
+        type: char(10)
+        nullable: true
+        foreign_key: true
+        references: Auftrag.AuftragID
+
+      - name: ReferenzauftragspositionID
+        source: VBRP.AUPOS
+        type: char(6)
+        nullable: true
+        foreign_key: true
+        references: Auftragsposition.AuftragspositionID
+
+      - name: Fakturamenge
+        source: VBRP.FKIMG
+        type: decimal(15,3)
+        nullable: true
+
+      - name: Verkaufsmengeneinheit
+        source: VBRP.VRKME
+        type: char(3)
+        nullable: true
+
+      - name: Nettowert
+        source: VBRP.NETWR
+        type: decimal(15,2)
+        nullable: true
+
+      - name: Währung
+        source: VBRP.WAERK
+        type: char(5)
+        nullable: true
+
+      - name: Positionstyp
+        source: VBRP.PSTYV
+        type: char(4)
+        nullable: true
+
+      - name: WerkID
+        source: VBRP.WERKS
+        type: char(4)
+        nullable: true
+        foreign_key: true
+        references: T001W.WerkID
+
+```

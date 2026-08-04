@@ -121,10 +121,28 @@ function smoothPath(pts){
   return d + `L${fx(l.x)} ${fx(l.y)}`;
 }
 
+/* Doppelte, kollineare und rücklaufende Zwischenpunkte entfernen. Ohne das
+   zeichnet die Eckenrundung aus einem kurzen Rücklauf einen „Haken". */
+function dropCollinear(pts){
+  const out = [];
+  for(const q of pts){
+    const p = out[out.length-1];
+    if(p && Math.abs(q.x - p.x) < 0.5 && Math.abs(q.y - p.y) < 0.5) continue;   // Duplikat
+    out.push({x:q.x, y:q.y});
+  }
+  let i = 1;
+  while(i < out.length - 1){
+    const a = out[i-1], b = out[i], c = out[i+1];
+    const cross = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+    if(Math.abs(cross) < 1) out.splice(i, 1);   // a,b,c auf einer Geraden -> b weg (auch Überschwinger)
+    else i++;
+  }
+  return out;
+}
+
 /* Rechtwinklig mit abgerundeten Ecken */
 function orthoPath(pts, r = 7){
-  const p = pts.filter((q,i)=> i === 0 ||
-    Math.abs(q.x - pts[i-1].x) > 0.5 || Math.abs(q.y - pts[i-1].y) > 0.5);
+  const p = dropCollinear(pts);
   if(p.length < 3) return `M${fx(p[0].x)} ${fx(p[0].y)}L${fx(p[p.length-1].x)} ${fx(p[p.length-1].y)}`;
   let d = `M${fx(p[0].x)} ${fx(p[0].y)}`;
   for(let i=1; i<p.length-1; i++){

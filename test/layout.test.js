@@ -330,6 +330,26 @@ ${oneMany('Tief')}  Tief:
   t('Kanten in den Kanal kreuzen sich nicht', cross === 0, cross + ' Kreuzungen');
 }
 
+console.log('== Orthogonal: keine rücklaufenden Haken an den Ecken ==');
+{
+  const g = makeGraph(model, 1);            // echtes Modell, orthogonal
+  ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
+  let hooks = 0;
+  g.edges.forEach(e=>{
+    const A = g.byId.get(e.from), B = g.byId.get(e.to);
+    if(!A || !B || !e.portFrom) return;
+    const raw = [portPoint(A, e.portFrom), ...(e.bends || []), portPoint(B, e.portTo)];
+    const p = raw.filter((q,i)=> i === 0 || Math.abs(q.x-raw[i-1].x) > 0.5 || Math.abs(q.y-raw[i-1].y) > 0.5);
+    for(let i=1;i<p.length-1;i++){
+      const a = p[i-1], b = p[i], c = p[i+1];
+      const dot = (b.x-a.x)*(c.x-b.x) + (b.y-a.y)*(c.y-b.y);
+      const l = Math.hypot(b.x-a.x, b.y-a.y) * Math.hypot(c.x-b.x, c.y-b.y);
+      if(dot / (l || 1) < -0.1) hooks++;    // Segment läuft entgegen der Vorrichtung -> Haken
+    }
+  });
+  t('orthogonale Kanten laufen an den Ecken nicht zurück', hooks === 0, hooks + ' Rückläufe');
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);
