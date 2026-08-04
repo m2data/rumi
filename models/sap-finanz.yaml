@@ -1,7 +1,7 @@
 ```yaml
 BusinessObjects:
 
-  KNA1:
+  Kunde:
     Domain: SAP_Stammdaten
     desc: >
       Repräsentiert die allgemeinen, mandantenweit gültigen Stammdaten
@@ -92,8 +92,13 @@ BusinessObjects:
           from: exactly_one
           to: zero_or_many
 
+      - to: Bestellung
+        name: erteilt1
+        cardinality: 
+          from: exactly_one
+          to: zero_or_many
 
-  MARA:
+  Material:
     Domain: SAP_Stammdaten
     desc: >
       Repräsentiert die allgemeinen, mandantenweit gültigen Materialstammdaten
@@ -167,26 +172,8 @@ BusinessObjects:
         nullable: true
 
     relationships:
-      - to: MARC
+      - to: Werksmaterial
         name: besitzt_Werksdaten
-        cardinality:
-          from: exactly_one
-          to: zero_or_many
-
-      - to: Bestellposition
-        name: wird_bestellt_in
-        cardinality:
-          from: exactly_one
-          to: zero_or_many
-
-      - to: Auftragsposition
-        name: wird_verkauft_in
-        cardinality:
-          from: exactly_one
-          to: zero_or_many
-
-      - to: Rechnungsposition
-        name: wird_abgerechnet_in
         cardinality:
           from: exactly_one
           to: zero_or_many
@@ -280,7 +267,7 @@ BusinessObjects:
           to: zero_or_many
 
 
-  MARC:
+  Werksmaterial:
     Domain: SAP_Stammdaten
     desc: >
       Repräsentiert die werksspezifischen Materialstammdaten.
@@ -358,6 +345,26 @@ BusinessObjects:
         source: MARC.LVORM
         type: char(1)
         nullable: true
+
+    relationships:
+      - to: Bestellposition
+        name: wird_bestellt_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Auftragsposition
+        name: wird_verkauft_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+      - to: Rechnungsposition
+        name: wird_abgerechnet_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
 
   Bestellung:
     Domain: SAP_Einkauf
@@ -722,11 +729,6 @@ BusinessObjects:
         nullable: true
 
     relationships:
-      - to: MARA
-        name: verkauft_Material
-        cardinality:
-          from: zero_or_one
-          to: exactly_one
 
       - to: Rechnungsposition
         name: wird_abgerechnet_durch

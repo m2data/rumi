@@ -476,6 +476,27 @@ function layered(nodes, edges, dir, ortho){
     });
   }
 
+  /* Lange Kanten möglichst gerade in den Zielanschluss fallen lassen: die
+     Stützspalten auf die Querlage des Zielports ziehen, soweit die Ebene dort
+     frei ist. Sonst läuft die Kante bis zur Knotenmitte und versetzt am Ende
+     zurück zum seitlichen Port (unnötiger Haken). */
+  edges.forEach(e=>{
+    const info = chain.get(e);
+    if(!info || !info.ds.length || !e.portTo) return;
+    const B = nodeOf.get(e.to);
+    if(!B) return;
+    const target = vertical ? B.x + B.w * e.portTo.t : B.y + B.h * e.portTo.t;
+    info.ds.forEach(d=>{
+      const blocked = rows[d.lay].some(it=>{
+        if(it.dummy) return false;
+        const half = cs(it)/2 + SIB * 0.3;
+        return target > it.c - half && target < it.c + half;
+      });
+      if(!blocked) d.c = target;
+    });
+    e.bends = dpts(info.ds, info.rev);
+  });
+
   // Reihenfolge zählt: erst endgültige Lagen, dann die Kantenführung darauf rechnen.
   // Das Ebenenverfahren erzeugt keine Überlappungen, separate() würde nur stören.
   placeSatellites();

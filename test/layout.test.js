@@ -350,6 +350,30 @@ console.log('== Orthogonal: keine rücklaufenden Haken an den Ecken ==');
   t('orthogonale Kanten laufen an den Ecken nicht zurück', hooks === 0, hooks + ' Rückläufe');
 }
 
+console.log('== Orthogonal: lange Kante fällt gerade in den Anschluss (sap-finanz) ==');
+{
+  const fixture = path.join(__dirname, '..', 'models', 'sap-finanz.yaml');
+  if(!fs.existsSync(fixture)){
+    console.log('  (übersprungen: models/sap-finanz.yaml fehlt)');
+  } else {
+    const g = makeGraph(buildModel(fs.readFileSync(fixture, 'utf8')), 1);
+    const A = g.byId.get('o:Werksmaterial'), B = g.byId.get('o:Rechnungsposition');
+    const e = g.edges.find(x => x.from === 'o:Werksmaterial' && x.to === 'o:Rechnungsposition');
+    if(!A || !B || !e){
+      console.log('  (übersprungen: Werksmaterial/Rechnungsposition nicht im Modell)');
+    } else {
+      ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
+      const p1 = portPoint(A, e.portFrom), p2 = portPoint(B, e.portTo);
+      const xs = [p1.x, ...(e.bends || []).map(b => b.x), p2.x];
+      const lo = Math.min(p1.x, p2.x) - 1, hi = Math.max(p1.x, p2.x) + 1;
+      // Die Kante überspannt mehrere Ebenen und soll gerade in den seitlichen
+      // Anschluss fallen, statt bis zur Knotenmitte zu laufen und zurückzuknicken.
+      t('Werksmaterial->Rechnungsposition schwingt nicht über das Ziel hinaus',
+        xs.every(x => x >= lo && x <= hi), 'xs=' + xs.map(Math.round).join(','));
+    }
+  }
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);
