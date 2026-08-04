@@ -508,10 +508,12 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
       const p = pts[i], q = pts[i+1];
       const across = vertical ? Math.abs(p.x - q.x) : Math.abs(p.y - q.y);
       if(across <= 1) continue;
-      const a = vertical ? p.y : p.x, b = vertical ? q.y : q.x;
+      const a = vertical ? p.y : p.x, b = vertical ? q.y : q.x;   // Längsachse
+      const pc = vertical ? p.x : p.y, qc = vertical ? q.x : q.y; // Querachse
       const st = {i, ci: chanAt(a, b), mid: (a + b) / 2, off: 0,
-                  lo: Math.min(vertical ? p.x : p.y, vertical ? q.x : q.y),
-                  hi: Math.max(vertical ? p.x : p.y, vertical ? q.x : q.y)};
+                  lo: Math.min(pc, qc), hi: Math.max(pc, qc),
+                  up:   a <= b ? pc : qc,   // Endpunkt zur Quelle hin (kleinere Längsachse)
+                  down: a <= b ? qc : pc};  // Endpunkt zum Ziel hin (größere Längsachse)
       steps.push(st);
       if(st.ci >= 0) runs.push(st);
     }
@@ -525,18 +527,31 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
     byChan.get(r.ci).push(r);
   });
   for(const list of byChan.values()){
-    list.sort((a,b)=> a.lo - b.lo);
-    const laneEnd = [];
-    list.forEach(r=>{
-      let k = 0;
-      while(k < laneEnd.length && laneEnd[k] > r.lo - 10) k++;
-      laneEnd[k] = r.hi;
-      r.lane = k;
-    });
-    const K = laneEnd.length;
+    const K = list.length;
     if(K < 2) continue;
+    // Vertikale Zwangsbedingungen: liegt der Ziel-Endpunkt von j im Querlauf von i,
+    // muss i darüber liegen (sonst schneidet j's senkrechter Zielanschluss i);
+    // liegt der Quell-Endpunkt von j in i, muss i darunter liegen. Daraus eine
+    // Reihenfolge der Spuren ableiten, statt nur dicht zu packen.
+    // Endpunkte einschließen: teilt ein Lauf eine Spalte mit dem Anschlusspunkt
+    // eines anderen, müssen sie trotzdem geordnet werden.
+    const inside = (x, r)=> x > r.lo - 0.5 && x < r.hi + 0.5;
+    const higher = list.map(()=>[]);          // higher[i] = Läufe, über denen i liegen muss
+    for(let i=0;i<K;i++) for(let j=0;j<K;j++){
+      if(i === j) continue;
+      if(inside(list[j].down, list[i])) higher[i].push(j);   // i über j
+      if(inside(list[j].up,   list[i])) higher[j].push(i);   // j über i
+    }
+    const level = new Array(K).fill(0);       // Ebene per Relaxation (Zyklen nach K Runden ab)
+    for(let pass=0; pass<K; pass++){
+      let ch = false;
+      for(let i=0;i<K;i++) for(const j of higher[i])
+        if(level[j] < level[i] + 1){ level[j] = level[i] + 1; ch = true; }
+      if(!ch) break;
+    }
+    const order = list.map((_,i)=>i).sort((p,q)=> level[p]-level[q] || list[p].lo-list[q].lo);
     const step = Math.min(16, (LAY * 0.62) / (K - 1));
-    list.forEach(r=>{ r.off = (r.lane - (K-1)/2) * step; });
+    order.forEach((idx, pos)=>{ list[idx].off = (pos - (K-1)/2) * step; });
   }
 
   for(const [e, {pts, steps}] of plans){

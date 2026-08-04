@@ -13,8 +13,8 @@ const t = (name, cond, info)=>{
 
 // render.js kommt dazu: das orthogonale Verfahren nutzt portPoint() daraus.
 const {api} = load(['yaml.js', 'model.js', 'layout.js', 'render.js'],
-  ['buildModel', 'makeGraph', 'ALGOS', 'separate']);
-const {buildModel, makeGraph, ALGOS, separate} = api;
+  ['buildModel', 'makeGraph', 'ALGOS', 'separate', 'portPoint']);
+const {buildModel, makeGraph, ALGOS, separate, portPoint} = api;
 
 const center = n => ({x: n.x + n.w/2, y: n.y + n.h/2});
 const finite = n => Number.isFinite(n.x) && Number.isFinite(n.y);
@@ -285,6 +285,49 @@ console.log('== Zusammenlaufender Baum bleibt zentriert (keine Seitendrift) ==')
     `Hub=${Math.round(cx('o:Hub'))}, Eltern ${Math.round(ps[0])}..${Math.round(ps[3])}`);
   t('Diagramm wird durch den unteren Teil nicht breiter',
     W <= topW + 40, `Breite=${Math.round(W)}, Elternreihe=${Math.round(topW)}`);
+}
+
+console.log('== Orthogonal: Querläufe im Kanal ohne Kreuzung sortiert ==');
+{
+  // P läuft senkrecht durch die Mittelspalte von Tief; M (links) und RR (Mitte)
+  // laufen im selben Kanal quer. Werden die Spuren falsch sortiert, schneidet ein
+  // Querlauf den senkrechten Anschluss eines anderen. Erwartung: kreuzungsfrei.
+  const oneMany = to => `    - to: ${to}\n      cardinality:\n        from: exactly_one\n        to: zero_or_many\n`;
+  const m = buildModel(`BusinessObjects:
+  P:
+    relationships:
+${oneMany('A')}${oneMany('B')}${oneMany('Tief')}  A:
+    relationships:
+${oneMany('M')}  B:
+    relationships:
+${oneMany('M')}  M:
+    relationships:
+${oneMany('Tief')}  RR:
+    relationships:
+${oneMany('Tief')}  Tief:
+    Domain: x
+`);
+  const g = makeGraph(m, 1);
+  ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
+  // Kanten in Segmente zerlegen (echte rechtwinklige Führung) und Schnitte zählen.
+  const segs = [];
+  g.edges.forEach(e=>{
+    const A = g.byId.get(e.from), B = g.byId.get(e.to);
+    if(!A || !B || !e.portFrom) return;
+    const pts = [portPoint(A, e.portFrom), ...(e.bends || []), portPoint(B, e.portTo)];
+    for(let i = 0; i < pts.length - 1; i++) segs.push({e, a: pts[i], b: pts[i+1]});
+  });
+  const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+  const hit = (s,u)=>{
+    const d1=ccw(u.a,u.b,s.a), d2=ccw(u.a,u.b,s.b), d3=ccw(s.a,s.b,u.a), d4=ccw(s.a,s.b,u.b);
+    return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
+  };
+  let cross = 0;
+  for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
+    if(segs[i].e === segs[j].e) continue;
+    if(hit(segs[i], segs[j])) cross++;
+  }
+  t('Kanten in den Kanal kreuzen sich nicht', cross === 0, cross + ' Kreuzungen');
 }
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
