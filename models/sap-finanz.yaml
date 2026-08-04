@@ -247,7 +247,7 @@ BusinessObjects:
         nullable: true
 
     relationships:
-      - to: MARC
+      - to: Werksmaterial
         name: führt_Materialien
         cardinality:
           from: exactly_one
@@ -290,7 +290,7 @@ BusinessObjects:
         nullable: false
         primary_key: true
         foreign_key: true
-        references: MARA.MaterialID
+        references: Material.MaterialID
 
       - name: WerkID
         source: MARC.WERKS
@@ -487,7 +487,7 @@ BusinessObjects:
         type: char(40)
         nullable: true
         foreign_key: true
-        references: MARA.MaterialID
+        references: Material.MaterialID
 
       - name: WerkID
         source: EKPO.WERKS
@@ -581,7 +581,7 @@ BusinessObjects:
         type: char(10)
         nullable: true
         foreign_key: true
-        references: KNA1.KundeID
+        references: Kunde.KundeID
 
       - name: Verkaufsorganisation
         source: VBAK.VKORG
@@ -678,7 +678,7 @@ BusinessObjects:
         type: char(40)
         nullable: true
         foreign_key: true
-        references: MARA.MaterialID
+        references: Material.MaterialID
 
       - name: WerkID
         source: VBAP.WERKS
@@ -769,7 +769,7 @@ BusinessObjects:
         type: char(10)
         nullable: true
         foreign_key: true
-        references: KNA1.KundeID
+        references: Kunde.KundeID
 
       - name: RechnungsempfängerID
         source: VBRK.KUNRG
@@ -871,7 +871,7 @@ BusinessObjects:
         type: char(40)
         nullable: true
         foreign_key: true
-        references: MARA.MaterialID
+        references: Material.MaterialID
 
       - name: ReferenzauftragID
         source: VBRP.AUBEL
