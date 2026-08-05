@@ -1,0 +1,4 @@
+# Exportierte Stände aus „Datei & Export → Stand als HTML" landen in dist/,
+# gehören aber nicht ins Repo. Nur das Build-Ergebnis wird getrackt.
+dist/*.html
+!dist/geschaeftsobjekt-explorer.html
