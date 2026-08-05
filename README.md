@@ -14,7 +14,9 @@ läuft offline und lädt nichts nach.
 - **Hierarchie** – redaktionell gestaltete Diagramme: ein Baum aus Diagrammen
   (Übersicht → Domänen → Themen), jedes zeigt nur einen Ausschnitt der Objekte
   und hat einen Beschreibungstext (leichtes Markdown). Diagramme sind frei
-  anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen.
+  anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen. Im Baum
+  lassen sich Diagramme per Ziehen umsortieren und umhängen (obere/untere Kante =
+  davor/danach, Mitte = als Unterdiagramm).
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
   eine Kante löscht alle ihre Stützpunkte). Ist ein Bereich

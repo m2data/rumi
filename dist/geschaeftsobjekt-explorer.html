@@ -175,6 +175,10 @@ body.modus-hierarchie .sidetab.tab-komplett{display:none}
 .dnode .tw.leaf{color:var(--hair)}
 .dnode .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
 .dnode .cnt{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.dnode[draggable]{cursor:grab}
+.dnode.drop-inside{outline:2px solid var(--obj);outline-offset:-2px;background:var(--obj-soft)}
+.dnode.drop-before{box-shadow:inset 0 3px 0 -1px var(--obj)}
+.dnode.drop-after{box-shadow:inset 0 -3px 0 -1px var(--obj)}
 .hd-title{font-size:15px;font-weight:600;margin:0;color:var(--ink)}
 .hd-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
 .hd-actions{display:flex;gap:6px}
@@ -3200,7 +3204,7 @@ function renderOutlineTree(){
     const kids = node.kinder.length;
     const open = S.hierOpen.has(node.id);
     const sel = node.id === S.hierSel;
-    let s = `<div class="dnode${sel ? ' sel' : ''}" data-id="${esc(node.id)}" role="treeitem"`
+    let s = `<div class="dnode${sel ? ' sel' : ''}" data-id="${esc(node.id)}" role="treeitem" draggable="true"`
           + ` aria-selected="${sel}" style="padding-left:${6 + depth * 15}px">`;
     s += kids
       ? `<span class="tw" data-toggle="${esc(node.id)}">${open ? '▾' : '▸'}</span>`
@@ -3454,6 +3458,36 @@ function outlineDelete(id){
   commitOutline();
   const rest = outlineFlat(S.outline.roots);
   selectDiagram(rest.length ? rest[0].id : null);
+}
+
+/* Ein Diagramm im Baum verschieben: pos = 'before' | 'after' (neben target) oder
+   'inside' (als Unterdiagramm von target). Kennungen und gespeicherte
+   Anordnungen/Texte wandern mit. */
+function outlineMove(dragId, targetId, pos){
+  if(!S.outline || !dragId || dragId === targetId) return;
+  const drag = outlineFind(S.outline.roots, dragId);
+  if(!drag) return;
+  const target = outlineFind(S.outline.roots, targetId);
+  if(!target) return;
+  if(target.id === dragId || target.id.startsWith(dragId + '›')){ toast('Ein Diagramm kann nicht in sich selbst verschoben werden'); return; }
+  bakeOverlays();
+  const alt = drag.id;
+  const detach = arr=>{ const i = arr.indexOf(drag); if(i >= 0){ arr.splice(i, 1); return true; } return arr.some(n => detach(n.kinder)); };
+  detach(S.outline.roots);
+  const parentArrayOf = node=>{ let res = null; const w = arr=>{ if(arr.includes(node)){ res = arr; return true; } return arr.some(n => w(n.kinder)); }; w(S.outline.roots); return res; };
+  if(pos === 'inside'){ target.kinder.push(drag); S.hierOpen.add(target.id); }
+  else {
+    const arr = parentArrayOf(target) || S.outline.roots;
+    const idx = arr.indexOf(target);
+    arr.splice((pos === 'after' ? idx + 1 : idx), 0, drag);
+  }
+  reassignIds();
+  remapGeometry(alt, drag.id);
+  if(S.hierSel === alt || S.hierSel.startsWith(alt + '›')) S.hierSel = drag.id + S.hierSel.slice(alt.length);
+  commitOutline();
+  renderOutlineTree();
+  if(S.hierSel) selectDiagram(S.hierSel);
+  toast('„' + drag.name + '" verschoben');
 }
 
 /* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */
@@ -4477,6 +4511,38 @@ $('hierTree').addEventListener('click', ev=>{
   const row = ev.target.closest('.dnode');
   if(row) selectDiagram(row.dataset.id);
 });
+
+// Diagramme im Baum per Drag verschieben: obere/untere Kante = davor/danach,
+// Mitte = als Unterdiagramm.
+let hierDragId = null;
+const clearHierDrop = ()=> $('hierTree').querySelectorAll('.drop-before,.drop-after,.drop-inside')
+  .forEach(e=>{ e.classList.remove('drop-before','drop-after','drop-inside'); delete e.dataset.dropPos; });
+$('hierTree').addEventListener('dragstart', ev=>{
+  const row = ev.target.closest('.dnode'); if(!row) return;
+  hierDragId = row.dataset.id;
+  ev.dataTransfer.effectAllowed = 'move';
+  try{ ev.dataTransfer.setData('text/plain', hierDragId); }catch(_){}
+});
+$('hierTree').addEventListener('dragover', ev=>{
+  if(!hierDragId) return;
+  const row = ev.target.closest('.dnode');
+  if(!row) return;
+  ev.preventDefault();
+  clearHierDrop();
+  const r = row.getBoundingClientRect();
+  const rel = (ev.clientY - r.top) / r.height;
+  const pos = rel < 0.28 ? 'before' : rel > 0.72 ? 'after' : 'inside';
+  row.classList.add('drop-' + pos);
+  row.dataset.dropPos = pos;
+});
+$('hierTree').addEventListener('drop', ev=>{
+  if(!hierDragId) return;
+  ev.preventDefault();
+  const row = ev.target.closest('.dnode');
+  if(row && row.dataset.id !== hierDragId) outlineMove(hierDragId, row.dataset.id, row.dataset.dropPos || 'inside');
+  clearHierDrop(); hierDragId = null;
+});
+$('hierTree').addEventListener('dragend', ()=>{ clearHierDrop(); hierDragId = null; });
 
 const DIR_NAME = {TB:'oben nach unten', BT:'unten nach oben', LR:'links nach rechts', RL:'rechts nach links'};
 

@@ -1010,6 +1010,38 @@ $('hierTree').addEventListener('click', ev=>{
   if(row) selectDiagram(row.dataset.id);
 });
 
+// Diagramme im Baum per Drag verschieben: obere/untere Kante = davor/danach,
+// Mitte = als Unterdiagramm.
+let hierDragId = null;
+const clearHierDrop = ()=> $('hierTree').querySelectorAll('.drop-before,.drop-after,.drop-inside')
+  .forEach(e=>{ e.classList.remove('drop-before','drop-after','drop-inside'); delete e.dataset.dropPos; });
+$('hierTree').addEventListener('dragstart', ev=>{
+  const row = ev.target.closest('.dnode'); if(!row) return;
+  hierDragId = row.dataset.id;
+  ev.dataTransfer.effectAllowed = 'move';
+  try{ ev.dataTransfer.setData('text/plain', hierDragId); }catch(_){}
+});
+$('hierTree').addEventListener('dragover', ev=>{
+  if(!hierDragId) return;
+  const row = ev.target.closest('.dnode');
+  if(!row) return;
+  ev.preventDefault();
+  clearHierDrop();
+  const r = row.getBoundingClientRect();
+  const rel = (ev.clientY - r.top) / r.height;
+  const pos = rel < 0.28 ? 'before' : rel > 0.72 ? 'after' : 'inside';
+  row.classList.add('drop-' + pos);
+  row.dataset.dropPos = pos;
+});
+$('hierTree').addEventListener('drop', ev=>{
+  if(!hierDragId) return;
+  ev.preventDefault();
+  const row = ev.target.closest('.dnode');
+  if(row && row.dataset.id !== hierDragId) outlineMove(hierDragId, row.dataset.id, row.dataset.dropPos || 'inside');
+  clearHierDrop(); hierDragId = null;
+});
+$('hierTree').addEventListener('dragend', ()=>{ clearHierDrop(); hierDragId = null; });
+
 const DIR_NAME = {TB:'oben nach unten', BT:'unten nach oben', LR:'links nach rechts', RL:'rechts nach links'};
 
 function syncLayoutMenu(){

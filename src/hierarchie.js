@@ -199,7 +199,7 @@ function renderOutlineTree(){
     const kids = node.kinder.length;
     const open = S.hierOpen.has(node.id);
     const sel = node.id === S.hierSel;
-    let s = `<div class="dnode${sel ? ' sel' : ''}" data-id="${esc(node.id)}" role="treeitem"`
+    let s = `<div class="dnode${sel ? ' sel' : ''}" data-id="${esc(node.id)}" role="treeitem" draggable="true"`
           + ` aria-selected="${sel}" style="padding-left:${6 + depth * 15}px">`;
     s += kids
       ? `<span class="tw" data-toggle="${esc(node.id)}">${open ? '▾' : '▸'}</span>`
@@ -453,6 +453,36 @@ function outlineDelete(id){
   commitOutline();
   const rest = outlineFlat(S.outline.roots);
   selectDiagram(rest.length ? rest[0].id : null);
+}
+
+/* Ein Diagramm im Baum verschieben: pos = 'before' | 'after' (neben target) oder
+   'inside' (als Unterdiagramm von target). Kennungen und gespeicherte
+   Anordnungen/Texte wandern mit. */
+function outlineMove(dragId, targetId, pos){
+  if(!S.outline || !dragId || dragId === targetId) return;
+  const drag = outlineFind(S.outline.roots, dragId);
+  if(!drag) return;
+  const target = outlineFind(S.outline.roots, targetId);
+  if(!target) return;
+  if(target.id === dragId || target.id.startsWith(dragId + '›')){ toast('Ein Diagramm kann nicht in sich selbst verschoben werden'); return; }
+  bakeOverlays();
+  const alt = drag.id;
+  const detach = arr=>{ const i = arr.indexOf(drag); if(i >= 0){ arr.splice(i, 1); return true; } return arr.some(n => detach(n.kinder)); };
+  detach(S.outline.roots);
+  const parentArrayOf = node=>{ let res = null; const w = arr=>{ if(arr.includes(node)){ res = arr; return true; } return arr.some(n => w(n.kinder)); }; w(S.outline.roots); return res; };
+  if(pos === 'inside'){ target.kinder.push(drag); S.hierOpen.add(target.id); }
+  else {
+    const arr = parentArrayOf(target) || S.outline.roots;
+    const idx = arr.indexOf(target);
+    arr.splice((pos === 'after' ? idx + 1 : idx), 0, drag);
+  }
+  reassignIds();
+  remapGeometry(alt, drag.id);
+  if(S.hierSel === alt || S.hierSel.startsWith(alt + '›')) S.hierSel = drag.id + S.hierSel.slice(alt.length);
+  commitOutline();
+  renderOutlineTree();
+  if(S.hierSel) selectDiagram(S.hierSel);
+  toast('„' + drag.name + '" verschoben');
 }
 
 /* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */

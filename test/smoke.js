@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -612,6 +612,19 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     api.outlineDelete('Übersicht›Umbenannt');
     t('Diagramm gelöscht', !document.querySelector('#hierTree .dnode[data-id="Übersicht›Umbenannt"]')
       && !S.outlineText.includes('Umbenannt'));
+
+    // Struktur per Verschieben ändern (umhängen + umsortieren)
+    const findNode = id => { let r = null; (function w(l){ (l||[]).forEach(n=>{ if(n.id === id) r = n; w(n.kinder); }); })(S.outline.roots); return r; };
+    S.hierSaved['Übersicht›roadshow'] = {'o:Kunde':{x:1, y:2}};
+    api.outlineMove('Übersicht›roadshow', 'Übersicht›webshop', 'inside');
+    t('Diagramm umgehängt (neue Kennung unter dem Ziel)',
+      !!findNode('Übersicht›webshop›roadshow') && !findNode('Übersicht›roadshow'));
+    t('gespeicherte Anordnung wandert auf die neue Kennung',
+      !!S.hierSaved['Übersicht›webshop›roadshow'] && !S.hierSaved['Übersicht›roadshow']);
+    api.outlineMove('Übersicht›webshop›roadshow', 'Übersicht›webshop', 'before');
+    const order = findNode('Übersicht').kinder.map(n => n.name);
+    t('davor eingeordnet (Reihenfolge/Ebene geändert)',
+      order.indexOf('roadshow') > -1 && order.indexOf('roadshow') < order.indexOf('webshop'), order.join(','));
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',

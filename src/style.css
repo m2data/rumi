@@ -156,6 +156,10 @@ body.modus-hierarchie .sidetab.tab-komplett{display:none}
 .dnode .tw.leaf{color:var(--hair)}
 .dnode .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
 .dnode .cnt{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.dnode[draggable]{cursor:grab}
+.dnode.drop-inside{outline:2px solid var(--obj);outline-offset:-2px;background:var(--obj-soft)}
+.dnode.drop-before{box-shadow:inset 0 3px 0 -1px var(--obj)}
+.dnode.drop-after{box-shadow:inset 0 -3px 0 -1px var(--obj)}
 .hd-title{font-size:15px;font-weight:600;margin:0;color:var(--ink)}
 .hd-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
 .hd-actions{display:flex;gap:6px}
