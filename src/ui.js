@@ -99,8 +99,13 @@ function writeStore(){
   const blob = layoutFile();
   const snap = JSON.stringify(blob);
   store.set('layouts:' + S.fileName, snap);
-  store.set('sitzung', JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, blob)));
+  const sitzung = JSON.stringify(
+    Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, blob));
+  store.set('sitzung', sitzung);
+  // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
+  // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
+  // Vorrang. So behält jeder Tab sein eigenes Modell.
+  try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){}
   recordHistory(snap);
 }
 
@@ -1568,6 +1573,11 @@ async function boot(){
   let preset = null;
   try{ preset = JSON.parse($('bakedState').textContent); }catch(_){}
   if(!preset){
+    // Zuerst die Tab-eigene Sitzung: beim Neuladen behält jeder Tab sein Modell.
+    try{ preset = JSON.parse(sessionStorage.getItem('sitzung')); }catch(_){}
+  }
+  if(!preset){
+    // Sonst die geteilte Sitzung — der Start für neue Tabs und Fenster.
     try{ preset = JSON.parse(await store.get('sitzung')); }catch(_){}
   }
   if(preset && preset.yaml) await loadYaml(preset.yaml, preset.fileName, preset);

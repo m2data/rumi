@@ -14,6 +14,7 @@ const win = {
   addEventListener(){}, requestAnimationFrame(f){ f(0); },
   setTimeout:(f)=>0, clearTimeout(){}, storage:undefined,
   localStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
+  sessionStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
   CSS:{ escape:s=>String(s).replace(/["\\]/g,'\\$&') },
   URL:{ createObjectURL:()=>'blob:x', revokeObjectURL(){} },
   Blob:function(){}, Image:function(){}, FileReader:function(){}
@@ -27,11 +28,11 @@ const t = (name, cond, info)=>{
 
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
-const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure});');
+const runner = new Function('document','window','localStorage','sessionStorage','CSS','URL','Blob','Image','FileReader',
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure, boot});');
 
 try{
-  runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
+  runner(document, win, win.localStorage, win.sessionStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
          win.setTimeout, win.clearTimeout, o => { api = o; S = o.S; });
 }catch(err){
   console.log('  FEHL App startet nicht  → ' + err.message);
@@ -942,6 +943,25 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und ersetzen ==');
   t('loadDelta fügt ein neues Objekt hinzu', !!S.model.objects.NeuObjekt);
   t('loadDelta ersetzt ein vorhandenes Objekt', S.model.objects[first].domain === 'DeltaDom');
   t('Objektzahl wächst genau um die neuen', Object.keys(S.model.objects).length === before + 1, before + ' → ' + Object.keys(S.model.objects).length);
+}
+
+console.log('== Jeder Tab behält beim Neuladen seine eigene Sitzung ==');
+{
+  // Geteilte Sitzung (localStorage) und Tab-Sitzung (sessionStorage) zeigen auf
+  // verschiedene Modelle -> boot() muss die Tab-eigene bevorzugen.
+  const mini = name => JSON.stringify({fileName:name, view:1,
+    yaml:'BusinessObjects:\n  ' + name.replace('.yaml','') + ':\n    Domain: T\n'});
+  win.localStorage.setItem('sitzung', mini('geteilt.yaml'));
+  win.sessionStorage.setItem('sitzung', mini('tabeigen.yaml'));
+  await api.boot();
+  for(let k=0;k<50;k++) await Promise.resolve();
+  t('Neuladen nimmt die Tab-eigene Sitzung (nicht die geteilte)',
+    S.fileName === 'tabeigen.yaml', 'fileName=' + S.fileName);
+  api.persist();
+  t('persist() schreibt die Tab-eigene Sitzung mit',
+    (win.sessionStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));
+  t('persist() pflegt weiterhin die geteilte Sitzung',
+    (win.localStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));
 }
 
 console.log('\n' + (fail ? fail + ' von ' + (fail+pass) + ' Prüfungen fehlgeschlagen'
