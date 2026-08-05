@@ -223,10 +223,14 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
   const eg1 = findEg();
   t('Kantengruppe im DOM gefunden', !!eg1);
   if(eg1){
-    // zwei Klicks auf dieselbe Kante binnen 350 ms (jeder Klick zeichnet neu)
+    // 1. Klick wählt die Kante aus -> darüber erscheinen Segment-/Zusatzpunkt-Griffe
     dispatch(eg1, 'pointerdown', {timeStamp: 1000});
-    dispatch(findEg(), 'pointerdown', {timeStamp: 1120});
-    t('Doppelklick entfernt alle Stützpunkte', e.bends === null);
+    // 2. Klick landet realistisch auf so einem Griff (nicht auf der .eg-Gruppe);
+    //    er muss dennoch löschen, nicht einen Stützpunkt setzen.
+    const handle = document.getElementById('handles').querySelector('.gh, .seg, .hnd');
+    t('Griffe der gewählten Kante vorhanden', !!handle);
+    dispatch(handle || findEg(), 'pointerdown', {timeStamp: 1120});
+    t('zweiter Klick auf einem Griff löscht die Stützpunkte (statt einen zu setzen)', e.bends === null);
     // ein langsamer zweiter Klick löscht NICHT
     const e2 = S.graph.edges.find(x=>{
       const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);

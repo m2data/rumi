@@ -4156,6 +4156,33 @@ svg.addEventListener('pointerdown', ev=>{
   if(drag && !drag.moved) drag = null;
   const t = ev.target;
 
+  // Doppelklick auf eine Kante (zweimal dieselbe binnen 350 ms) löscht alle
+  // Stützpunkte. Ganz vorne geprüft, weil nach dem Auswählen Segment- und
+  // Zusatzpunkt-Griffe über der Linie liegen — sonst würde der zweite Klick
+  // einen Stützpunkt setzen statt zu löschen. Ein nativer dblclick käme wegen
+  // des Neuzeichnens bei jedem Klick ohnehin nicht zustande.
+  {
+    const egEl = t.closest && t.closest('.eg');
+    const onHandle = (t.classList && (t.classList.contains('hnd') || t.classList.contains('seg')
+                    || t.classList.contains('gh') || t.classList.contains('pt')))
+                    || (t.dataset && t.dataset.loop);
+    const edgeId = egEl ? egEl.dataset.id : (onHandle ? S.selEdge : null);
+    if(edgeId){
+      if(lastEdgeTap && lastEdgeTap.id === edgeId && ev.timeStamp - lastEdgeTap.t < 350){
+        lastEdgeTap = null;
+        const e = S.graph.edges.find(x => x.id === edgeId);
+        if(e && e.bends && e.bends.length){
+          e.bends = null; e.manual = true; e.ortho = false;
+          S.selEdge = edgeId; S.selected = null; S.sel.clear();
+          draw(); renderDetails(); syncLayoutMenu(); updateAlignBar(); persist();
+          toast('Stützpunkte gelöscht');
+        }
+        ev.preventDefault(); return;
+      }
+      lastEdgeTap = {id: edgeId, t: ev.timeStamp};
+    }
+  }
+
   // Selbstbezug-Schleife am Scheitel verschieben (vor dem Anschlusspunkt prüfen)
   if(t.dataset && t.dataset.loop){
     const e = S.graph.edges.find(x => x.id === S.selEdge);
@@ -4265,24 +4292,10 @@ svg.addEventListener('pointerdown', ev=>{
     ev.preventDefault(); return;
   }
 
-  // Kante auswählen — Doppelklick (zweimal dieselbe Kante binnen 350 ms) löscht
-  // alle Stützpunkte. Eigene Erkennung, weil jeder Klick das SVG neu zeichnet und
-  // ein nativer dblclick daher nicht zustande kommt.
+  // Kante auswählen (Doppelklick zum Stützpunkt-Löschen ist oben behandelt)
   const eg = t.closest && t.closest('.eg');
   if(eg){
     const id = eg.dataset.id;
-    if(lastEdgeTap && lastEdgeTap.id === id && ev.timeStamp - lastEdgeTap.t < 350){
-      lastEdgeTap = null;
-      const e = S.graph.edges.find(x => x.id === id);
-      if(e && e.bends && e.bends.length){
-        e.bends = null; e.manual = true; e.ortho = false;
-        S.selEdge = id; S.selected = null; S.sel.clear();
-        draw(); renderDetails(); syncLayoutMenu(); updateAlignBar(); persist();
-        toast('Stützpunkte gelöscht');
-      }
-      ev.preventDefault(); return;
-    }
-    lastEdgeTap = {id, t: ev.timeStamp};
     S.selEdge = (S.selEdge === id) ? null : id;
     S.selected = null; S.sel.clear();
     draw(); renderDetails(); syncLayoutMenu(); updateAlignBar();
@@ -4337,6 +4350,8 @@ svg.addEventListener('pointerdown', ev=>{
 });
 
 svg.addEventListener('pointermove', ev=>{
+  // Wird gezogen, zählt der vorherige Klick nicht als erster Teil eines Doppelklicks.
+  if(loopDrag || bendDrag || segDrag || portDrag) lastEdgeTap = null;
   if(loopDrag){
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
