@@ -884,7 +884,11 @@ svg.addEventListener('pointermove', ev=>{
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k, wy = (ev.clientY - r.top - S.t.y)/S.t.k;
     const e = labelDrag.e, A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
-    if(A && B && A !== B){ e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t; drawEdges(); }
+    if(A && B && A !== B){
+      e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t;
+      e.labelManual = true;                    // von Hand platziert: bleibt beim Entzerren stehen
+      drawEdges();
+    }
     return;
   }
   if(loopDrag){
@@ -985,7 +989,13 @@ function endPointer(ev){
   if(segDrag){ segDrag = null; persist(); }
   if(bendDrag){ bendDrag = null; persist(); }
   if(drag){
-    if(drag.moved) persist();
+    if(drag.moved){
+      // Beschriftungen der mitbewegten Kanten entzerren (manuelle bleiben stehen)
+      const moved = new Set(drag.items.map(it => it.n.id));
+      spreadLabels(S.graph.edges.filter(e => moved.has(e.from) || moved.has(e.to)));
+      drawEdges();
+      persist();
+    }
     else if(drag.additive) select(drag.n.id, false, true);        // additiv umschalten
     else if(drag.wasSel && S.sel.size === 1) setSelection([]);    // erneuter Klick auf einzelne Auswahl -> abwählen
     else setSelection([drag.n.id]);                               // einfacher Klick -> markiert lassen
@@ -1143,6 +1153,7 @@ function arrangeSelection(){
   const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
   sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte
   sub.forEach(e=>{ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); });
+  spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   S.selEdge = null; persist(); draw();
   const a = ALGOS[S.layout.algo] || ALGOS.hier;
   toast(sel.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');

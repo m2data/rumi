@@ -60,14 +60,17 @@ function materializeOrtho(e){
   return true;
 }
 
-/* Nach dem Auto-Layout: Beschriftungen, die sich überdecken, entlang ihrer
-   Kante auseinanderschieben. Greedy — jede Beschriftung nimmt die Position (aus
-   einer Kandidatenliste rund um die Mitte), die möglichst nicht mit bereits
-   platzierten überlappt. */
-function spreadLabels(){
+/* Beschriftungen, die sich überdecken, entlang ihrer Kante auseinanderschieben.
+   Greedy — jede bewegliche Beschriftung nimmt die Position (aus einer
+   Kandidatenliste rund um die Mitte), die möglichst nicht mit bereits
+   platzierten überlappt. Von Hand platzierte (labelManual) und Kanten außerhalb
+   von `scope` bleiben stehen und wirken nur als Hindernis. Ohne scope werden
+   alle automatischen Beschriftungen neu verteilt (nach dem Auto-Layout). */
+function spreadLabels(scope){
   if(S.layout.labels === false) return;
   const F = '500 10px "IBM Plex Mono", monospace';
   const edges = visEdges().filter(e => e.label && e.from !== e.to);
+  const scopeSet = scope ? new Set(scope) : null;
   const rectAt = (e, t)=>{
     const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
     if(!A || !B) return null;
@@ -77,8 +80,14 @@ function spreadLabels(){
   };
   const hit = (r, s)=> r && s && r.x < s.x+s.w && s.x < r.x+r.w && r.y < s.y+s.h && s.y < r.y+r.h;
   const cand = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2, 0.8];
-  const placed = [];
+  const placed = [], movable = [];
   edges.forEach(e=>{
+    if(e.labelManual || (scopeSet && !scopeSet.has(e))){
+      const r = rectAt(e, e.labelT != null ? e.labelT : 0.5);
+      if(r) placed.push(r);
+    } else movable.push(e);
+  });
+  movable.forEach(e=>{
     let bestT = 0.5, bestRect = null, bestN = Infinity;
     for(const t of cand){
       const r = rectAt(e, t); if(!r) continue;
@@ -187,6 +196,7 @@ function routesSnapshot(){
       pf: e.portFrom || null, pt: e.portTo || null,
       lp: e.loop || null,
       lt: e.labelT != null ? e.labelT : null,
+      lm: !!e.labelManual,
       o: !!e.ortho, man: !!e.manual
     };
   });
@@ -203,6 +213,7 @@ function applyRoutesFrom(m){
     e.portTo = r.pt || null;
     e.loop = r.lp || null;
     e.labelT = (r.lt != null) ? r.lt : null;
+    e.labelManual = !!r.lm;
     e.ortho = !!r.o;
     e.manual = !!r.man;
   });

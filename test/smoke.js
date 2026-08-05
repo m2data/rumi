@@ -335,6 +335,16 @@ console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
     t('Ziehen setzt die Label-Position entlang der Kante (labelT in [0,1])',
       typeof e.labelT === 'number' && e.labelT >= 0 && e.labelT <= 1, 'labelT=' + e.labelT);
     t('Label wandert zum Kantenanfang', e.labelT < 0.25, 'labelT=' + e.labelT);
+    t('gezogenes Label gilt als von Hand platziert', e.labelManual === true);
+
+    // Position und Manuell-Kennzeichen überleben den Ansichtswechsel
+    const gemerkt = e.labelT;
+    api.persist(); api.setView(2); api.setView(1);
+    const back = S.graph.edges.find(x => x.from === e.from && x.to === e.to && (x.ord||0) === (e.ord||0));
+    t('manuelle Label-Position überlebt den Ansichtswechsel',
+      back && Math.abs(back.labelT - gemerkt) < 1e-6 && back.labelManual === true,
+      back ? 'labelT=' + back.labelT + ', manual=' + back.labelManual : 'Kante weg');
+    if(back){ back.labelT = null; back.labelManual = false; back.bends = null; api.persist(); }  // aufräumen
   }
   S.selEdge = null;
 }
@@ -355,7 +365,7 @@ console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');
     const [e1, e2] = chosen;
     const A1=S.graph.byId.get(e1.from), B1=S.graph.byId.get(e1.to), A2=S.graph.byId.get(e2.from), B2=S.graph.byId.get(e2.to);
     A1.x=A2.x=0; A1.y=A2.y=0; B1.x=B2.x=2000; B1.y=B2.y=0;
-    [e1,e2].forEach(e=>{ e.bends=null; e.portFrom=null; e.portTo=null; e.labelT=null; e.ortho=false; });
+    [e1,e2].forEach(e=>{ e.bends=null; e.portFrom=null; e.portTo=null; e.labelT=null; e.labelManual=false; e.ortho=false; });
     const F='500 10px "IBM Plex Mono", monospace';
     const rect=e=>{ const A=S.graph.byId.get(e.from),B=S.graph.byId.get(e.to);
       const p=api.polyPoint(api.routePoints(e,A,B), e.labelT!=null?e.labelT:0.5); const w=api.measure(e.label,F)+8;
@@ -367,6 +377,25 @@ console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');
       'labelT: ' + e1.labelT + ' / ' + e2.labelT);
     t('eine der Beschriftungen wurde entlang ihrer Kante verschoben',
       e1.labelT != null || e2.labelT != null);
+
+    // Von Hand platzierte Beschriftung bleibt stehen, die andere weicht aus
+    e1.labelT = 0.5; e1.labelManual = true;
+    e2.labelT = null; e2.labelManual = false;
+    api.spreadLabels();
+    t('von Hand gesetzte Beschriftung bleibt beim Entzerren stehen',
+      e1.labelT === 0.5 && e1.labelManual === true);
+    t('die automatische weicht der festen aus',
+      e2.labelT != null && Math.abs(e2.labelT - 0.5) > 0.01, 'labelT=' + e2.labelT);
+
+    // Mit Bereich: Kanten außerhalb bleiben unangetastet
+    e1.labelManual = false; e1.labelT = 0.5;
+    e2.labelT = null;
+    api.spreadLabels([e2]);
+    t('außerhalb des Bereichs bleibt die Beschriftung unverändert', e1.labelT === 0.5);
+    t('innerhalb des Bereichs weicht sie aus',
+      e2.labelT != null && Math.abs(e2.labelT - 0.5) > 0.01, 'labelT=' + e2.labelT);
+
+    [e1, e2].forEach(e=>{ e.labelT = null; e.labelManual = false; });   // aufräumen
   }
 }
 

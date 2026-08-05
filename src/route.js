@@ -203,6 +203,7 @@ function rerouteEdges(list){
     e.bends = inner.length ? inner : null;
   });
 
+  spreadLabels(cand);          // Beschriftungen der neu gezogenen Kanten entzerren
   draw();
   return cand.length;
 }

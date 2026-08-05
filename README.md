@@ -21,8 +21,9 @@ läuft offline und lädt nichts nach.
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
   eine Kante löscht alle ihre Stützpunkte und wählt die kürzeste Verbindung).
   Beziehungsbeschriftungen sitzen auf der Kante und lassen sich frei entlang der
-  Beziehung ziehen; beim Auto-Layout werden überlappende Beschriftungen
-  automatisch entzerrt. Ist ein Bereich
+  Beziehung ziehen; überlappende Beschriftungen werden beim Auto-Layout, beim
+  Anordnen einer Auswahl, beim Neuziehen von Kanten und nach dem Verschieben
+  automatisch entzerrt — von Hand platzierte bleiben stehen. Ist ein Bereich
   markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.
