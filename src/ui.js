@@ -771,17 +771,25 @@ svg.addEventListener('pointerdown', ev=>{
 
     if(e.ortho && !e.bends.length){
       // Direktverbindung (noch ohne Stützpunkte): sauberer Stufenzug mit ZWEI
-      // Punkten — wie eine automatisch gezogene Kante, nicht vier Punkte. Die
-      // Querachse richtet sich nach der Flussrichtung; das mittlere Teilstück
-      // wird gezogen.
+      // Punkten — wie eine automatisch gezogene Kante, nicht vier Punkte. Damit
+      // alle drei Strecken rechtwinklig sind, werden die Anschlusspunkte
+      // senkrecht zur Flussrichtung mittig gesetzt (sonst projiziert edgeEnd vom
+      // Zentrum und das erste Stück liefe schräg). Das mittlere Teilstück wird
+      // gezogen.
       const flowVert = S.layout.dir === 'TB' || S.layout.dir === 'BT';
       if(flowVert){
-        const yMid = Math.round(m.y);
-        e.bends = [{x:Math.round(p.x), y:yMid}, {x:Math.round(q.x), y:yMid}];
+        const down = (A.y + A.h/2) <= (B.y + B.h/2);
+        e.portFrom = {side: down ? 'B' : 'T', t:0.5};
+        e.portTo   = {side: down ? 'T' : 'B', t:0.5};
+        const fx = Math.round(A.x + A.w/2), tx = Math.round(B.x + B.w/2), yMid = Math.round(m.y);
+        e.bends = [{x:fx, y:yMid}, {x:tx, y:yMid}];
         segDrag = {e, axis:'y', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:yMid};
       } else {
-        const xMid = Math.round(m.x);
-        e.bends = [{x:xMid, y:Math.round(p.y)}, {x:xMid, y:Math.round(q.y)}];
+        const right = (A.x + A.w/2) <= (B.x + B.w/2);
+        e.portFrom = {side: right ? 'R' : 'L', t:0.5};
+        e.portTo   = {side: right ? 'L' : 'R', t:0.5};
+        const fy = Math.round(A.y + A.h/2), ty = Math.round(B.y + B.h/2), xMid = Math.round(m.x);
+        e.bends = [{x:xMid, y:fy}, {x:xMid, y:ty}];
         segDrag = {e, axis:'x', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:xMid};
       }
       drawEdges();

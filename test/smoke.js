@@ -294,6 +294,16 @@ console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig =='
     t('Ziehen der Direktlinie ergibt genau zwei Stützpunkte (nicht vier)',
       Array.isArray(e.bends) && e.bends.length === 2, 'bends=' + (e.bends ? e.bends.length : 0));
     t('gezogene Direktlinie ist eckig (ortho=true)', e.ortho === true);
+    // alle drei Strecken achsparallel (90°): über die echten Anschlusspunkte prüfen
+    {
+      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+      const pp = (n,p)=>{ const tt = Math.min(0.92, Math.max(0.08, p.t));
+        return p.side==='T'?{x:n.x+n.w*tt,y:n.y}:p.side==='B'?{x:n.x+n.w*tt,y:n.y+n.h}:p.side==='L'?{x:n.x,y:n.y+n.h*tt}:{x:n.x+n.w,y:n.y+n.h*tt}; };
+      const pts = [pp(A, e.portFrom), ...e.bends, pp(B, e.portTo)];
+      let alle90 = true;
+      for(let k=0;k<pts.length-1;k++){ const dx=Math.abs(pts[k+1].x-pts[k].x), dy=Math.abs(pts[k+1].y-pts[k].y); if(dx>=1 && dy>=1) alle90 = false; }
+      t('alle drei Strecken sind rechtwinklig (kein schräges Stück am Objekt)', alle90);
+    }
     S.selEdge = e.id; api.draw();
     const hnd = document.getElementById('handles').querySelector('.hnd');
     if(hnd){
