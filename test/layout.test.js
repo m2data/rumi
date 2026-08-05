@@ -315,6 +315,8 @@ console.log('== Orthogonal: keine rücklaufenden Haken an den Ecken ==');
     }
   });
   t('orthogonale Kanten laufen an den Ecken nicht zurück', hooks === 0, hooks + ' Rückläufe');
+  t('Willibald orthogonal: geroutete Züge kreuzungsfrei', routedCrossings(g, portPoint) === 0,
+    routedCrossings(g, portPoint) + ' Kreuzungen');
 }
 
 console.log('== Orthogonal: lange Kante fällt gerade in den Anschluss (sap-finanz) ==');
@@ -337,6 +339,8 @@ console.log('== Orthogonal: lange Kante fällt gerade in den Anschluss (sap-fina
       // Anschluss fallen, statt bis zur Knotenmitte zu laufen und zurückzuknicken.
       t('Werksmaterial->Rechnungsposition schwingt nicht über das Ziel hinaus',
         xs.every(x => x >= lo && x <= hi), 'xs=' + xs.map(Math.round).join(','));
+      t('sap-finanz orthogonal: höchstens 2 geroutete Kreuzungen',
+        routedCrossings(g, portPoint) <= 2, routedCrossings(g, portPoint) + ' Kreuzungen');
     }
   }
 }
@@ -352,6 +356,9 @@ console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) =='
     const c = crossings(g.nodes, g.edges);
     // Vor dem deterministischen Mehrfachstart waren es 7; jetzt 4.
     t('crm orthogonal: höchstens 5 Kreuzungen (Zentrum-zu-Zentrum)', c <= 5, c + ' Kreuzungen');
+    // Kreuzungsbewusste Spur- und Anschlussvergabe: geroutet 9 -> 3.
+    t('crm orthogonal: höchstens 4 geroutete Kreuzungen',
+      routedCrossings(g, portPoint) <= 4, routedCrossings(g, portPoint) + ' Kreuzungen');
     // Überbreite leere Korridore werden geschlossen (vorher ~664 px Lücke).
     const iv = g.nodes.map(n => [n.x, n.x + n.w]).sort((a,b)=> a[0]-b[0]);
     let maxGap = 0, end = iv[0][1];

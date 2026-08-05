@@ -588,6 +588,7 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
     if(!byChan.has(r.ci)) byChan.set(r.ci, []);
     byChan.get(r.ci).push(r);
   });
+  const chanOrders = [];                      // je Kanal: Spur-Reihenfolge (für die Nachbesserung)
   for(const list of byChan.values()){
     const K = list.length;
     if(K < 2) continue;
@@ -613,10 +614,15 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
     }
     const order = list.map((_,i)=>i).sort((p,q)=> level[p]-level[q] || list[p].lo-list[q].lo);
     const step = Math.min(16, (LAY * 0.62) / (K - 1));
-    order.forEach((idx, pos)=>{ list[idx].off = (pos - (K-1)/2) * step; });
+    const apply = ()=> order.forEach((idx, pos)=>{ list[idx].off = (pos - (K-1)/2) * step; });
+    apply();
+    chanOrders.push({list, order, apply});
   }
 
-  for(const [e, {pts, steps}] of plans){
+  /* Der fertige Zug einer Kante bei den aktuellen Spur-Offsets: Anschlusspunkt,
+     Kanalpunkte, Anschlusspunkt — bereinigt um Rückläufe und kollineare Punkte
+     (sonst Haken an den Ecken). Dient der Bewertung und dem Rückschreiben. */
+  const pathOf = ({pts, steps})=>{
     const res = [];
     for(let i=0; i<pts.length-1; i++){
       const st = steps.find(s => s.i === i);
@@ -627,10 +633,85 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
       }
       if(i < pts.length - 2) res.push(pts[i+1]);
     }
-    // Rücklaufende/kollineare Zwischenpunkte raus (sonst Haken an den Ecken).
-    // pts[0]/pts[letzter] sind die Anschlusspunkte und dienen nur als Anker.
-    const clean = dropCollinear([pts[0], ...res, pts[pts.length-1]]);
-    e.bends = clean.length > 2 ? clean.slice(1, -1) : (res.length ? res : null);
+    return dropCollinear([pts[0], ...res, pts[pts.length-1]]);
+  };
+
+  /* Kreuzungsbewusste Spurvergabe: die Zwangsbedingungen legen nur fest, was
+     übereinander liegen MUSS — wo sie Spielraum lassen, werden benachbarte
+     Spuren probeweise getauscht und der Tausch behalten, wenn die tatsächlich
+     gezeichneten Züge dadurch seltener kreuzen. Deterministisch, endet spätestens
+     nach vier Runden ohne Verbesserung. */
+  const planList = [...plans.values()];
+  const zaehlKreuzungen = ()=>{
+    const segs = [];
+    planList.forEach((p, ei)=>{
+      const pts = pathOf(p);
+      for(let i=0;i<pts.length-1;i++) segs.push({ei, a:pts[i], b:pts[i+1]});
+    });
+    const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+    let n = 0;
+    for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
+      const s = segs[i], u = segs[j];
+      if(s.ei === u.ei) continue;
+      const d1=ccw(u.a,u.b,s.a), d2=ccw(u.a,u.b,s.b), d3=ccw(s.a,s.b,u.a), d4=ccw(s.a,s.b,u.b);
+      if(((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0))) n++;
+    }
+    return n;
+  };
+  /* Tausch-Züge für Anschlusspunkte: Kanten, die dieselbe Knotenseite nutzen,
+     kreuzen sich sofort am Kasten, wenn ihre Reihenfolge nicht zur Lage der
+     Gegenseiten passt (die Verteilung entstand vor dem Geraderücken der langen
+     Kanten und kann veraltet sein). Nachbarn probeweise tauschen. */
+  const portGroups = new Map();
+  for(const e of plans.keys()){
+    const reg = (id, which)=>{
+      if(!e[which]) return;
+      const k = id + '|' + e[which].side;
+      if(!portGroups.has(k)) portGroups.set(k, []);
+      portGroups.get(k).push({e, which});
+    };
+    reg(e.from, 'portFrom'); reg(e.to, 'portTo');
+  }
+  const refreshEnd = r=>{
+    const plan = plans.get(r.e);
+    const n = nodeOf.get(r.which === 'portFrom' ? r.e.from : r.e.to);
+    const p = portPoint(n, r.e[r.which]);
+    if(r.which === 'portFrom') plan.pts[0] = p; else plan.pts[plan.pts.length-1] = p;
+  };
+  const swapT = (a, b)=>{
+    const t = a.e[a.which].t; a.e[a.which].t = b.e[b.which].t; b.e[b.which].t = t;
+    refreshEnd(a); refreshEnd(b);
+  };
+  portGroups.forEach(grp => grp.sort((x, y)=> x.e[x.which].t - y.e[y.which].t));
+
+  if((chanOrders.length || portGroups.size) && planList.length <= 200){   // Größen-Schutz: O(Segmente²) je Bewertung
+    let best = zaehlKreuzungen();
+    for(let pass=0; pass<4 && best>0; pass++){
+      let besser = false;
+      for(const ch of chanOrders){
+        for(let p=0; p<ch.order.length-1; p++) for(let q=p+1; q<ch.order.length; q++){
+          const a = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = a;
+          ch.apply();
+          const c = zaehlKreuzungen();
+          if(c < best){ best = c; besser = true; }
+          else { const b = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = b; ch.apply(); }
+        }
+      }
+      for(const grp of portGroups.values()){
+        for(let p=0; p<grp.length-1; p++) for(let q=p+1; q<grp.length; q++){
+          swapT(grp[p], grp[q]);
+          const c = zaehlKreuzungen();
+          if(c < best){ best = c; besser = true; const t2 = grp[p]; grp[p] = grp[q]; grp[q] = t2; }
+          else swapT(grp[p], grp[q]);   // zurück
+        }
+      }
+      if(!besser) break;
+    }
+  }
+
+  for(const [e, plan] of plans){
+    const clean = pathOf(plan);
+    e.bends = clean.length > 2 ? clean.slice(1, -1) : null;
   }
 }
 
