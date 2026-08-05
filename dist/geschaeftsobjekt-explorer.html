@@ -4043,6 +4043,7 @@ function setSidePane(name){
    9 — Maus, Touch, Tastatur
    ===================================================================== */
 let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null;
+let lastEdgeTap = null;             // für die Doppelklick-Erkennung auf Kanten
 
 svg.addEventListener('pointerdown', ev=>{
   // Sicherheitsnetz: ein nicht beendetes Ziehen (verlorenes pointerup) würde
@@ -4160,10 +4161,25 @@ svg.addEventListener('pointerdown', ev=>{
     ev.preventDefault(); return;
   }
 
-  // Kante auswählen
+  // Kante auswählen — Doppelklick (zweimal dieselbe Kante binnen 350 ms) löscht
+  // alle Stützpunkte. Eigene Erkennung, weil jeder Klick das SVG neu zeichnet und
+  // ein nativer dblclick daher nicht zustande kommt.
   const eg = t.closest && t.closest('.eg');
   if(eg){
-    S.selEdge = (S.selEdge === eg.dataset.id) ? null : eg.dataset.id;
+    const id = eg.dataset.id;
+    if(lastEdgeTap && lastEdgeTap.id === id && ev.timeStamp - lastEdgeTap.t < 350){
+      lastEdgeTap = null;
+      const e = S.graph.edges.find(x => x.id === id);
+      if(e && e.bends && e.bends.length){
+        e.bends = null; e.manual = true; e.ortho = false;
+        S.selEdge = id; S.selected = null; S.sel.clear();
+        draw(); renderDetails(); syncLayoutMenu(); updateAlignBar(); persist();
+        toast('Stützpunkte gelöscht');
+      }
+      ev.preventDefault(); return;
+    }
+    lastEdgeTap = {id, t: ev.timeStamp};
+    S.selEdge = (S.selEdge === id) ? null : id;
     S.selected = null; S.sel.clear();
     draw(); renderDetails(); syncLayoutMenu(); updateAlignBar();
     document.querySelectorAll('#objectList button').forEach(b=> b.setAttribute('aria-current','false'));
@@ -4333,19 +4349,6 @@ function endPointer(ev){
 svg.addEventListener('pointerup', endPointer);
 svg.addEventListener('pointercancel', endPointer);
 svg.addEventListener('lostpointercapture', endPointer);
-
-// Doppelklick auf eine Kante entfernt alle ihre Stützpunkte (Kante wird gerade).
-svg.addEventListener('dblclick', ev=>{
-  const eg = ev.target.closest && ev.target.closest('.eg');
-  if(!eg) return;
-  const e = S.graph.edges.find(x => x.id === eg.dataset.id);
-  if(!e || !e.bends || !e.bends.length) return;
-  e.bends = null; e.manual = true; e.ortho = false;
-  S.selEdge = e.id;
-  draw(); syncLayoutMenu(); persist();
-  toast('Stützpunkte gelöscht');
-  ev.preventDefault();
-});
 
 svg.addEventListener('wheel', ev=>{
   ev.preventDefault();

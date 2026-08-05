@@ -219,11 +219,26 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
   });
   e.bends = [{x:10, y:10}, {x:20, y:20}]; e.manual = true;
   api.drawEdges();
-  const eg = [...document.getElementById('edges').querySelectorAll('.eg')].find(g => g.dataset.id === e.id);
-  t('Kantengruppe im DOM gefunden', !!eg);
-  if(eg){
-    dispatch(eg, 'dblclick', {});
+  const findEg = () => [...document.getElementById('edges').querySelectorAll('.eg')].find(g => g.dataset.id === e.id);
+  const eg1 = findEg();
+  t('Kantengruppe im DOM gefunden', !!eg1);
+  if(eg1){
+    // zwei Klicks auf dieselbe Kante binnen 350 ms (jeder Klick zeichnet neu)
+    dispatch(eg1, 'pointerdown', {timeStamp: 1000});
+    dispatch(findEg(), 'pointerdown', {timeStamp: 1120});
     t('Doppelklick entfernt alle Stützpunkte', e.bends === null);
+    // ein langsamer zweiter Klick löscht NICHT
+    const e2 = S.graph.edges.find(x=>{
+      const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+      return A && B && !A.hidden && !B.hidden && x.from !== x.to && x.id !== e.id;
+    });
+    if(e2){
+      e2.bends = [{x:5,y:5}]; e2.manual = true; api.drawEdges();
+      const g = () => [...document.getElementById('edges').querySelectorAll('.eg')].find(x=>x.dataset.id===e2.id);
+      dispatch(g(), 'pointerdown', {timeStamp: 5000});
+      dispatch(g(), 'pointerdown', {timeStamp: 5800});   // >350 ms
+      t('einzelne Klicks lassen die Stützpunkte stehen', Array.isArray(e2.bends) && e2.bends.length === 1);
+    }
   }
 }
 
