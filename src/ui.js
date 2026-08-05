@@ -701,7 +701,7 @@ svg.addEventListener('pointerdown', ev=>{
     if(ev.altKey){
       e.bends.splice(i, 1);
       if(!e.bends.length) e.bends = null;
-      e.manual = true; e.ortho = false;
+      e.manual = true; e.ortho = S.layout.algo === 'ortho';   // im Ortho-Modus eckig bleiben
       drawEdges(); persist();
       ev.preventDefault(); return;
     }
@@ -769,12 +769,25 @@ svg.addEventListener('pointerdown', ev=>{
     e.ortho = S.layout.algo === 'ortho';   // Form nach dem zuletzt gewählten Verfahren
     svg.setPointerCapture(ev.pointerId);
 
-    if(e.ortho){
-      // Ein einzelner Punkt würde den rechten Winkel brechen: die beiden
-      // Reststücke lägen schräg. Ein sauberer Versatz braucht vier Punkte —
-      // zwei kurze Querstücke an den Rändern und das verschiebbare Stück
-      // dazwischen. Anfangs liegen sie paarweise aufeinander, die Kante
-      // sieht also unverändert aus, bis gezogen wird.
+    if(e.ortho && !e.bends.length){
+      // Direktverbindung (noch ohne Stützpunkte): sauberer Stufenzug mit ZWEI
+      // Punkten — wie eine automatisch gezogene Kante, nicht vier Punkte. Die
+      // Querachse richtet sich nach der Flussrichtung; das mittlere Teilstück
+      // wird gezogen.
+      const flowVert = S.layout.dir === 'TB' || S.layout.dir === 'BT';
+      if(flowVert){
+        const yMid = Math.round(m.y);
+        e.bends = [{x:Math.round(p.x), y:yMid}, {x:Math.round(q.x), y:yMid}];
+        segDrag = {e, axis:'y', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:yMid};
+      } else {
+        const xMid = Math.round(m.x);
+        e.bends = [{x:xMid, y:Math.round(p.y)}, {x:xMid, y:Math.round(q.y)}];
+        segDrag = {e, axis:'x', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:xMid};
+      }
+      drawEdges();
+    } else if(e.ortho){
+      // Mittelsegment eines bestehenden Zuges versetzen: vier Punkte halten die
+      // beiden Stub-Enden achsparallel (paarweise deckungsgleich bis zum Ziehen).
       const vert = Math.abs(p.x - q.x) < 1;
       const d = Math.min(24, Math.hypot(q.x - p.x, q.y - p.y) / 4);
       const mk = (o)=> vert ? {x:m.x, y:Math.round(m.y + o)} : {x:Math.round(m.x + o), y:m.y};

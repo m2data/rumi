@@ -276,6 +276,34 @@ console.log('== Manuelle Kante folgt dem gewählten Verfahren (eckig/rund) ==');
   S.selEdge = null; S.layout.algo = 'hier';
 }
 
+console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig ==');
+{
+  api.setView(1);
+  const e = S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  e.bends = null; e.portFrom = null; e.portTo = null; e.ortho = false; e.manual = true;   // kürzeste Direktlinie
+  S.layout.algo = 'ortho'; S.layout.dir = 'TB'; S.selEdge = e.id; api.draw();
+  const gh = document.getElementById('handles').querySelector('.gh');
+  t('Direktlinie hat einen Zusatzpunkt-Griff', !!gh);
+  if(gh){
+    dispatch(gh, 'pointerdown', {clientX:0, clientY:0});
+    dispatch(svg, 'pointermove', {clientX:0, clientY:40});
+    dispatch(svg, 'pointerup', {clientX:0, clientY:40});
+    t('Ziehen der Direktlinie ergibt genau zwei Stützpunkte (nicht vier)',
+      Array.isArray(e.bends) && e.bends.length === 2, 'bends=' + (e.bends ? e.bends.length : 0));
+    t('gezogene Direktlinie ist eckig (ortho=true)', e.ortho === true);
+    S.selEdge = e.id; api.draw();
+    const hnd = document.getElementById('handles').querySelector('.hnd');
+    if(hnd){
+      dispatch(hnd, 'pointerdown', {clientX:0, clientY:0, altKey:true});
+      t('Löschen eines Punkts bleibt eckig statt geschwungen (ortho=true)', e.ortho === true);
+    }
+  }
+  S.selEdge = null; S.layout.algo = 'hier';
+}
+
 console.log('== Rückgängig / Wiederherstellen ==');
 {
   api.setView(1);
