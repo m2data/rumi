@@ -412,6 +412,16 @@ console.log('== Domänen zusammenklappen ==');
   }
 }
 
+console.log('== Kurztasten greifen nicht in Eingabefeldern ==');
+{
+  api.setView(1);
+  dispatch(document.getElementById('search'), 'keydown', {key:'2'});
+  t('Ziffer im Suchfeld wechselt die Ansicht nicht', S.view === 1, 'view=' + S.view);
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'2'});
+  t('Ziffer außerhalb eines Feldes wechselt die Ansicht', S.view === 2, 'view=' + S.view);
+  api.setView(1);
+}
+
 console.log('== Kein Text klebt am Kastenrand ==');
 {
   // Misst den untersten gezeichneten Inhalt gegen die Kastenhöhe, in jeder

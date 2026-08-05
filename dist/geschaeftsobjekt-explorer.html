@@ -4372,16 +4372,18 @@ $('zIn').onclick = ()=> zoomBy(1.25);
 $('zOut').onclick = ()=> zoomBy(0.8);
 
 document.addEventListener('keydown', ev=>{
-  if(ev.target.matches('input')) { if(ev.key === 'Escape') ev.target.blur(); return; }
-  const editable = ev.target.matches && (ev.target.matches('textarea') || ev.target.isContentEditable);
+  // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
+  // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
+  // z. B. die Taste „1" ein setView() aus und zeigte plötzlich alle Objekte.
+  const editable = ev.target.matches
+    && (ev.target.matches('input, textarea, select') || ev.target.isContentEditable);
+  if(editable){ if(ev.key === 'Escape') ev.target.blur(); return; }
   if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 'z' || ev.key === 'Z')){
-    if(editable) return;                       // im Textfeld: natives Rückgängig
     ev.preventDefault();
     if(ev.shiftKey) redo(); else undo();       // Strg+Umschalt+Z = Wiederherstellen
     return;
   }
   if((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y')){
-    if(editable) return;
     ev.preventDefault(); redo(); return;
   }
   if(ev.key === 'Escape'){
