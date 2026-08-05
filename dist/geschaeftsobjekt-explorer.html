@@ -340,7 +340,8 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 
 /* ---------- Zeichenfläche ---------- */
 .canvas-wrap{flex:1 1 auto;position:relative;min-width:0;overflow:hidden}
-#canvas{width:100%;height:100%;display:block;touch-action:none;background:var(--paper)}
+#canvas{width:100%;height:100%;display:block;touch-action:none;background:var(--paper);
+  user-select:none;-webkit-user-select:none}
 #canvas.panning{cursor:grabbing}
 .overlay{
   position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;

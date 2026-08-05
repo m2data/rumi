@@ -1,0 +1,508 @@
+Die Beziehungen sind jeweils ausschließlich am Geschäftsobjekt der **1-Seite** abgelegt. Bei Zuordnungsobjekten wie `Segmentmitgliedschaft` existieren daher Beziehungen von beiden übergeordneten 1-Seiten zum Zuordnungsobjekt.
+
+```yaml
+BusinessObjects:
+
+  Kunde:
+    Domain: CRM
+    desc: Repräsentiert eine natürliche Person als CRM-Kunde.
+    business_keys:
+      - KundeID
+    sources:
+      - Customer
+    attributes:
+      - name: KundeID
+        type: uuid
+        nullable: false
+        primary_key: true
+    relationships:
+      - to: Kontaktpunkt
+        name: besitzt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Adresse
+        name: besitzt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Einwilligung
+        name: erteilt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Interaktion
+        name: hat
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Bestellung
+        name: tätigt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Segmentmitgliedschaft
+        name: besitzt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Kampagnenempfänger
+        name: wird_adressiert_als
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Haushaltsmitgliedschaft
+        name: besitzt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Kontaktpunkt:
+    Domain: CRM
+    desc: Repräsentiert einen Kommunikationskanal eines Kunden, beispielsweise eine E-Mail-Adresse oder Telefonnummer.
+    business_keys:
+      - KontaktpunktID
+    sources:
+      - ContactPoint
+    attributes:
+      - name: KontaktpunktID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+    relationships:
+      - to: Kampagnenempfänger
+        name: wird_verwendet_für
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Adresse:
+    Domain: CRM
+    desc: Repräsentiert eine postalische Adresse eines Kunden.
+    business_keys:
+      - AdresseID
+    sources:
+      - Address
+    attributes:
+      - name: AdresseID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+
+  Einwilligung:
+    Domain: CRM
+    desc: Repräsentiert eine historisierte Einwilligung oder einen Widerruf eines Kunden für einen Verarbeitungszweck und Kommunikationskanal.
+    business_keys:
+      - EinwilligungID
+    sources:
+      - Consent
+    attributes:
+      - name: EinwilligungID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+      - name: KontaktpunktID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Kontaktpunkt.KontaktpunktID
+
+  Interaktion:
+    Domain: CRM
+    desc: Repräsentiert einen Kontakt oder ein Ereignis zwischen einem Kunden und dem Unternehmen.
+    business_keys:
+      - InteraktionID
+    sources:
+      - Interaction
+    attributes:
+      - name: InteraktionID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+      - name: KampagneID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Kampagne.KampagneID
+      - name: KampagnenausführungID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Kampagnenausführung.KampagnenausführungID
+
+  Bestellung:
+    Domain: CRM
+    desc: Repräsentiert eine von einem Kunden aufgegebene Bestellung.
+    business_keys:
+      - BestellungID
+    sources:
+      - Order
+    attributes:
+      - name: BestellungID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+    relationships:
+      - to: Bestellposition
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Bestellposition:
+    Domain: CRM
+    desc: Repräsentiert eine einzelne Position innerhalb einer Bestellung.
+    business_keys:
+      - BestellpositionID
+    sources:
+      - OrderItem
+    attributes:
+      - name: BestellpositionID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: BestellungID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Bestellung.BestellungID
+      - name: ProduktID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Produkt.ProduktID
+
+  Produkt:
+    Domain: CRM
+    desc: Repräsentiert ein vermarktbares Produkt.
+    business_keys:
+      - ProduktID
+    sources:
+      - Product
+    attributes:
+      - name: ProduktID
+        type: uuid
+        nullable: false
+        primary_key: true
+    relationships:
+      - to: Bestellposition
+        name: wird_verwendet_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Segment:
+    Domain: CRM
+    desc: Repräsentiert eine fachlich definierte Kundenzielgruppe.
+    business_keys:
+      - SegmentID
+    sources:
+      - Segment
+    attributes:
+      - name: SegmentID
+        type: uuid
+        nullable: false
+        primary_key: true
+    relationships:
+      - to: Segmentmitgliedschaft
+        name: umfasst
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Kampagnensegmentzuordnung
+        name: wird_verwendet_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Segmentmitgliedschaft:
+    Domain: CRM
+    desc: Repräsentiert die gegebenenfalls historisierte Zuordnung eines Kunden zu einem Segment.
+    business_keys:
+      - SegmentmitgliedschaftID
+    sources:
+      - SegmentMember
+    attributes:
+      - name: SegmentmitgliedschaftID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+      - name: SegmentID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Segment.SegmentID
+
+  Haushalt:
+    Domain: CRM
+    desc: Repräsentiert einen gemeinsamen Haushalt mehrerer Kunden.
+    business_keys:
+      - HaushaltID
+    sources:
+      - Household
+    attributes:
+      - name: HaushaltID
+        type: uuid
+        nullable: false
+        primary_key: true
+    relationships:
+      - to: Haushaltsmitgliedschaft
+        name: umfasst
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Haushaltsmitgliedschaft:
+    Domain: CRM
+    desc: Repräsentiert die gegebenenfalls historisierte Zuordnung eines Kunden zu einem Haushalt.
+    business_keys:
+      - HaushaltsmitgliedschaftID
+    sources:
+      - HouseholdMember
+    attributes:
+      - name: HaushaltsmitgliedschaftID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: HaushaltID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Haushalt.HaushaltID
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+
+  Kampagne:
+    Domain: CRM
+    desc: Repräsentiert eine fachliche Marketingkampagne.
+    business_keys:
+      - KampagneID
+    sources:
+      - Campaign
+    attributes:
+      - name: KampagneID
+        type: uuid
+        nullable: false
+        primary_key: true
+    relationships:
+      - to: Kampagnenausführung
+        name: besteht_aus
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Kampagnensegmentzuordnung
+        name: verwendet
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Angebot
+        name: beinhaltet
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Interaktion
+        name: erzeugt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Kampagnensegmentzuordnung:
+    Domain: CRM
+    desc: Ordnet einer Kampagne ein Segment als Zielgruppe, Kontrollgruppe oder Ausschlussgruppe zu.
+    business_keys:
+      - KampagneID
+      - SegmentID
+      - Rolle
+    sources:
+      - CampaignSegment
+    attributes:
+      - name: KampagneID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagne.KampagneID
+      - name: SegmentID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Segment.SegmentID
+      - name: Rolle
+        type: varchar
+        nullable: false
+
+  Kampagnenausführung:
+    Domain: CRM
+    desc: Repräsentiert eine konkrete Aussendung, Welle oder Durchführung einer Kampagne.
+    business_keys:
+      - KampagnenausführungID
+    sources:
+      - CampaignExecution
+    attributes:
+      - name: KampagnenausführungID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KampagneID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagne.KampagneID
+      - name: AngebotID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Angebot.AngebotID
+    relationships:
+      - to: Kampagnenempfänger
+        name: adressiert
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Interaktion
+        name: erzeugt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Kampagnenempfänger:
+    Domain: CRM
+    desc: Repräsentiert den Empfänger-Snapshot für eine konkrete Kampagnenausführung.
+    business_keys:
+      - KampagnenempfängerID
+    sources:
+      - CampaignRecipient
+    attributes:
+      - name: KampagnenempfängerID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KampagnenausführungID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagnenausführung.KampagnenausführungID
+      - name: KundeID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kunde.KundeID
+      - name: KontaktpunktID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Kontaktpunkt.KontaktpunktID
+      - name: SegmentID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Segment.SegmentID
+    relationships:
+      - to: Kampagnennachricht
+        name: erhält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Kampagnenreaktion
+        name: erzeugt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+
+  Kampagnennachricht:
+    Domain: CRM
+    desc: Repräsentiert eine technisch erzeugte und versendete Nachricht für einen Kampagnenempfänger.
+    business_keys:
+      - KampagnennachrichtID
+    sources:
+      - CampaignMessage
+    attributes:
+      - name: KampagnennachrichtID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KampagnenempfängerID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagnenempfänger.KampagnenempfängerID
+
+  Kampagnenreaktion:
+    Domain: CRM
+    desc: Repräsentiert eine messbare Reaktion eines Kampagnenempfängers, beispielsweise Öffnung, Klick, Abmeldung oder Conversion.
+    business_keys:
+      - KampagnenreaktionID
+    sources:
+      - CampaignResponse
+    attributes:
+      - name: KampagnenreaktionID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KampagnenempfängerID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagnenempfänger.KampagnenempfängerID
+      - name: BestellungID
+        type: uuid
+        nullable: true
+        foreign_key: true
+        references: Bestellung.BestellungID
+
+  Angebot:
+    Domain: CRM
+    desc: Repräsentiert ein im Rahmen von Kampagnen nutzbares Angebot, beispielsweise einen Rabatt oder Gutschein.
+    business_keys:
+      - AngebotID
+    sources:
+      - Offer
+    attributes:
+      - name: AngebotID
+        type: uuid
+        nullable: false
+        primary_key: true
+      - name: KampagneID
+        type: uuid
+        nullable: false
+        foreign_key: true
+        references: Kampagne.KampagneID
+    relationships:
+      - to: Kampagnenausführung
+        name: wird_verwendet_in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+```

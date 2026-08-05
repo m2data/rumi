@@ -749,6 +749,8 @@ console.log('== Keine externen Quellen ==');
   t('nichts wird nachgeladen', laden.length === 0, laden.join(' | '));
   t('Marken für die Schrifteinbettung vorhanden',
     roh.includes('/* SCHRIFTEN-ANFANG */') && roh.includes('/* SCHRIFTEN-ENDE */'));
+  t('Zeichenfläche unterbindet Textmarkierung (user-select:none)',
+    /#canvas\{[^}]*user-select:none/.test(roh));
 }
 
 console.log('== Export: Markdown in der Diagramm-Beschreibung wird formatiert ==');
