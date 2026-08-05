@@ -246,6 +246,28 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
   }
 }
 
+console.log('== Manuelle Kante folgt dem gewählten Verfahren (eckig/rund) ==');
+{
+  api.setView(1);
+  const pick = ()=> S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  const insertWaypoint = ()=>{
+    const e = pick(); e.bends = null; e.ortho = false; S.selEdge = e.id; api.draw();
+    const gh = document.getElementById('handles').querySelector('.gh');
+    if(gh){ dispatch(gh, 'pointerdown', {clientX:0, clientY:0}); dispatch(svg, 'pointerup', {}); }
+    return e;
+  };
+  S.layout.algo = 'ortho';
+  const eo = insertWaypoint();
+  t('orthogonal: manuell eingefügter Punkt macht die Kante eckig (ortho=true)', eo.ortho === true);
+  S.layout.algo = 'hier';
+  const eh = insertWaypoint();
+  t('hierarchisch: manuell eingefügter Punkt bleibt rund (ortho=false)', eh.ortho === false);
+  S.selEdge = null; S.layout.algo = 'hier';
+}
+
 console.log('== Rückgängig / Wiederherstellen ==');
 {
   api.setView(1);

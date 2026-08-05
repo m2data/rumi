@@ -669,7 +669,7 @@ svg.addEventListener('pointerdown', ev=>{
         lastEdgeTap = null;
         const e = S.graph.edges.find(x => x.id === edgeId);
         if(e && e.bends && e.bends.length){
-          e.bends = null; e.manual = true; e.ortho = false;
+          e.bends = null; e.manual = true; e.ortho = S.layout.algo === 'ortho';
           S.selEdge = edgeId; S.selected = null; S.sel.clear();
           draw(); renderDetails(); syncLayoutMenu(); updateAlignBar(); persist();
           toast('Stützpunkte gelöscht');
@@ -763,6 +763,7 @@ svg.addEventListener('pointerdown', ev=>{
     const m = {x:(p.x + q.x)/2, y:(p.y + q.y)/2};
     e.bends = e.bends || [];
     e.manual = true;
+    e.ortho = S.layout.algo === 'ortho';   // Form nach dem zuletzt gewählten Verfahren
     svg.setPointerCapture(ev.pointerId);
 
     if(e.ortho){
@@ -782,7 +783,6 @@ svg.addEventListener('pointerdown', ev=>{
                  base: vert ? m.x : m.y};
     } else {
       e.bends.splice(i, 0, m);
-      e.ortho = false;
       drawEdges();
       bendDrag = {e, i, sx:ev.clientX, sy:ev.clientY, ox:m.x, oy:m.y};
     }
