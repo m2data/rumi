@@ -16,7 +16,8 @@ läuft offline und lädt nichts nach.
   und hat einen Beschreibungstext (leichtes Markdown). Diagramme sind frei
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen.
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
-  Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben. Ist ein Bereich
+  Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
+  eine Kante löscht alle ihre Stützpunkte). Ist ein Bereich
   markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.

@@ -925,6 +925,19 @@ svg.addEventListener('pointerup', endPointer);
 svg.addEventListener('pointercancel', endPointer);
 svg.addEventListener('lostpointercapture', endPointer);
 
+// Doppelklick auf eine Kante entfernt alle ihre Stützpunkte (Kante wird gerade).
+svg.addEventListener('dblclick', ev=>{
+  const eg = ev.target.closest && ev.target.closest('.eg');
+  if(!eg) return;
+  const e = S.graph.edges.find(x => x.id === eg.dataset.id);
+  if(!e || !e.bends || !e.bends.length) return;
+  e.bends = null; e.manual = true; e.ortho = false;
+  S.selEdge = e.id;
+  draw(); syncLayoutMenu(); persist();
+  toast('Stützpunkte gelöscht');
+  ev.preventDefault();
+});
+
 svg.addEventListener('wheel', ev=>{
   ev.preventDefault();
   const r = svg.getBoundingClientRect();

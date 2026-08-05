@@ -210,6 +210,23 @@ console.log('== Knoten und Auswahl ==');
   t('Knoten verschoben', n.x !== ox, ox + ' → ' + n.x);
 }
 
+console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
+{
+  api.setView(1);
+  const e = S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  e.bends = [{x:10, y:10}, {x:20, y:20}]; e.manual = true;
+  api.drawEdges();
+  const eg = [...document.getElementById('edges').querySelectorAll('.eg')].find(g => g.dataset.id === e.id);
+  t('Kantengruppe im DOM gefunden', !!eg);
+  if(eg){
+    dispatch(eg, 'dblclick', {});
+    t('Doppelklick entfernt alle Stützpunkte', e.bends === null);
+  }
+}
+
 console.log('== Rückgängig / Wiederherstellen ==');
 {
   api.setView(1);
