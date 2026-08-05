@@ -331,6 +331,13 @@ console.log('== Hinweise gruppieren und aufklappen ==');
   t('Gruppe listet ihre Objekte', ml.querySelectorAll('.mgi').length === 3);
   dispatch(head, 'click', {});
   t('Klick klappt die Gruppe auf', document.getElementById('msgList').querySelector('.mgh').getAttribute('aria-expanded') === 'true');
+  // Hinweise ohne ":" im Titel (variable Stelle mittendrin) gruppieren über das group-Feld
+  S.model.messages = [
+    {level:'info', group:'Quelle mehrfach genutzt', title:'Quelle "S1" mehrfach genutzt', body:'a'},
+    {level:'info', group:'Quelle mehrfach genutzt', title:'Quelle "S2" mehrfach genutzt', body:'b'}
+  ];
+  api.renderMessages();
+  t('auch Hinweise ohne ":" im Titel werden gruppiert', document.getElementById('msgList').querySelectorAll('.mgroup').length === 1);
   S.model.messages = prev;
   api.renderMessages();
 }

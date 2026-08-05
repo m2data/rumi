@@ -410,8 +410,9 @@ function renderMessages(){
   const objOf  = t => { const i = t.lastIndexOf(': '); return i >= 0 ? t.slice(0, i) : t; };
   const groups = new Map();
   list.forEach(m=>{
-    const key = m.level + '|' + typeOf(m.title);
-    if(!groups.has(key)) groups.set(key, {key, level:m.level, label:typeOf(m.title), items:[]});
+    const label = m.group || typeOf(m.title);      // stabiler Typ, sonst aus dem Titel
+    const key = m.level + '|' + label;
+    if(!groups.has(key)) groups.set(key, {key, level:m.level, label, items:[]});
     groups.get(key).items.push(m);
   });
   const one = m => `<div class="msg ${m.level}"><strong>${lvl(m.level)}</strong>${esc(m.title)}<br>${esc(m.body)}</div>`;
