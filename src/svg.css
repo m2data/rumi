@@ -43,9 +43,10 @@
 .gh{fill:#B4145F;fill-opacity:.22;stroke:#B4145F;stroke-width:1;stroke-dasharray:2 2;cursor:copy}
 .gh:hover{fill-opacity:.6;stroke-dasharray:none}
 .gh.ortho{cursor:cell}
-.eg .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em}
+.eg .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .eg.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
-.eg .e-lbl-bg{fill:#E7ECF1}
+.eg .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
+.eg .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded{opacity:.1}
 .eg.active .e-path,.eg.active .e-mk{stroke:#B4145F;stroke-width:2}
 .eg.active .e-dot{stroke:#B4145F}

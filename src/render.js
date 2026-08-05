@@ -176,6 +176,25 @@ function markerMarkup(p, ang, card){
   }
 }
 
+/* Punkt bei Bogenlängen-Anteil t (0..1) entlang eines Polygonzugs. Für die
+   Beschriftung, die frei entlang der Kante sitzen kann (e.labelT). */
+function polyPoint(pts, t){
+  if(!pts.length) return {x:0, y:0};
+  if(pts.length === 1) return pts[0];
+  const seg = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){ const l = Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); seg.push(l); total += l; }
+  if(total < 1e-6) return pts[0];
+  let d = Math.max(0, Math.min(1, t)) * total;
+  for(let i=0;i<seg.length;i++){
+    if(d <= seg[i] || i === seg.length-1){
+      const f = seg[i] ? d/seg[i] : 0;
+      return {x: pts[i].x + (pts[i+1].x-pts[i].x)*f, y: pts[i].y + (pts[i+1].y-pts[i].y)*f};
+    }
+    d -= seg[i];
+  }
+  return pts[pts.length-1];
+}
+
 function edgeMarkup(e, g, cls){
   const A = g.byId.get(e.from), B = g.byId.get(e.to);
   if(!A || !B) return '';
@@ -234,9 +253,17 @@ function edgeMarkup(e, g, cls){
   s += markerMarkup(p1, a1, e.fromCard);
   s += markerMarkup(p2, a2, e.toCard);
   if(e.label && S.layout.labels !== false){
+    // An die Kante gebunden: Standardmäßig in der Mitte des Verlaufs, per
+    // e.labelT (Bogenlängen-Anteil) frei entlang der Beziehung verschiebbar.
+    let lp = mid;
+    if(A !== B){
+      const poly = routePoints(e, A, B);
+      lp = polyPoint(poly, e.labelT != null ? e.labelT : 0.5);
+    }
     const w = measure(e.label, '500 10px "IBM Plex Mono", monospace') + 8;
-    s += `<rect class="e-lbl-bg" x="${fx(mid.x-w/2)}" y="${fx(mid.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
-    s += `<text class="e-lbl" x="${fx(mid.x)}" y="${fx(mid.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
+    if(!S.exporting) s += `<rect class="e-lbl-hit" data-lbl="${e.id}" x="${fx(lp.x-w/2)}" y="${fx(lp.y-8)}" width="${w.toFixed(1)}" height="16"/>`;
+    s += `<rect class="e-lbl-bg" x="${fx(lp.x-w/2)}" y="${fx(lp.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
+    s += `<text class="e-lbl" x="${fx(lp.x)}" y="${fx(lp.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
   }
   return s + `</g>`;
 }

@@ -1776,9 +1776,10 @@ const SVG_CSS = `
 .gh{fill:#B4145F;fill-opacity:.22;stroke:#B4145F;stroke-width:1;stroke-dasharray:2 2;cursor:copy}
 .gh:hover{fill-opacity:.6;stroke-dasharray:none}
 .gh.ortho{cursor:cell}
-.eg .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em}
+.eg .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .eg.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
-.eg .e-lbl-bg{fill:#E7ECF1}
+.eg .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
+.eg .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded{opacity:.1}
 .eg.active .e-path,.eg.active .e-mk{stroke:#B4145F;stroke-width:2}
 .eg.active .e-dot{stroke:#B4145F}
@@ -1957,6 +1958,25 @@ function markerMarkup(p, ang, card){
   }
 }
 
+/* Punkt bei Bogenlängen-Anteil t (0..1) entlang eines Polygonzugs. Für die
+   Beschriftung, die frei entlang der Kante sitzen kann (e.labelT). */
+function polyPoint(pts, t){
+  if(!pts.length) return {x:0, y:0};
+  if(pts.length === 1) return pts[0];
+  const seg = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){ const l = Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); seg.push(l); total += l; }
+  if(total < 1e-6) return pts[0];
+  let d = Math.max(0, Math.min(1, t)) * total;
+  for(let i=0;i<seg.length;i++){
+    if(d <= seg[i] || i === seg.length-1){
+      const f = seg[i] ? d/seg[i] : 0;
+      return {x: pts[i].x + (pts[i+1].x-pts[i].x)*f, y: pts[i].y + (pts[i+1].y-pts[i].y)*f};
+    }
+    d -= seg[i];
+  }
+  return pts[pts.length-1];
+}
+
 function edgeMarkup(e, g, cls){
   const A = g.byId.get(e.from), B = g.byId.get(e.to);
   if(!A || !B) return '';
@@ -2015,9 +2035,17 @@ function edgeMarkup(e, g, cls){
   s += markerMarkup(p1, a1, e.fromCard);
   s += markerMarkup(p2, a2, e.toCard);
   if(e.label && S.layout.labels !== false){
+    // An die Kante gebunden: Standardmäßig in der Mitte des Verlaufs, per
+    // e.labelT (Bogenlängen-Anteil) frei entlang der Beziehung verschiebbar.
+    let lp = mid;
+    if(A !== B){
+      const poly = routePoints(e, A, B);
+      lp = polyPoint(poly, e.labelT != null ? e.labelT : 0.5);
+    }
     const w = measure(e.label, '500 10px "IBM Plex Mono", monospace') + 8;
-    s += `<rect class="e-lbl-bg" x="${fx(mid.x-w/2)}" y="${fx(mid.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
-    s += `<text class="e-lbl" x="${fx(mid.x)}" y="${fx(mid.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
+    if(!S.exporting) s += `<rect class="e-lbl-hit" data-lbl="${e.id}" x="${fx(lp.x-w/2)}" y="${fx(lp.y-8)}" width="${w.toFixed(1)}" height="16"/>`;
+    s += `<rect class="e-lbl-bg" x="${fx(lp.x-w/2)}" y="${fx(lp.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
+    s += `<text class="e-lbl" x="${fx(lp.x)}" y="${fx(lp.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
   }
   return s + `</g>`;
 }
@@ -2838,6 +2866,24 @@ function routePoints(e, A, B){
   return [edgeEnd(A, e.portFrom, zielVon), ...bends, edgeEnd(B, e.portTo, zielNach)];
 }
 
+/* Nächster Punkt auf dem Polygonzug zu (x,y) und dessen Bogenlängen-Anteil t.
+   Für das freie Verschieben der Beschriftung entlang der Kante. */
+function nearestOnPoly(pts, x, y){
+  if(pts.length < 2) return {t:0.5};
+  const seg = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){ const l = Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); seg.push(l); total += l; }
+  if(total < 1e-6) return {t:0.5};
+  let best = {d:Infinity, t:0.5}, acc = 0;
+  for(let i=0;i<pts.length-1;i++){
+    const ax=pts[i].x, ay=pts[i].y, dx=pts[i+1].x-ax, dy=pts[i+1].y-ay, len2=dx*dx+dy*dy || 1;
+    let u = ((x-ax)*dx + (y-ay)*dy)/len2; u = Math.max(0, Math.min(1, u));
+    const qx=ax+dx*u, qy=ay+dy*u, dd=Math.hypot(x-qx, y-qy);
+    if(dd < best.d) best = {d:dd, t:(acc + u*seg[i])/total};
+    acc += seg[i];
+  }
+  return best;
+}
+
 /* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
    edgeMarkup zeichnet daraus die Stufe; als echte Knicke abgelegt, bekommt die
    Kante die üblichen Segment- und Stützpunktgriffe (sonst bliebe eine diagonal
@@ -2962,11 +3008,12 @@ function edgeKey(e){ return e.from + '\u203a' + e.to + '#' + (e.ord || 0); }
 function routesSnapshot(){
   const m = {};
   S.graph.edges.forEach(e=>{
-    if(!e.bends && !e.portFrom && !e.loop) return;
+    if(!e.bends && !e.portFrom && !e.loop && e.labelT == null) return;
     m[edgeKey(e)] = {
       b: e.bends ? e.bends.map(q=>[Math.round(q.x), Math.round(q.y)]) : null,
       pf: e.portFrom || null, pt: e.portTo || null,
       lp: e.loop || null,
+      lt: e.labelT != null ? e.labelT : null,
       o: !!e.ortho, man: !!e.manual
     };
   });
@@ -2982,6 +3029,7 @@ function applyRoutesFrom(m){
     e.portFrom = r.pf || null;
     e.portTo = r.pt || null;
     e.loop = r.lp || null;
+    e.labelT = (r.lt != null) ? r.lt : null;
     e.ortho = !!r.o;
     e.manual = !!r.man;
   });
@@ -4155,15 +4203,21 @@ function setSidePane(name){
 /* =====================================================================
    9 — Maus, Touch, Tastatur
    ===================================================================== */
-let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null;
+let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null, labelDrag = null;
 let lastEdgeTap = null;             // für die Doppelklick-Erkennung auf Kanten
 
 svg.addEventListener('pointerdown', ev=>{
   // Sicherheitsnetz: ein nicht beendetes Ziehen (verlorenes pointerup) würde
   // sonst alle folgenden Bewegungen abfangen.
-  bendDrag = segDrag = portDrag = loopDrag = null;
+  bendDrag = segDrag = portDrag = loopDrag = labelDrag = null;
   if(drag && !drag.moved) drag = null;
   const t = ev.target;
+
+  // Beschriftung entlang der Kante verschieben
+  if(t.dataset && t.dataset.lbl){
+    const e = S.graph.edges.find(x => x.id === t.dataset.lbl);
+    if(e){ svg.setPointerCapture(ev.pointerId); labelDrag = {e}; ev.preventDefault(); return; }
+  }
 
   // Doppelklick auf eine Kante (zweimal dieselbe binnen 350 ms) löscht alle
   // Stützpunkte. Ganz vorne geprüft, weil nach dem Auswählen Segment- und
@@ -4384,7 +4438,14 @@ svg.addEventListener('pointerdown', ev=>{
 
 svg.addEventListener('pointermove', ev=>{
   // Wird gezogen, zählt der vorherige Klick nicht als erster Teil eines Doppelklicks.
-  if(loopDrag || bendDrag || segDrag || portDrag) lastEdgeTap = null;
+  if(loopDrag || bendDrag || segDrag || portDrag || labelDrag) lastEdgeTap = null;
+  if(labelDrag){
+    const r = svg.getBoundingClientRect();
+    const wx = (ev.clientX - r.left - S.t.x)/S.t.k, wy = (ev.clientY - r.top - S.t.y)/S.t.k;
+    const e = labelDrag.e, A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    if(A && B && A !== B){ e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t; drawEdges(); }
+    return;
+  }
   if(loopDrag){
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
@@ -4472,6 +4533,7 @@ svg.addEventListener('pointermove', ev=>{
 });
 
 function endPointer(ev){
+  if(labelDrag){ labelDrag = null; persist(); }
   if(loopDrag){ loopDrag = null; persist(); }
   if(portDrag){
     // Ortho-Kante ohne Knick, die jetzt schräg läuft, in echte Ecken überführen —

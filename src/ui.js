@@ -643,15 +643,21 @@ function setSidePane(name){
 /* =====================================================================
    9 — Maus, Touch, Tastatur
    ===================================================================== */
-let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null;
+let drag = null, pan = null, bendDrag = null, band = null, segDrag = null, portDrag = null, loopDrag = null, labelDrag = null;
 let lastEdgeTap = null;             // für die Doppelklick-Erkennung auf Kanten
 
 svg.addEventListener('pointerdown', ev=>{
   // Sicherheitsnetz: ein nicht beendetes Ziehen (verlorenes pointerup) würde
   // sonst alle folgenden Bewegungen abfangen.
-  bendDrag = segDrag = portDrag = loopDrag = null;
+  bendDrag = segDrag = portDrag = loopDrag = labelDrag = null;
   if(drag && !drag.moved) drag = null;
   const t = ev.target;
+
+  // Beschriftung entlang der Kante verschieben
+  if(t.dataset && t.dataset.lbl){
+    const e = S.graph.edges.find(x => x.id === t.dataset.lbl);
+    if(e){ svg.setPointerCapture(ev.pointerId); labelDrag = {e}; ev.preventDefault(); return; }
+  }
 
   // Doppelklick auf eine Kante (zweimal dieselbe binnen 350 ms) löscht alle
   // Stützpunkte. Ganz vorne geprüft, weil nach dem Auswählen Segment- und
@@ -872,7 +878,14 @@ svg.addEventListener('pointerdown', ev=>{
 
 svg.addEventListener('pointermove', ev=>{
   // Wird gezogen, zählt der vorherige Klick nicht als erster Teil eines Doppelklicks.
-  if(loopDrag || bendDrag || segDrag || portDrag) lastEdgeTap = null;
+  if(loopDrag || bendDrag || segDrag || portDrag || labelDrag) lastEdgeTap = null;
+  if(labelDrag){
+    const r = svg.getBoundingClientRect();
+    const wx = (ev.clientX - r.left - S.t.x)/S.t.k, wy = (ev.clientY - r.top - S.t.y)/S.t.k;
+    const e = labelDrag.e, A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    if(A && B && A !== B){ e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t; drawEdges(); }
+    return;
+  }
   if(loopDrag){
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k;
@@ -960,6 +973,7 @@ svg.addEventListener('pointermove', ev=>{
 });
 
 function endPointer(ev){
+  if(labelDrag){ labelDrag = null; persist(); }
   if(loopDrag){ loopDrag = null; persist(); }
   if(portDrag){
     // Ortho-Kante ohne Knick, die jetzt schräg läuft, in echte Ecken überführen —

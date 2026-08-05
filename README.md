@@ -19,7 +19,9 @@ läuft offline und lädt nichts nach.
   davor/danach, Mitte = als Unterdiagramm).
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
-  eine Kante löscht alle ihre Stützpunkte). Ist ein Bereich
+  eine Kante löscht alle ihre Stützpunkte und wählt die kürzeste Verbindung).
+  Beziehungsbeschriftungen sitzen auf der Kante und lassen sich frei entlang der
+  Beziehung ziehen. Ist ein Bereich
   markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.

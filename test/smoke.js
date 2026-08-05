@@ -314,6 +314,31 @@ console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig =='
   S.selEdge = null; S.layout.algo = 'hier';
 }
 
+console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
+{
+  api.setView(1);
+  const e = S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  e.label = 'testkante'; e.bends = [{x:100, y:100}, {x:200, y:100}]; e.ortho = true; e.labelT = null;
+  api.drawEdges();
+  const hit = document.querySelector('.e-lbl-hit[data-lbl="' + e.id + '"]');
+  t('Label hat ein Zieh-Feld an der Kante', !!hit);
+  if(hit){
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    const p1 = api.routePoints(e, A, B)[0];              // Kantenanfang
+    const cx = p1.x * S.t.k + S.t.x, cy = p1.y * S.t.k + S.t.y;
+    dispatch(hit, 'pointerdown', {clientX:0, clientY:0});
+    dispatch(svg, 'pointermove', {clientX:cx, clientY:cy});
+    dispatch(svg, 'pointerup', {clientX:cx, clientY:cy});
+    t('Ziehen setzt die Label-Position entlang der Kante (labelT in [0,1])',
+      typeof e.labelT === 'number' && e.labelT >= 0 && e.labelT <= 1, 'labelT=' + e.labelT);
+    t('Label wandert zum Kantenanfang', e.labelT < 0.25, 'labelT=' + e.labelT);
+  }
+  S.selEdge = null;
+}
+
 console.log('== Rückgängig / Wiederherstellen ==');
 {
   api.setView(1);

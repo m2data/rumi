@@ -9,6 +9,24 @@ function routePoints(e, A, B){
   return [edgeEnd(A, e.portFrom, zielVon), ...bends, edgeEnd(B, e.portTo, zielNach)];
 }
 
+/* Nächster Punkt auf dem Polygonzug zu (x,y) und dessen Bogenlängen-Anteil t.
+   Für das freie Verschieben der Beschriftung entlang der Kante. */
+function nearestOnPoly(pts, x, y){
+  if(pts.length < 2) return {t:0.5};
+  const seg = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){ const l = Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); seg.push(l); total += l; }
+  if(total < 1e-6) return {t:0.5};
+  let best = {d:Infinity, t:0.5}, acc = 0;
+  for(let i=0;i<pts.length-1;i++){
+    const ax=pts[i].x, ay=pts[i].y, dx=pts[i+1].x-ax, dy=pts[i+1].y-ay, len2=dx*dx+dy*dy || 1;
+    let u = ((x-ax)*dx + (y-ay)*dy)/len2; u = Math.max(0, Math.min(1, u));
+    const qx=ax+dx*u, qy=ay+dy*u, dd=Math.hypot(x-qx, y-qy);
+    if(dd < best.d) best = {d:dd, t:(acc + u*seg[i])/total};
+    acc += seg[i];
+  }
+  return best;
+}
+
 /* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
    edgeMarkup zeichnet daraus die Stufe; als echte Knicke abgelegt, bekommt die
    Kante die üblichen Segment- und Stützpunktgriffe (sonst bliebe eine diagonal
@@ -133,11 +151,12 @@ function edgeKey(e){ return e.from + '\u203a' + e.to + '#' + (e.ord || 0); }
 function routesSnapshot(){
   const m = {};
   S.graph.edges.forEach(e=>{
-    if(!e.bends && !e.portFrom && !e.loop) return;
+    if(!e.bends && !e.portFrom && !e.loop && e.labelT == null) return;
     m[edgeKey(e)] = {
       b: e.bends ? e.bends.map(q=>[Math.round(q.x), Math.round(q.y)]) : null,
       pf: e.portFrom || null, pt: e.portTo || null,
       lp: e.loop || null,
+      lt: e.labelT != null ? e.labelT : null,
       o: !!e.ortho, man: !!e.manual
     };
   });
@@ -153,6 +172,7 @@ function applyRoutesFrom(m){
     e.portFrom = r.pf || null;
     e.portTo = r.pt || null;
     e.loop = r.lp || null;
+    e.labelT = (r.lt != null) ? r.lt : null;
     e.ortho = !!r.o;
     e.manual = !!r.man;
   });
