@@ -462,6 +462,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
       <div class="menu" id="menu" role="menu">
         <div class="head">LADEN</div>
         <button data-act="open">Geschäftsobjekte (YAML) …</button>
+        <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
         <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
         <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
         <div class="head">SPEICHERN</div>
@@ -547,6 +548,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 </main>
 
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
 <input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>
@@ -4514,6 +4516,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   const a = b.dataset.act;
   // Laden
   if(a === 'open') $('fileInput').click();
+  if(a === 'openDelta') $('deltaInput').click();
   if(a === 'loadUebersicht') $('uebersichtInput').click();
   if(a === 'loadLayout') $('layoutInput').click();
   // Speichern
@@ -4611,6 +4614,79 @@ $('fileInput').addEventListener('change', e=>{
   f.text().then(t => loadYaml(t, f.name));
   e.target.value = '';
 });
+$('deltaInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadDelta(t));
+  e.target.value = '';
+});
+
+/* ---------- Delta-Geschäftsobjekte einspielen ----------
+   Die neuen Objekte ergänzen die vorhandenen; gleichnamige werden ersetzt.
+   Zusammenführung auf Textebene (Objektblöcke), damit Attribute, Beschreibungen
+   und Kommentare erhalten bleiben; danach wird das Ganze neu geprüft. */
+const BO_HEAD = /^\s*(BusinessObjects|businessObjects|business_objects|Geschaeftsobjekte)\s*:\s*(#.*)?$/;
+function splitBusinessObjects(text){
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const col = s => s.replace(/\t/g, '    ').match(/^ */)[0].length;
+  const isBlank = s => s.trim() === '' || /^\s*#/.test(s);
+  const hi = lines.findIndex(l => BO_HEAD.test(l));
+  if(hi < 0) return null;
+  const headCol = col(lines[hi]);
+  let childCol = null, firstIdx = -1;
+  for(let i = hi + 1; i < lines.length; i++){
+    if(isBlank(lines[i])) continue;
+    if(col(lines[i]) <= headCol) break;
+    childCol = col(lines[i]); firstIdx = i; break;
+  }
+  const blocks = []; let endIdx = lines.length;
+  if(childCol != null){
+    let cur = null;
+    for(let i = firstIdx; i < lines.length; i++){
+      const l = lines[i];
+      if(!isBlank(l) && col(l) <= headCol){ endIdx = i; break; }
+      if(!isBlank(l) && col(l) === childCol){
+        const m = l.match(/^\s*"?([^":]+?)"?\s*:/);
+        if(cur) blocks.push(cur);
+        cur = {name: m ? m[1].trim() : l.trim(), lines: [l]};
+      } else if(cur) cur.lines.push(l);
+    }
+    if(cur) blocks.push(cur);
+  }
+  const preEnd = firstIdx < 0 ? hi + 1 : firstIdx;
+  return {childCol, blocks, pre: lines.slice(0, preEnd), post: lines.slice(endIdx)};
+}
+function reindentBlock(block, from, to){
+  if(from === to || from == null || to == null) return block;
+  const d = to - from;
+  const shift = l => l.trim() === '' ? l
+    : (d > 0 ? ' '.repeat(d) + l.replace(/\t/g, '    ') : l.replace(/\t/g, '    ').slice(-d));
+  return {name: block.name, lines: block.lines.map(shift)};
+}
+function mergeGoText(baseText, deltaText){
+  const B = splitBusinessObjects(baseText), D = splitBusinessObjects(deltaText);
+  if(!B || !D) return null;
+  const order = [], map = new Map();
+  B.blocks.forEach(b=>{ if(!map.has(b.name)) order.push(b.name); map.set(b.name, b); });
+  let added = 0, replaced = 0;
+  D.blocks.forEach(d=>{
+    if(map.has(d.name)) replaced++; else { added++; order.push(d.name); }
+    map.set(d.name, reindentBlock(d, D.childCol, B.childCol != null ? B.childCol : D.childCol));
+  });
+  const body = [];
+  order.forEach(nm => body.push(...map.get(nm).lines));
+  return {text: [...B.pre, ...body, ...B.post].join('\n'), added, replaced};
+}
+function loadDelta(text){
+  const merged = mergeGoText(S.yamlText, text);
+  if(!merged){ toast('Keine Geschäftsobjekte in der Datei gefunden'); return; }
+  S.model = buildModel(merged.text);
+  S.yamlText = merged.text;
+  renderMessages(); syncLayoutMenu();
+  setView(S.view);                       // vorhandene bleiben, neue werden platziert
+  if(S.mode === 'hierarchie') setMode('hierarchie');
+  resetHistory();                        // Modell hat sich geändert -> Verlauf neu beginnen
+  toast(`Delta: ${merged.added} neu, ${merged.replaced} ersetzt`);
+}
 $('layoutInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t=>{

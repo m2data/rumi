@@ -86,6 +86,7 @@
       <div class="menu" id="menu" role="menu">
         <div class="head">LADEN</div>
         <button data-act="open">Geschäftsobjekte (YAML) …</button>
+        <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
         <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
         <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
         <div class="head">SPEICHERN</div>
@@ -171,6 +172,7 @@
 </main>
 
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
 <input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>

@@ -35,7 +35,9 @@ läuft offline und lädt nichts nach.
 Über „Datei & Export → Laden/Speichern" werden drei Dateien einzeln geladen und
 gespeichert:
 
-1. **Geschäftsobjekte** – YAML (`models/willibald-attr.yaml`)
+1. **Geschäftsobjekte** – YAML (`models/willibald-attr.yaml`). Über „Delta
+   Geschäftsobjekte" lässt sich eine weitere YAML einspielen, die die Objekte
+   *ergänzt*; gleichnamige Objekte werden durch die neue Fassung ersetzt.
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
    Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)

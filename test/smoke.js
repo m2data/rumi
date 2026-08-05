@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -668,6 +668,24 @@ console.log('== Keine externen Quellen ==');
   t('nichts wird nachgeladen', laden.length === 0, laden.join(' | '));
   t('Marken für die Schrifteinbettung vorhanden',
     roh.includes('/* SCHRIFTEN-ANFANG */') && roh.includes('/* SCHRIFTEN-ENDE */'));
+}
+
+console.log('== Delta-Geschäftsobjekte: ergänzen und ersetzen ==');
+{
+  const base  = 'BusinessObjects:\n  A:\n    Domain: D\n  B:\n    Domain: D\n';
+  const delta = 'BusinessObjects:\n  B:\n    Domain: NEU\n  C:\n    Domain: D\n';
+  const r = api.mergeGoText(base, delta);
+  t('mergeGoText zählt neu und ersetzt', r && r.added === 1 && r.replaced === 1, r ? `neu ${r.added}, ersetzt ${r.replaced}` : 'null');
+  t('ersetztes Objekt trägt die neue Info', /B:\s*\n\s*Domain: NEU/.test(r.text), r && r.text);
+  t('neues Objekt ist ergänzt', /\n\s*C:\s*\n\s*Domain: D/.test(r.text));
+
+  // end-to-end auf dem geladenen Modell (zuletzt, da es S.model verändert)
+  const before = Object.keys(S.model.objects).length;
+  const first = Object.keys(S.model.objects)[0];
+  api.loadDelta(`BusinessObjects:\n  ${first}:\n    Domain: DeltaDom\n    business_keys:\n    - K\n  NeuObjekt:\n    Domain: DeltaDom\n    business_keys:\n    - K`);
+  t('loadDelta fügt ein neues Objekt hinzu', !!S.model.objects.NeuObjekt);
+  t('loadDelta ersetzt ein vorhandenes Objekt', S.model.objects[first].domain === 'DeltaDom');
+  t('Objektzahl wächst genau um die neuen', Object.keys(S.model.objects).length === before + 1, before + ' → ' + Object.keys(S.model.objects).length);
 }
 
 console.log('\n' + (fail ? fail + ' von ' + (fail+pass) + ' Prüfungen fehlgeschlagen'
