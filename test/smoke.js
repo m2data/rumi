@@ -625,6 +625,10 @@ console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
     const order = findNode('Übersicht').kinder.map(n => n.name);
     t('davor eingeordnet (Reihenfolge/Ebene geändert)',
       order.indexOf('roadshow') > -1 && order.indexOf('roadshow') < order.indexOf('webshop'), order.join(','));
+    api.undo();
+    t('Baum-Verschiebung rückgängig', !!findNode('Übersicht›webshop›roadshow') && !findNode('Übersicht›roadshow'));
+    api.redo();
+    t('Baum-Verschiebung wiederhergestellt', !!findNode('Übersicht›roadshow') && !findNode('Übersicht›webshop›roadshow'));
   }
   api.setMode('komplett');
   t('zurück in Komplettansicht mit allen Objekten',

@@ -121,8 +121,18 @@ function recordHistory(snap){
 function restoreHistory(snap){
   restoringHistory = true;                                 // die folgenden persist()/writeStore() nicht mitschreiben
   try{
+    const beforeOutline = S.outlineText;
     adoptLayoutFile(JSON.parse(snap));
-    if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); else draw(); }
+    // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
+    if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
+    if(S.mode === 'hierarchie'){
+      renderOutlineTree();
+      if(S.hierSel && !(S.outline && outlineFind(S.outline.roots, S.hierSel))){
+        const flat = S.outline ? outlineFlat(S.outline.roots) : [];
+        S.hierSel = flat.length ? flat[0].id : null;
+      }
+      if(S.hierSel) selectDiagram(S.hierSel); else draw();
+    }
     else setView(S.view, {autoFit:false});
     syncLayoutMenu();
     writeStore();
