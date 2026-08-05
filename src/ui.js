@@ -164,6 +164,8 @@ function hierPersist(){
    dort hinzuholen. */
 function listedNodes(){ return S.graph.nodes; }
 
+const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
+
 function renderObjectList(){
   const ul = $('objectList');
   const groups = new Map();
@@ -176,9 +178,15 @@ function renderObjectList(){
   const gidx = [];
   for(const [g, list] of groups){
     const gi = gidx.push(list) - 1;
-    html += `<li class="grouphead"><span>${esc(g.toUpperCase())}</span>
+    const collapsed = collapsedGroups.has(g);
+    const shownOff = list.filter(n=>n.hidden).length;
+    html += `<li class="grouphead${collapsed ? ' collapsed' : ''}">
+      <button class="gcaret" data-grp="${esc(g)}" aria-expanded="${!collapsed}" aria-label="Domäne auf- oder zuklappen">▾</button>
+      <span class="gname" data-grp="${esc(g)}">${esc(g.toUpperCase())}</span>
+      ${collapsed ? `<span class="gcount">${list.length}</span>` : ''}
       <span class="gtools"><button data-gi="${gi}" data-on="1">alle</button>
       <button data-gi="${gi}" data-on="0">keine</button></span></li>`;
+    if(collapsed) continue;
     list.sort((a,b)=> a.name.localeCompare(b.name, 'de')).forEach(n=>{
       const meta = n.kind === 'source'
         ? `${n.ref.users.length}×`
@@ -197,6 +205,11 @@ function renderObjectList(){
   ul.querySelectorAll('.ochk').forEach(c=> c.addEventListener('change', ()=> setVisible(c.dataset.id, c.checked)));
   ul.querySelectorAll('.gtools button').forEach(b=> b.addEventListener('click', ()=>
     setGroupVisible(gidx[+b.dataset.gi], b.dataset.on === '1')));
+  ul.querySelectorAll('.gcaret, .gname').forEach(el=> el.addEventListener('click', ()=>{
+    const g = el.dataset.grp;
+    if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
+    renderObjectList();
+  }));
   updateVisCount();
 }
 

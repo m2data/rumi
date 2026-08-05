@@ -311,6 +311,22 @@ console.log('== Inhaltsauswahl ==');
   }
 }
 
+console.log('== Domänen zusammenklappen ==');
+{
+  api.setView(1);
+  const before = document.getElementById('objectList').querySelectorAll('li.row').length;
+  const caret = document.getElementById('objectList').querySelector('.gcaret');
+  t('Domänen-Kopf hat einen Klapp-Pfeil', !!caret);
+  if(caret){
+    dispatch(caret, 'click', {});
+    const after = document.getElementById('objectList').querySelectorAll('li.row').length;
+    t('Zuklappen blendet die Objektzeilen der Domäne aus', after < before, before + ' → ' + after);
+    dispatch(document.getElementById('objectList').querySelector('.gcaret'), 'click', {});
+    const restored = document.getElementById('objectList').querySelectorAll('li.row').length;
+    t('Aufklappen zeigt sie wieder', restored === before, before + ' → ' + restored);
+  }
+}
+
 console.log('== Kein Text klebt am Kastenrand ==');
 {
   // Misst den untersten gezeichneten Inhalt gegen die Kastenhöhe, in jeder
