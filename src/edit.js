@@ -102,6 +102,15 @@ function drawHandles(){
       const m = {x:(p.x + q.x)/2, y:(p.y + q.y)/2};
       s += `<circle class="gh ortho" cx="${m.x.toFixed(1)}" cy="${m.y.toFixed(1)}" r="5" data-add="${i}"><title>Knick einsetzen und quer ziehen</title></circle>`;
     }
+    // Sicherheitsnetz: entstand kein Zusatzpunkt-Griff (z. B. eine schräge
+    // Direktverbindung), einen am längsten Segment anbieten — sonst ließe sich
+    // dort kein Stützpunkt mehr setzen.
+    if(!/class="gh/.test(s)){
+      let best = 0, bl = -1;
+      for(let i=0; i<pts.length-1; i++){ const l = Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); if(l > bl){ bl = l; best = i; } }
+      const p = pts[best], q = pts[best+1], m = {x:(p.x+q.x)/2, y:(p.y+q.y)/2};
+      s += `<circle class="gh" cx="${m.x.toFixed(1)}" cy="${m.y.toFixed(1)}" r="5.5" data-add="${best}"><title>Stützpunkt einfügen</title></circle>`;
+    }
   } else {
     for(let i=0; i<pts.length-1; i++){
       const m = {x:(pts[i].x + pts[i+1].x)/2, y:(pts[i].y + pts[i+1].y)/2};

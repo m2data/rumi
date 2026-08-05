@@ -175,7 +175,9 @@ console.log('== Ortho: diagonal gezogener Anschlusspunkt bleibt bearbeitbar ==')
     S.selEdge = e.id; api.draw();
     const H = () => document.getElementById('handles');
     const ghVor = H().querySelectorAll('.gh').length, segVor = H().querySelectorAll('.seg').length;
-    t('vorher keine Bearbeitungsgriffe (der gemeldete Zustand)', ghVor === 0 && segVor === 0,
+    // Neu: auch die schräge Direktverbindung bietet einen Zusatzpunkt-Griff
+    // (Sicherheitsnetz in drawHandles), damit sich dort ein Stützpunkt setzen lässt.
+    t('schräge Ortho-Direktverbindung bietet einen Zusatzpunkt-Griff', ghVor >= 1,
       `gh=${ghVor}, seg=${segVor}`);
 
     const gesetzt = api.materializeOrtho(e);
@@ -217,7 +219,7 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
   });
-  e.bends = [{x:10, y:10}, {x:20, y:20}]; e.manual = true;
+  e.bends = [{x:10, y:10}, {x:20, y:20}]; e.portFrom = {side:'B', t:0.4}; e.portTo = {side:'T', t:0.6}; e.manual = true;
   api.drawEdges();
   const findEg = () => [...document.getElementById('edges').querySelectorAll('.eg')].find(g => g.dataset.id === e.id);
   const eg1 = findEg();
@@ -231,6 +233,12 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
     t('Griffe der gewählten Kante vorhanden', !!handle);
     dispatch(handle || findEg(), 'pointerdown', {timeStamp: 1120});
     t('zweiter Klick auf einem Griff löscht die Stützpunkte (statt einen zu setzen)', e.bends === null);
+    t('Doppelklick setzt auf die kürzeste Verbindung (Anschlusspunkte gelöst)',
+      !e.portFrom && !e.portTo && e.ortho === false);
+    S.selEdge = e.id; api.draw();
+    t('die gerade Verbindung bietet wieder einen Zusatzpunkt-Griff',
+      document.getElementById('handles').querySelectorAll('.gh').length >= 1);
+    S.selEdge = null;
     // ein langsamer zweiter Klick löscht NICHT
     const e2 = S.graph.edges.find(x=>{
       const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);

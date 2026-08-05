@@ -668,11 +668,14 @@ svg.addEventListener('pointerdown', ev=>{
       if(lastEdgeTap && lastEdgeTap.id === edgeId && ev.timeStamp - lastEdgeTap.t < 350){
         lastEdgeTap = null;
         const e = S.graph.edges.find(x => x.id === edgeId);
-        if(e && e.bends && e.bends.length){
-          e.bends = null; e.manual = true; e.ortho = S.layout.algo === 'ortho';
+        if(e && (e.bends && e.bends.length || e.portFrom || e.portTo)){
+          // Auf die kürzeste Verbindung zurücksetzen: Stützpunkte UND Anschluss-
+          // punkte lösen, gerade Direktlinie. Neue Stützpunkte folgen danach
+          // wieder dem gewählten Verfahren.
+          e.bends = null; e.portFrom = null; e.portTo = null; e.ortho = false; e.manual = true;
           S.selEdge = edgeId; S.selected = null; S.sel.clear();
           draw(); renderDetails(); syncLayoutMenu(); updateAlignBar(); persist();
-          toast('Stützpunkte gelöscht');
+          toast('Stützpunkte gelöscht — kürzeste Verbindung');
         }
         ev.preventDefault(); return;
       }
