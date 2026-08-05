@@ -5,9 +5,45 @@
    ===================================================================== */
 const TAB_WIDTH = 4;
 
+/* Blockskalare (key: | , |- , > , >- \u2026) in einen escapten einzeiligen Wert
+   umschreiben, den der \u00FCbrige Leser als "\u2026\n\u2026" versteht. Die eigentliche Logik
+   (Zeilen falten, Einr\u00FCckung, Kommentare) bleibt so unver\u00E4ndert. */
+function expandBlockScalars(text){
+  const raw = text.split('\n');
+  const colw = s => s.replace(/\t/g, ' '.repeat(TAB_WIDTH)).match(/^ */)[0].length;
+  const head = /^(\s*)([^:#][^:]*):[ \t]*([|>])([-+]?)\d*[ \t]*(?:#.*)?$/;
+  const out = [];
+  for(let i = 0; i < raw.length; i++){
+    const m = raw[i].match(head);
+    if(!m){ out.push(raw[i]); continue; }
+    const keyCol = colw(m[1]), folded = m[3] === '>', chomp = m[4];
+    const block = [];
+    let j = i + 1;
+    for(; j < raw.length; j++){
+      if(raw[j].trim() === ''){ block.push(''); continue; }
+      if(colw(raw[j]) <= keyCol) break;
+      block.push(raw[j].replace(/\t/g, ' '.repeat(TAB_WIDTH)));
+    }
+    while(block.length && block[block.length-1] === '') block.pop();   // Leerzeilen am Ende geh\u00F6ren nicht dazu
+    const common = Math.min(Infinity, ...block.filter(b => b !== '').map(b => b.match(/^ */)[0].length));
+    const body = block.map(b => b === '' ? '' : b.slice(common));
+    let content;
+    if(folded){
+      let s = '';
+      for(const l of body) s += l === '' ? '\n' : ((s === '' || s.endsWith('\n')) ? '' : ' ') + l;
+      content = s;
+    } else content = body.join('\n');
+    if(chomp !== '+') content = content.replace(/\n+$/, '');           // '-' und Standard: kein Nachlauf
+    const esc = content.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t');
+    out.push(m[1] + m[2] + ': "' + esc + '"');
+    i = j - 1;
+  }
+  return out.join('\n');
+}
+
 function readYaml(text){
   const notes = [];
-  const src = text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+  const src = expandBlockScalars(text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n'));
   if(src.includes('\t')) notes.push({level:'warn', title:'Tabulatoren in der Einrückung',
     body:`Die Datei rückt teilweise mit Tabulatoren ein. YAML erlaubt das nicht — ein normaler Parser bricht hier ab. Diese App rechnet einen Tab in ${TAB_WIDTH} Leerzeichen um.`});
 

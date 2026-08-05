@@ -113,6 +113,43 @@ t('Bestellung enthalten', !!rm.objects.Bestellung);
 t('ohne harte Fehler baubar', !rm.messages.some(m => m.level === 'err'),
   rm.messages.filter(m => m.level === 'err').map(m => m.title).join(' | '));
 
+console.log('== Blockskalare: | , |- und > ==');
+{
+  const doc = readYaml([
+    'BusinessObjects:',
+    '  Foo:',
+    '    desc: |-',
+    '      Zeile eins',
+    '      Zeile zwei',
+    '    domain: X'
+  ].join('\n')).doc;
+  const desc = doc.BusinessObjects.Foo.desc;
+  t('literal |- ergibt echte Zeilenumbrüche', desc === 'Zeile eins\nZeile zwei', JSON.stringify(desc));
+  t('der Marker |- steht nicht mehr im Wert', typeof desc === 'string' && !desc.includes('|'), JSON.stringify(desc));
+  t('der folgende Schlüssel bleibt erhalten', doc.BusinessObjects.Foo.domain === 'X');
+}
+{
+  const doc = readYaml([
+    'a: >',
+    '  eins',
+    '  zwei',
+    '',
+    '  drei',
+    'b: 1'
+  ].join('\n')).doc;
+  t('gefaltet > verbindet Zeilen mit Leerzeichen, Leerzeile bricht um', doc.a === 'eins zwei\ndrei', JSON.stringify(doc.a));
+  t('nach dem Block geht es normal weiter', doc.b === 1);
+}
+{
+  // '#' und ':' innerhalb eines Blocks bleiben Text, kein Kommentar/kein Schlüssel
+  const doc = readYaml([
+    'x: |',
+    '  Preis # Stück',
+    '  Verhältnis 1:2'
+  ].join('\n')).doc;
+  t('# und : im Block bleiben erhalten', doc.x === 'Preis # Stück\nVerhältnis 1:2', JSON.stringify(doc.x));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

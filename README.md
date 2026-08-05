@@ -80,7 +80,8 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
 - Nur `BusinessObjects` ist Pflicht, alles andere optional. Der Leser ist
   tolerant: Tabs als Einrückung sind erlaubt, Feldnamen gibt es deutsch wie
   englisch (`Domain`/`domain`, `desc`/`beschreibung`, …), und Beziehungen dürfen
-  in mehreren Schreibweisen notiert sein.
+  in mehreren Schreibweisen notiert sein. Mehrzeilige Texte gehen auch als
+  Blockskalar (`desc: |-` bzw. `>`).
 - **Kardinalitäten:** `exactly_one`, `zero_or_one`, `zero_or_many`,
   `one_or_many`, `many`.
 - Die App prüft das Modell und meldet Auffälligkeiten (unbekanntes Ziel,
