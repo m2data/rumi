@@ -734,6 +734,22 @@ console.log('== Keine externen Quellen ==');
     roh.includes('/* SCHRIFTEN-ANFANG */') && roh.includes('/* SCHRIFTEN-ENDE */'));
 }
 
+console.log('== Export: Markdown in der Diagramm-Beschreibung wird formatiert ==');
+{
+  api.loadUebersicht('Übersicht:\n  beschreibung: x\n  objekte:\n    - Bestellung\n    - Position');
+  api.setMode('hierarchie');
+  const rootId = S.outline.roots[0].id;
+  api.selectDiagram(rootId);
+  S.hierText[rootId] = '# Kopf\nEin **fetter** und *kursiver* Text mit `code`.\n- Punkt';
+  const svg = api.exportSVG();
+  t('Export: Überschrift wird größer gesetzt', /font-size="16"/.test(svg), 'kein font-size=16');
+  t('Export: fett als eigenes tspan', /font-weight="700"/.test(svg));
+  t('Export: kursiv als eigenes tspan', /font-style="italic"/.test(svg));
+  t('Export: Code in Monospace', /IBM Plex Mono, monospace/.test(svg));
+  t('Export: Listenpunkt mit Aufzählungszeichen', svg.includes('•'));
+  api.setMode('komplett'); api.setView(1);
+}
+
 console.log('== Delta-Geschäftsobjekte: ergänzen und ersetzen ==');
 {
   const base  = 'BusinessObjects:\n  A:\n    Domain: D\n  B:\n    Domain: D\n';

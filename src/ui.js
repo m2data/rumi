@@ -1190,7 +1190,9 @@ function exportSVG(){
 <style>${SVG_CSS}
 .att{font:400 10px "IBM Plex Mono",ui-monospace,monospace;fill:#5E717F}
 .hx-ttl{font:600 20px "Space Grotesk",sans-serif;fill:#122029}
-.hx-dsc{font:400 12px "Space Grotesk",sans-serif;fill:#5E717F}</style>
+.hx-dsc{font:400 12px "Space Grotesk",sans-serif;fill:#5E717F}
+.hx-h{font-family:"Space Grotesk",sans-serif;font-weight:700;fill:#122029}
+.hx-q{font-family:"Space Grotesk",sans-serif;font-style:italic;fill:#5E717F}</style>
 <rect x="${b.x}" y="${topY}" width="${b.w}" height="${totalH}" fill="#E7ECF1"/>
 ${head ? head.svg : ''}
 ${inner}
