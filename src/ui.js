@@ -396,15 +396,42 @@ function renderDetails(){
     b.addEventListener('click', ()=> addRelated(n.id)));
 }
 
+const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur diese Sitzung)
+
 function renderMessages(){
   const list = S.model.messages;
   const bad = list.filter(m => m.level !== 'info').length;
   const badge = $('msgBadge');
   badge.textContent = list.length;
   badge.classList.toggle('zero', bad === 0);
-  $('msgList').innerHTML = list.length
-    ? list.map(m=>`<div class="msg ${m.level}"><strong>${m.level === 'err' ? 'Fehler' : m.level === 'warn' ? 'Hinweis' : 'Info'}</strong>${esc(m.title)}<br>${esc(m.body)}</div>`).join('')
-    : '<div class="empty">Keine Auffälligkeiten gefunden.</div>';
+  const lvl = l => l === 'err' ? 'Fehler' : l === 'warn' ? 'Hinweis' : 'Info';
+  // Gleichartige Hinweise (gleicher Typ hinter dem letzten „: ") zusammenfassen.
+  const typeOf = t => { const i = t.lastIndexOf(': '); return i >= 0 ? t.slice(i + 2) : t; };
+  const objOf  = t => { const i = t.lastIndexOf(': '); return i >= 0 ? t.slice(0, i) : t; };
+  const groups = new Map();
+  list.forEach(m=>{
+    const key = m.level + '|' + typeOf(m.title);
+    if(!groups.has(key)) groups.set(key, {key, level:m.level, label:typeOf(m.title), items:[]});
+    groups.get(key).items.push(m);
+  });
+  const one = m => `<div class="msg ${m.level}"><strong>${lvl(m.level)}</strong>${esc(m.title)}<br>${esc(m.body)}</div>`;
+  let html = '';
+  for(const g of groups.values()){
+    if(g.items.length === 1){ html += one(g.items[0]); continue; }
+    const open = expandedMsgGroups.has(g.key);
+    html += `<div class="msg ${g.level} mgroup${open ? ' open' : ''}">
+      <button class="mgh" data-mk="${esc(g.key)}" aria-expanded="${open}">
+        <span class="mcaret">▾</span><span class="mgt"><strong>${lvl(g.level)}</strong>${esc(g.label)}</span>
+        <span class="mcount">${g.items.length}×</span></button>
+      <div class="mgbody">${g.items.map(m=>
+        `<div class="mgi"><span class="mgi-obj">${esc(objOf(m.title))}</span><br>${esc(m.body)}</div>`).join('')}</div></div>`;
+  }
+  $('msgList').innerHTML = html || '<div class="empty">Keine Auffälligkeiten gefunden.</div>';
+  $('msgList').querySelectorAll('.mgh').forEach(b=> b.addEventListener('click', ()=>{
+    const k = b.dataset.mk;
+    if(expandedMsgGroups.has(k)) expandedMsgGroups.delete(k); else expandedMsgGroups.add(k);
+    renderMessages();
+  }));
 }
 
 /* Namensnennung nach CC-BY und Verwandtem: eine Zeile, überall dieselbe. */

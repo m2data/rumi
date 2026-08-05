@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -309,6 +309,30 @@ console.log('== Inhaltsauswahl ==');
     t('Beschreibungsbox erst nach Auswahl', !svgTxt.includes('n-desc-bg'));
     btn.onclick();
   }
+}
+
+console.log('== Hinweise gruppieren und aufklappen ==');
+{
+  const prev = S.model.messages;
+  S.model.messages = [
+    {level:'warn', title:'Alpha: keine Domain', body:'Feld fehlt.'},
+    {level:'warn', title:'Beta: keine Domain',  body:'Feld fehlt.'},
+    {level:'warn', title:'Gamma: keine Domain', body:'Feld fehlt.'},
+    {level:'err',  title:'Alpha → Ziel: Ziel unbekannt', body:'weg.'}
+  ];
+  api.renderMessages();
+  const ml = document.getElementById('msgList');
+  const groups = ml.querySelectorAll('.mgroup').length;
+  const total = ml.querySelectorAll('.msg').length;
+  t('gleiche Hinweise werden zu einer Gruppe zusammengefasst', groups === 1, groups + ' Gruppen');
+  t('ein einzelner Hinweis bleibt einzeln', total - groups === 1, (total - groups) + ' einzelne');
+  const head = ml.querySelector('.mgh');
+  t('Gruppe ist zunächst eingeklappt', head.getAttribute('aria-expanded') === 'false');
+  t('Gruppe listet ihre Objekte', ml.querySelectorAll('.mgi').length === 3);
+  dispatch(head, 'click', {});
+  t('Klick klappt die Gruppe auf', document.getElementById('msgList').querySelector('.mgh').getAttribute('aria-expanded') === 'true');
+  S.model.messages = prev;
+  api.renderMessages();
 }
 
 console.log('== Domänen zusammenklappen ==');
