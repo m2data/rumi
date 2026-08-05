@@ -316,6 +316,28 @@ console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert i
   api.setSelection([]);
 }
 
+console.log('== Kanten neu ziehen respektiert die Auswahl ==');
+{
+  api.setView(1);
+  S.graph.edges.forEach(e=>{ e.bends = [{x:-999, y:-999}]; });   // Sentinel: „nicht neu gezogen"
+  const someEdge = S.graph.edges.find(e=>{
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    return A && B && !A.hidden && !B.hidden && e.from !== e.to;
+  });
+  const sel = [someEdge.from, someEdge.to];
+  const selSet = new Set(sel);
+  api.setSelection(sel);
+  const inList  = S.graph.edges.filter(e => selSet.has(e.from) || selSet.has(e.to));
+  const outList = S.graph.edges.filter(e => !(selSet.has(e.from) || selSet.has(e.to)));
+  [...document.getElementById('layoutMenu').querySelectorAll('[data-route]')].find(b => b.dataset.route === 'all').onclick();
+  const sent = e => e.bends && e.bends.length === 1 && e.bends[0].x === -999;
+  t('nur die Kanten der Auswahl werden neu gezogen', inList.length > 0 && inList.every(e => !sent(e)),
+    inList.filter(e=>!sent(e)).length + '/' + inList.length);
+  t('Kanten außerhalb der Auswahl bleiben unverändert', outList.every(sent),
+    outList.filter(sent).length + '/' + outList.length);
+  api.setSelection([]);
+}
+
 console.log('== Hierarchie-Export leitet den Namen vom Modell ab ==');
 {
   const prev = S.fileName;

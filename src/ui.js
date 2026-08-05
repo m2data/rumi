@@ -1079,9 +1079,15 @@ $('layoutMenu').querySelectorAll('[data-route]').forEach(b => b.onclick = ()=>{
     toast('Kante neu gezogen');
   } else {
     S.selEdge = null;
-    const n = rerouteEdges(S.graph.edges);
+    // Ist ein Bereich markiert, nur dessen Kanten (mind. ein Ende in der Auswahl)
+    // neu ziehen; sonst alle.
+    const selIds = new Set([...S.sel].filter(id => isVisible(id)));
+    const list = selIds.size
+      ? S.graph.edges.filter(e => selIds.has(e.from) || selIds.has(e.to))
+      : S.graph.edges;
+    const n = rerouteEdges(list);
     persist();
-    toast(n + ' Kanten neu gezogen');
+    toast(n + (selIds.size ? ' Kanten der Auswahl neu gezogen' : ' Kanten neu gezogen'));
   }
   syncLayoutMenu();
 });
