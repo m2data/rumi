@@ -29,7 +29,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','sessionStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure, boot});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure, boot, loopGeom, loopPoint});');
 
 try{
   runner(document, win, win.localStorage, win.sessionStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -348,6 +348,38 @@ console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
     if(back){ back.labelT = null; back.labelManual = false; back.bends = null; api.persist(); }  // aufräumen
   }
   S.selEdge = null;
+}
+
+console.log('== Selbstbezug-Label ist auf der Schleife verschiebbar ==');
+{
+  api.setView(1);
+  const e = S.graph.edges.find(x => x.from === x.to && x.label);
+  t('Selbstbezug mit Beschriftung vorhanden', !!e, e ? e.from : 'keiner');
+  if(e){
+    e.labelT = null; e.labelManual = false;
+    api.drawEdges();
+    const hit = document.querySelector('.e-lbl-hit[data-lbl="' + e.id + '"]');
+    t('Schleifen-Label hat ein Zieh-Feld', !!hit);
+    if(hit){
+      const A = S.graph.byId.get(e.from);
+      const p1 = api.loopGeom(A, e).p1;                    // Anfang der Schleife
+      const cx = p1.x * S.t.k + S.t.x, cy = p1.y * S.t.k + S.t.y;
+      dispatch(hit, 'pointerdown', {clientX:0, clientY:0});
+      dispatch(svg, 'pointermove', {clientX:cx, clientY:cy});
+      dispatch(svg, 'pointerup', {clientX:cx, clientY:cy});
+      t('Ziehen setzt labelT auf der Schleife', typeof e.labelT === 'number' && e.labelT >= 0 && e.labelT <= 1,
+        'labelT=' + e.labelT);
+      t('Label wandert zum Schleifenanfang', e.labelT < 0.25, 'labelT=' + e.labelT);
+      t('gilt als von Hand platziert', e.labelManual === true);
+      // gezeichnete Position liegt auf der Kurve bei labelT
+      const lp = api.loopPoint(api.loopGeom(A, e), e.labelT);
+      const txt = [...document.getElementById('edges').querySelectorAll('.eg')]
+        .find(g => g.dataset.id === e.id).querySelector('.e-lbl');
+      t('gezeichnetes Label sitzt am Kurvenpunkt', txt && Math.abs(+txt.getAttribute('x') - lp.x) < 1,
+        txt ? txt.getAttribute('x') + ' vs ' + lp.x.toFixed(1) : 'kein Text');
+      e.labelT = null; e.labelManual = false; api.persist();   // aufräumen
+    }
+  }
 }
 
 console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');

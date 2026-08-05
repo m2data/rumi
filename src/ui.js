@@ -889,8 +889,19 @@ svg.addEventListener('pointermove', ev=>{
     const r = svg.getBoundingClientRect();
     const wx = (ev.clientX - r.left - S.t.x)/S.t.k, wy = (ev.clientY - r.top - S.t.y)/S.t.k;
     const e = labelDrag.e, A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
-    if(A && B && A !== B){
-      e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t;
+    if(A && B){
+      if(A === B){
+        // Selbstbezug: den Zeiger auf den nächstgelegenen Punkt der Schleife legen
+        const g = loopGeom(A, e);
+        let bestT = 0.5, bd = Infinity;
+        for(let i = 0; i <= 64; i++){
+          const t = i/64, p = loopPoint(g, t), d = Math.hypot(p.x - wx, p.y - wy);
+          if(d < bd){ bd = d; bestT = t; }
+        }
+        e.labelT = bestT;
+      } else {
+        e.labelT = nearestOnPoly(routePoints(e, A, B), wx, wy).t;
+      }
       e.labelManual = true;                    // von Hand platziert: bleibt beim Entzerren stehen
       drawEdges();
     }

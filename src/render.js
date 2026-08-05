@@ -108,6 +108,15 @@ function loopGeom(A, e){
   };
 }
 
+/* Punkt bei t (0..1) auf der Selbstbezug-Schleife (kubische Bézierkurve). */
+function loopPoint(g, t){
+  const u = 1 - t;
+  return {
+    x: u*u*u*g.p1.x + 3*u*u*t*g.c1.x + 3*u*t*t*g.c2.x + t*t*t*g.p2.x,
+    y: u*u*u*g.p1.y + 3*u*u*t*g.c1.y + 3*u*t*t*g.c2.y + t*t*t*g.p2.y
+  };
+}
+
 const fx = v => v.toFixed(1);
 
 /* Weicher Zug durch die Stützpunkte */
@@ -259,6 +268,8 @@ function edgeMarkup(e, g, cls){
     if(A !== B){
       const poly = routePoints(e, A, B);
       lp = polyPoint(poly, e.labelT != null ? e.labelT : 0.5);
+    } else if(e.labelT != null){
+      lp = loopPoint(loopGeom(A, e), e.labelT);   // Selbstbezug: frei auf der Schleife
     }
     const w = measure(e.label, '500 10px "IBM Plex Mono", monospace') + 8;
     if(!S.exporting) s += `<rect class="e-lbl-hit" data-lbl="${e.id}" x="${fx(lp.x-w/2)}" y="${fx(lp.y-8)}" width="${w.toFixed(1)}" height="16"/>`;
