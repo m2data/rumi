@@ -178,7 +178,7 @@ BusinessObjects:
           to: zero_or_many
 
 
-  T001W:
+  Werk:
     Domain: SAP_Organisation
     desc: >
       Repräsentiert ein SAP-Werk beziehungsweise eine organisatorische
@@ -253,19 +253,6 @@ BusinessObjects:
           from: exactly_one
           to: zero_or_many
 
-      - to: Bestellposition
-        name: empfängt_Bestellpositionen
-        cardinality:
-          from: exactly_one
-          to: zero_or_many
-
-      - to: Auftragsposition
-        name: liefert_Auftragspositionen
-        cardinality:
-          from: exactly_one
-          to: zero_or_many
-
-
   Werksmaterial:
     Domain: SAP_Stammdaten
     desc: >
@@ -298,7 +285,7 @@ BusinessObjects:
         nullable: false
         primary_key: true
         foreign_key: true
-        references: T001W.WerkID
+        references: Werk.WerkID
 
       - name: Dispositionsmerkmal
         source: MARC.DISMM
@@ -494,7 +481,7 @@ BusinessObjects:
         type: char(4)
         nullable: true
         foreign_key: true
-        references: T001W.WerkID
+        references: Werk.WerkID
 
       - name: Lagerort
         source: EKPO.LGORT
@@ -685,7 +672,7 @@ BusinessObjects:
         type: char(4)
         nullable: true
         foreign_key: true
-        references: T001W.WerkID
+        references: Werk.WerkID
 
       - name: Positionstyp
         source: VBAP.PSTYV
@@ -917,4 +904,4 @@ BusinessObjects:
         type: char(4)
         nullable: true
         foreign_key: true
-        references: T001W.WerkID
+        references: Werk.WerkID

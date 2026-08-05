@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -263,6 +263,16 @@ console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert i
   }
   t('die angeordnete Auswahl überlappt sich nicht mehr', overlap === 0, overlap + ' Überlappungen');
   api.setSelection([]);
+}
+
+console.log('== Hierarchie-Export leitet den Namen vom Modell ab ==');
+{
+  const prev = S.fileName;
+  S.fileName = 'sap-finanz.yaml';
+  t('Hierarchiename = Basisname + -hierarchie', api.uebersichtName() === 'sap-finanz-hierarchie.yaml', api.uebersichtName());
+  S.fileName = 'willibald-attr.yaml';
+  t('funktioniert auch für ein anderes Modell', api.uebersichtName() === 'willibald-attr-hierarchie.yaml', api.uebersichtName());
+  S.fileName = prev;
 }
 
 console.log('== Inhaltsauswahl ==');
