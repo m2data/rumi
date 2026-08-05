@@ -16,27 +16,11 @@ const {api} = load(['yaml.js', 'model.js', 'layout.js', 'render.js'],
   ['buildModel', 'makeGraph', 'ALGOS', 'separate', 'portPoint']);
 const {buildModel, makeGraph, ALGOS, separate, portPoint} = api;
 
-const center = n => ({x: n.x + n.w/2, y: n.y + n.h/2});
+const {centerCrossings, edgePath, routedCrossings} = require('./geo');
+
 const finite = n => Number.isFinite(n.x) && Number.isFinite(n.y);
 const overlaps = (A, B)=> A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h;
-
-/* Kreuzt sich Strecke AB mit Strecke CD? Endpunkte, die einen Knoten teilen,
-   zählen nicht als Kreuzung. */
-function crossings(nodes, edges){
-  const by = new Map(nodes.map(n => [n.id, center(n)]));
-  const segs = edges.map(e => ({a: by.get(e.from), b: by.get(e.to), from: e.from, to: e.to}))
-                    .filter(s => s.a && s.b);
-  const ccw = (p, q, r)=> (r.y - p.y) * (q.x - p.x) - (q.y - p.y) * (r.x - p.x);
-  let n = 0;
-  for(let i = 0; i < segs.length; i++) for(let j = i + 1; j < segs.length; j++){
-    const s = segs[i], u = segs[j];
-    if([s.from, s.to].some(id => id === u.from || id === u.to)) continue;   // teilen einen Knoten
-    const d1 = ccw(u.a, u.b, s.a), d2 = ccw(u.a, u.b, s.b);
-    const d3 = ccw(s.a, s.b, u.a), d4 = ccw(s.a, s.b, u.b);
-    if(((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0))) n++;
-  }
-  return n;
-}
+const crossings = centerCrossings;
 
 const real = fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-attr.yaml'), 'utf8');
 const model = buildModel(real);
@@ -309,24 +293,7 @@ ${oneMany('Tief')}  Tief:
 `);
   const g = makeGraph(m, 1);
   ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
-  // Kanten in Segmente zerlegen (echte rechtwinklige Führung) und Schnitte zählen.
-  const segs = [];
-  g.edges.forEach(e=>{
-    const A = g.byId.get(e.from), B = g.byId.get(e.to);
-    if(!A || !B || !e.portFrom) return;
-    const pts = [portPoint(A, e.portFrom), ...(e.bends || []), portPoint(B, e.portTo)];
-    for(let i = 0; i < pts.length - 1; i++) segs.push({e, a: pts[i], b: pts[i+1]});
-  });
-  const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
-  const hit = (s,u)=>{
-    const d1=ccw(u.a,u.b,s.a), d2=ccw(u.a,u.b,s.b), d3=ccw(s.a,s.b,u.a), d4=ccw(s.a,s.b,u.b);
-    return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
-  };
-  let cross = 0;
-  for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
-    if(segs[i].e === segs[j].e) continue;
-    if(hit(segs[i], segs[j])) cross++;
-  }
+  const cross = routedCrossings(g, portPoint);   // echte rechtwinklige Führung
   t('Kanten in den Kanal kreuzen sich nicht', cross === 0, cross + ' Kreuzungen');
 }
 
@@ -338,7 +305,7 @@ console.log('== Orthogonal: keine rücklaufenden Haken an den Ecken ==');
   g.edges.forEach(e=>{
     const A = g.byId.get(e.from), B = g.byId.get(e.to);
     if(!A || !B || !e.portFrom) return;
-    const raw = [portPoint(A, e.portFrom), ...(e.bends || []), portPoint(B, e.portTo)];
+    const raw = edgePath(e, A, B, portPoint);
     const p = raw.filter((q,i)=> i === 0 || Math.abs(q.x-raw[i-1].x) > 0.5 || Math.abs(q.y-raw[i-1].y) > 0.5);
     for(let i=1;i<p.length-1;i++){
       const a = p[i-1], b = p[i], c = p[i+1];
@@ -363,9 +330,9 @@ console.log('== Orthogonal: lange Kante fällt gerade in den Anschluss (sap-fina
       console.log('  (übersprungen: Werksmaterial/Rechnungsposition nicht im Modell)');
     } else {
       ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
-      const p1 = portPoint(A, e.portFrom), p2 = portPoint(B, e.portTo);
-      const xs = [p1.x, ...(e.bends || []).map(b => b.x), p2.x];
-      const lo = Math.min(p1.x, p2.x) - 1, hi = Math.max(p1.x, p2.x) + 1;
+      const pts = edgePath(e, A, B, portPoint);
+      const xs = pts.map(p => p.x);
+      const lo = Math.min(xs[0], xs[xs.length-1]) - 1, hi = Math.max(xs[0], xs[xs.length-1]) + 1;
       // Die Kante überspannt mehrere Ebenen und soll gerade in den seitlichen
       // Anschluss fallen, statt bis zur Knotenmitte zu laufen und zurückzuknicken.
       t('Werksmaterial->Rechnungsposition schwingt nicht über das Ziel hinaus',

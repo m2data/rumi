@@ -1509,57 +1509,6 @@ async function loadYaml(text, name, preset){
   }
 }
 
-/* ---------- YAML schreiben ---------- */
-const yamlVal = v => /^[A-Za-z0-9_.\-]+$/.test(String(v))
-  ? String(v) : '"' + String(v).replace(/(["\\])/g, '\\$1') + '"';
-
-function modelToYaml(m){
-  const att = attributionLine();
-  const L = [
-    '# Geschäftsobjekt-Explorer — bereinigter Stand vom ' + new Date().toLocaleDateString('de-DE'),
-    '# Einrückung durchgängig mit Leerzeichen, ungültige Blöcke entfernt.'
-  ];
-  if(att) L.push('#', '# ' + att);
-  L.push('');
-  const mm = m.meta || {};
-  if(mm.titel || mm.urheber || mm.lizenz){
-    L.push('meta:');
-    if(mm.titel)     L.push('  titel: ' + yamlVal(mm.titel));
-    if(mm.urheber)   L.push('  urheber: ' + yamlVal(mm.urheber));
-    if(mm.lizenz)    L.push('  lizenz: ' + yamlVal(mm.lizenz));
-    if(mm.lizenzUrl) L.push('  lizenz_url: ' + yamlVal(mm.lizenzUrl));
-    if(mm.hinweis)   L.push('  hinweis: ' + yamlVal(mm.hinweis));
-    L.push('');
-  }
-  L.push('BusinessObjects:');
-  for(const o of Object.values(m.objects)){
-    L.push('  ' + yamlVal(o.name) + ':');
-    if(o.domain) L.push('    Domain: ' + yamlVal(o.domain));
-    if(o.keys.length){
-      L.push('    business_keys:');
-      o.keys.forEach(k => L.push('      - ' + yamlVal(k)));
-    }
-    if(o.sources.length){
-      L.push('    sources:');
-      o.sources.forEach(s => L.push('      - ' + yamlVal(s)));
-    }
-    if(o.rels.length){
-      L.push('    relationships:');
-      o.rels.forEach(r=>{
-        L.push('      - to: ' + yamlVal(r.to));
-        if(r.name) L.push('        name: ' + yamlVal(r.name));
-        if(r.from || r.toCard){
-          L.push('        cardinality:');
-          if(r.from)   L.push('          from: ' + yamlVal(r.from));
-          if(r.toCard) L.push('          to: ' + yamlVal(r.toCard));
-        }
-      });
-    }
-    L.push('');
-  }
-  return L.join('\n');
-}
-
 /* ---------- Eigenständigen Stand als HTML sichern ---------- */
 function exportHTML(){
   const el = $('bakedState');

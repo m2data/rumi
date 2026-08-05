@@ -22,6 +22,11 @@ starten. Kein Browser, kein npm-Paket.
 gemeinsamen Gültigkeitsbereich und reicht `document`/`S` hinein. Damit prüfen
 Modell- und Layout-Test einzelne Funktionen, ohne die ganze App zu starten.
 
+**`geo.js`** bündelt die Geometrie-Helfer der Tests (Streckenschnitt,
+Kreuzungszählung Zentrum-zu-Zentrum und entlang gerouteter Segmente,
+Kantenpfad-Aufbau). Neue Tests nutzen diese Zähler statt eigener Kopien —
+sonst messen zwei Tests still Verschiedenes.
+
 **`model.test.js`** prüft `yaml.js` + `model.js`: YAML-Rundlauf (Tabs wie
 Leerzeichen), Aufbau von Objekten, Attributen und Beziehungen sowie die
 Prüfregeln (unbekanntes Ziel, fehlende Domain, doppelte Beziehung, Selbstbezug …)
