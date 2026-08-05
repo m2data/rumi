@@ -20,6 +20,9 @@ läuft offline und lädt nichts nach.
   markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.
+- **Auswählen**: Umschalt+Ziehen wählt einen Rahmen, Strg+Klick einzelne Objekte
+  dazu oder weg. **Rückgängig/Wiederherstellen** der letzten 10 Aktionen mit
+  Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z).
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Laden/Speichern** der drei Dateien (siehe unten) und **Export** als

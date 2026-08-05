@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -208,6 +208,25 @@ console.log('== Knoten und Auswahl ==');
   dispatch(svg, 'pointermove', {clientX:60, clientY:30});
   dispatch(svg, 'pointerup', {clientX:60, clientY:30});
   t('Knoten verschoben', n.x !== ox, ox + ' → ' + n.x);
+}
+
+console.log('== Rückgängig / Wiederherstellen ==');
+{
+  api.setView(1);
+  const id = S.graph.nodes.find(x => !x.hidden).id;
+  const ox = S.graph.byId.get(id).x, oy = S.graph.byId.get(id).y;
+  const nn = S.graph.byId.get(id);
+  nn.x = ox + 200; nn.y = oy + 150; api.persist();          // Aktion: verschieben
+  api.undo();
+  const a1 = S.graph.byId.get(id);
+  t('Rückgängig stellt die vorige Position her',
+    Math.round(a1.x) === Math.round(ox) && Math.round(a1.y) === Math.round(oy),
+    `x ${Math.round(a1.x)} statt ${Math.round(ox)}`);
+  api.redo();
+  const a2 = S.graph.byId.get(id);
+  t('Wiederherstellen bringt die Änderung zurück',
+    Math.round(a2.x) === Math.round(ox + 200) && Math.round(a2.y) === Math.round(oy + 150),
+    `x ${Math.round(a2.x)} statt ${Math.round(ox + 200)}`);
 }
 
 console.log('== Klick markiert und behält die Auswahl ==');

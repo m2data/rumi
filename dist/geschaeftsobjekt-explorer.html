@@ -517,7 +517,7 @@ li.grouphead{display:flex;align-items:center;gap:8px;list-style:none}
       <button data-al="dh" title="Waagrecht gleichmäßig verteilen" aria-label="Waagrecht gleichmäßig verteilen"><svg width="16" height="16" viewBox="0 0 16 16"><rect class="bx" x="1" y="4" width="3" height="8"/><rect class="bx" x="6.5" y="4" width="3" height="8"/><rect class="bx" x="12" y="4" width="3" height="8"/></svg></button>
       <button data-al="dv" title="Senkrecht gleichmäßig verteilen" aria-label="Senkrecht gleichmäßig verteilen"><svg width="16" height="16" viewBox="0 0 16 16"><rect class="bx" x="4" y="1" width="8" height="3"/><rect class="bx" x="4" y="6.5" width="8" height="3"/><rect class="bx" x="4" y="12" width="8" height="3"/></svg></button>
     </div>
-    <div class="hint">Umschalt+Ziehen wählt mehrere · Kante anklicken lenkt um · Rad zoomt</div>
+    <div class="hint">Umschalt+Ziehen wählt mehrere · Strg+Klick einzeln · Strg+Z/Y zurück/vor · Kante anklicken lenkt um · Rad zoomt</div>
     <div class="dropzone" id="dropzone">YAML-Datei hier ablegen<span>Modell wird sofort neu gezeichnet</span></div>
     <div class="toast" id="toast"></div>
   </div>
@@ -3444,9 +3444,45 @@ function positionsSnapshot(){
 
 function writeStore(){
   const blob = layoutFile();
-  store.set('layouts:' + S.fileName, JSON.stringify(blob));
+  const snap = JSON.stringify(blob);
+  store.set('layouts:' + S.fileName, snap);
   store.set('sitzung', JSON.stringify(
     Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, blob)));
+  recordHistory(snap);
+}
+
+/* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
+   Schnappschuss-basiert auf layoutFile(): jede gespeicherte Aktion (Verschieben,
+   Anordnen, Kante umlenken, Ein-/Ausblenden, Inhalt) legt einen Stand ab. Es
+   werden die letzten 10 Aktionen behalten (also 11 Stände). */
+const HIST_MAX = 10;
+let hist = [], histPos = -1, restoringHistory = false;
+function resetHistory(){ hist = [JSON.stringify(layoutFile())]; histPos = 0; }
+function recordHistory(snap){
+  if(restoringHistory) return;
+  if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
+  hist = hist.slice(0, histPos + 1);                       // ein neuer Zweig verwirft „Wiederherstellen"
+  hist.push(snap);
+  while(hist.length > HIST_MAX + 1) hist.shift();
+  histPos = hist.length - 1;
+}
+function restoreHistory(snap){
+  restoringHistory = true;                                 // die folgenden persist()/writeStore() nicht mitschreiben
+  try{
+    adoptLayoutFile(JSON.parse(snap));
+    if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); else draw(); }
+    else setView(S.view, {autoFit:false});
+    syncLayoutMenu();
+    writeStore();
+  } finally { restoringHistory = false; }
+}
+function undo(){
+  if(histPos <= 0){ toast('Nichts zum Rückgängigmachen'); return; }
+  restoreHistory(hist[--histPos]); toast('Rückgängig');
+}
+function redo(){
+  if(histPos < 0 || histPos >= hist.length - 1){ toast('Nichts zum Wiederherstellen'); return; }
+  restoreHistory(hist[++histPos]); toast('Wiederhergestellt');
 }
 
 function persist(){
@@ -4219,6 +4255,17 @@ $('zOut').onclick = ()=> zoomBy(0.8);
 
 document.addEventListener('keydown', ev=>{
   if(ev.target.matches('input')) { if(ev.key === 'Escape') ev.target.blur(); return; }
+  const editable = ev.target.matches && (ev.target.matches('textarea') || ev.target.isContentEditable);
+  if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 'z' || ev.key === 'Z')){
+    if(editable) return;                       // im Textfeld: natives Rückgängig
+    ev.preventDefault();
+    if(ev.shiftKey) redo(); else undo();       // Strg+Umschalt+Z = Wiederherstellen
+    return;
+  }
+  if((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y')){
+    if(editable) return;
+    ev.preventDefault(); redo(); return;
+  }
   if(ev.key === 'Escape'){
     if(S.selEdge){ S.selEdge = null; draw(); }
     else if(S.sel.size) setSelection([]);
@@ -4537,6 +4584,7 @@ async function loadYaml(text, name, preset){
     syncLayoutMenu();
     setView(preset && preset.view ? preset.view : S.view);
     if(S.mode === 'hierarchie') setMode('hierarchie');
+    resetHistory();                       // geladener Stand ist der Anfang des Verlaufs
     const bad = model.messages.filter(m => m.level !== 'info').length;
     toast(bad ? `${Object.keys(model.objects).length} Objekte geladen · ${bad} Hinweise`
               : `${Object.keys(model.objects).length} Objekte geladen`);
