@@ -385,6 +385,11 @@ console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) =='
     const c = crossings(g.nodes, g.edges);
     // Vor dem deterministischen Mehrfachstart waren es 7; jetzt 4.
     t('crm orthogonal: höchstens 5 Kreuzungen (Zentrum-zu-Zentrum)', c <= 5, c + ' Kreuzungen');
+    // Überbreite leere Korridore werden geschlossen (vorher ~664 px Lücke).
+    const iv = g.nodes.map(n => [n.x, n.x + n.w]).sort((a,b)=> a[0]-b[0]);
+    let maxGap = 0, end = iv[0][1];
+    for(const [lo, hi] of iv){ if(lo - end > maxGap) maxGap = lo - end; end = Math.max(end, hi); }
+    t('crm: keine leere Spalte breiter als 200px', maxGap <= 200, 'größte Lücke=' + Math.round(maxGap));
   }
 }
 

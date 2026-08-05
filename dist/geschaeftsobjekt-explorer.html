@@ -1457,6 +1457,25 @@ function layered(nodes, edges, dir, ortho){
         tidy(rows[i]);
       });
 
+  /* 5c — Überbreite leere Korridore schließen: liegt quer über ALLE Ebenen ein
+          Streifen ohne jeden Knoten/Stützpunkt, der breiter ist als nötig, wird
+          alles rechts davon starr nach links gerückt. Rein translatorisch, also
+          ohne neue Kreuzungen oder Überlappungen. */
+  {
+    const all = rows.flat();
+    const iv = all.map(it => [it.c - cs(it)/2, it.c + cs(it)/2]).sort((a,b)=> a[0]-b[0]);
+    const MAXGAP = SIB * 3;
+    const cuts = []; let coverEnd = -Infinity;
+    for(const [lo, hi] of iv){
+      if(coverEnd !== -Infinity && lo - coverEnd > MAXGAP) cuts.push({at: coverEnd, amount: (lo - coverEnd) - MAXGAP});
+      coverEnd = Math.max(coverEnd, hi);
+    }
+    if(cuts.length) all.forEach(it=>{
+      let sh = 0; for(const c of cuts) if(it.c - cs(it)/2 > c.at + 0.5) sh += c.amount;
+      it.c -= sh;
+    });
+  }
+
   /* 6 — Längsachse und Rückschreiben */
   const order = [];
   for(let i=0;i<L;i++) order.push(i);
