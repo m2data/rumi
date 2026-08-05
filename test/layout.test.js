@@ -374,6 +374,20 @@ console.log('== Orthogonal: lange Kante fällt gerade in den Anschluss (sap-fina
   }
 }
 
+console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) ==');
+{
+  const fixture = path.join(__dirname, '..', 'models', 'crm.yaml');
+  if(!fs.existsSync(fixture)){
+    console.log('  (übersprungen: models/crm.yaml fehlt)');
+  } else {
+    const g = makeGraph(buildModel(fs.readFileSync(fixture, 'utf8')), 1);
+    ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
+    const c = crossings(g.nodes, g.edges);
+    // Vor dem deterministischen Mehrfachstart waren es 7; jetzt 4.
+    t('crm orthogonal: höchstens 5 Kreuzungen (Zentrum-zu-Zentrum)', c <= 5, c + ' Kreuzungen');
+  }
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

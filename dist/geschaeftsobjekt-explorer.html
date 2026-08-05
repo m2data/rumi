@@ -1298,30 +1298,8 @@ function layered(nodes, edges, dir, ortho){
     return s.length % 2 ? s[(s.length-1)/2] : (s[s.length/2-1] + s[s.length/2]) / 2;
   };
 
-  let best = rows.map(r=>r.slice()), bestC = countCross();
-  for(let pass=0; pass<16 && bestC > 0; pass++){
-    const godown = pass % 2 === 0;
-    for(let k=1; k<L; k++){
-      const i = godown ? k : L-1-k;
-      const prev = rows[godown ? i-1 : i+1];
-      if(!prev) continue;
-      const pos = new Map(prev.map((x,j)=>[x,j]));
-      const ref = godown ? up : down;
-      const key = new Map();
-      rows[i].forEach((x,j)=>{
-        const m = medianOf((ref.get(x)||[]).map(y=>pos.get(y)).filter(v=>v!==undefined));
-        key.set(x, m === null ? j : m);
-      });
-      rows[i] = rows[i].slice().sort((p,q)=> key.get(p) - key.get(q));
-    }
-    const c = countCross();
-    if(c < bestC){ bestC = c; best = rows.map(r=>r.slice()); }
-  }
-  for(let i=0;i<L;i++) rows[i] = best[i];
-
-  /* 4b — Transponieren: benachbarte Knoten einer Ebene tauschen, solange es die
-          lokalen Kreuzungen senkt. Räumt Kreuzungen weg, die die Median-Ordnung
-          stehen lässt. */
+  /* Transponieren: benachbarte Knoten einer Ebene tauschen, solange es die
+     lokalen Kreuzungen senkt. Räumt weg, was die Median-Ordnung stehen lässt. */
   const pairCross = (i, x, y)=>{                       // Kreuzungen, wenn x links von y
     let c = 0;
     for(const [rel, adj] of [[up, rows[i-1]], [down, rows[i+1]]]){
@@ -1333,17 +1311,61 @@ function layered(nodes, edges, dir, ortho){
     }
     return c;
   };
-  for(let pass=0, moved=true; moved && pass<8; pass++){
-    moved = false;
-    for(let i=0;i<L;i++){
-      const row = rows[i];
-      for(let j=0;j<row.length-1;j++){
-        if(pairCross(i, row[j], row[j+1]) > pairCross(i, row[j+1], row[j])){
-          const t = row[j]; row[j] = row[j+1]; row[j+1] = t; moved = true;
+  const transpose = ()=>{
+    for(let pass=0, moved=true; moved && pass<8; pass++){
+      moved = false;
+      for(let i=0;i<L;i++){
+        const row = rows[i];
+        for(let j=0;j<row.length-1;j++){
+          if(pairCross(i, row[j], row[j+1]) > pairCross(i, row[j+1], row[j])){
+            const t = row[j]; row[j] = row[j+1]; row[j+1] = t; moved = true;
+          }
         }
       }
     }
-  }
+  };
+
+  // Ein voller Median+Transponier-Lauf aus dem aktuellen rows-Stand; lässt rows
+  // auf dem besten gefundenen Stand und gibt dessen Kreuzungszahl zurück.
+  const orderPass = ()=>{
+    let best = rows.map(r=>r.slice()), bestC = countCross();
+    for(let pass=0; pass<24 && bestC > 0; pass++){
+      const godown = pass % 2 === 0;
+      for(let k=1; k<L; k++){
+        const i = godown ? k : L-1-k;
+        const prev = rows[godown ? i-1 : i+1];
+        if(!prev) continue;
+        const pos = new Map(prev.map((x,j)=>[x,j]));
+        const ref = godown ? up : down;
+        const key = new Map();
+        rows[i].forEach((x,j)=>{
+          const m = medianOf((ref.get(x)||[]).map(y=>pos.get(y)).filter(v=>v!==undefined));
+          key.set(x, m === null ? j : m);
+        });
+        rows[i] = rows[i].slice().sort((p,q)=> key.get(p) - key.get(q));
+      }
+      transpose();
+      const c = countCross();
+      if(c < bestC){ bestC = c; best = rows.map(r=>r.slice()); }
+    }
+    for(let i=0;i<L;i++) rows[i] = best[i];
+    return bestC;
+  };
+
+  // Mehrere deterministische Startordnungen probieren und die kreuzungsärmste
+  // behalten — die Median-Heuristik bleibt sonst leicht in einem lokalen Minimum.
+  const start0 = rows.map(r=>r.slice());
+  const runFrom = init=>{ for(let i=0;i<L;i++) rows[i] = init[i].slice(); return orderPass(); };
+  let bestC = runFrom(start0);
+  let bestRows = rows.map(r=>r.slice());
+  [ start0.map(r=>r.slice().reverse()),                       // jede Ebene umgekehrt
+    start0.map(r=>r.slice().sort((a,b)=> (down.get(b)||[]).length + (up.get(b)||[]).length
+                                       - (down.get(a)||[]).length - (up.get(a)||[]).length))  // stark verbundene zuerst
+  ].forEach(init=>{
+    const c = runFrom(init);
+    if(c < bestC){ bestC = c; bestRows = rows.map(r=>r.slice()); }
+  });
+  for(let i=0;i<L;i++) rows[i] = bestRows[i];
 
   /* 5 — Querkoordinaten: dicht packen, dann per Median geraderücken */
   rows.forEach(r=>{
