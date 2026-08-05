@@ -60,6 +60,36 @@ function materializeOrtho(e){
   return true;
 }
 
+/* Nach dem Auto-Layout: Beschriftungen, die sich überdecken, entlang ihrer
+   Kante auseinanderschieben. Greedy — jede Beschriftung nimmt die Position (aus
+   einer Kandidatenliste rund um die Mitte), die möglichst nicht mit bereits
+   platzierten überlappt. */
+function spreadLabels(){
+  if(S.layout.labels === false) return;
+  const F = '500 10px "IBM Plex Mono", monospace';
+  const edges = visEdges().filter(e => e.label && e.from !== e.to);
+  const rectAt = (e, t)=>{
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    if(!A || !B) return null;
+    const p = polyPoint(routePoints(e, A, B), t);
+    const w = measure(e.label, F) + 8;
+    return {x:p.x - w/2 - 1, y:p.y - 8, w:w + 2, h:16};
+  };
+  const hit = (r, s)=> r && s && r.x < s.x+s.w && s.x < r.x+r.w && r.y < s.y+s.h && s.y < r.y+r.h;
+  const cand = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2, 0.8];
+  const placed = [];
+  edges.forEach(e=>{
+    let bestT = 0.5, bestRect = null, bestN = Infinity;
+    for(const t of cand){
+      const r = rectAt(e, t); if(!r) continue;
+      const n = placed.reduce((c, pr)=> c + (hit(r, pr) ? 1 : 0), 0);
+      if(n < bestN){ bestN = n; bestT = t; bestRect = r; if(n === 0) break; }
+    }
+    e.labelT = (bestT === 0.5) ? null : bestT;   // 0.5 ist der Standard -> nichts merken
+    if(bestRect) placed.push(bestRect);
+  });
+}
+
 function selectionBox(){
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
   if(list.length < 2) return null;

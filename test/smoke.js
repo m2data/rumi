@@ -28,7 +28,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure});');
 
 try{
   runner(document, win, win.localStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -337,6 +337,37 @@ console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
     t('Label wandert zum Kantenanfang', e.labelT < 0.25, 'labelT=' + e.labelT);
   }
   S.selEdge = null;
+}
+
+console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');
+{
+  api.setView(1);
+  // Zwei beschriftete Kanten mit vier verschiedenen Knoten auf identische, lange
+  // Gerade zwingen -> ihre Labels liegen bei Mitte übereinander.
+  const chosen = []; const used = new Set();
+  for(const e of S.graph.edges){
+    if(!e.label || e.from === e.to || used.has(e.from) || used.has(e.to)) continue;
+    chosen.push(e); used.add(e.from); used.add(e.to);
+    if(chosen.length === 2) break;
+  }
+  t('zwei beschriftete Kanten für den Test gefunden', chosen.length === 2);
+  if(chosen.length === 2){
+    const [e1, e2] = chosen;
+    const A1=S.graph.byId.get(e1.from), B1=S.graph.byId.get(e1.to), A2=S.graph.byId.get(e2.from), B2=S.graph.byId.get(e2.to);
+    A1.x=A2.x=0; A1.y=A2.y=0; B1.x=B2.x=2000; B1.y=B2.y=0;
+    [e1,e2].forEach(e=>{ e.bends=null; e.portFrom=null; e.portTo=null; e.labelT=null; e.ortho=false; });
+    const F='500 10px "IBM Plex Mono", monospace';
+    const rect=e=>{ const A=S.graph.byId.get(e.from),B=S.graph.byId.get(e.to);
+      const p=api.polyPoint(api.routePoints(e,A,B), e.labelT!=null?e.labelT:0.5); const w=api.measure(e.label,F)+8;
+      return {x:p.x-w/2,y:p.y-7,w,h:14}; };
+    const hit=(r,s)=> r.x<s.x+s.w&&s.x<r.x+r.w&&r.y<s.y+s.h&&s.y<r.y+r.h;
+    t('vor der Entzerrung überlappen die beiden Labels', hit(rect(e1), rect(e2)));
+    api.spreadLabels();
+    t('nach der Entzerrung überlappen sie nicht mehr', !hit(rect(e1), rect(e2)),
+      'labelT: ' + e1.labelT + ' / ' + e2.labelT);
+    t('eine der Beschriftungen wurde entlang ihrer Kante verschoben',
+      e1.labelT != null || e2.labelT != null);
+  }
 }
 
 console.log('== Rückgängig / Wiederherstellen ==');

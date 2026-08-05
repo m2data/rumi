@@ -38,6 +38,7 @@ function applyAutoLayout(g){
   g.edges.forEach(e=>{ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
   runByComponent(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  spreadLabels();                          // überlappende Beziehungs-Labels entzerren
 }
 
 /* Ablage: im Claude-Artefakt window.storage, in einer heruntergeladenen
