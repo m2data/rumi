@@ -175,6 +175,62 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
   t('der Hinweis nennt den Beziehungsnamen', has(m3.messages, 'warn', 'tätigt'));
 }
 
+console.log('== Unbekannte Kardinalitätswerte werden gemeldet ==');
+{
+  const m = buildModel(`BusinessObjects:
+  A:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    relationships:
+    - to: B
+      cardinality:
+        from: exactly_one
+        to: 0..n
+    - to: B
+      name: zweite
+      cardinality:
+        from: viele
+        to: zero_or_many
+  B:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+`);
+  t('unbekannter Wert an der to-Seite gemeldet', has(m.messages, 'warn', '"0..n" unbekannt'));
+  t('unbekannter Wert an der from-Seite gemeldet', has(m.messages, 'warn', '"viele" unbekannt'));
+  t('der Hinweis nennt die erlaubten Werte', has(m.messages, 'warn', 'zero_or_many'));
+  const treffer = m.messages.filter(x => x.group === 'Kardinalität unbekannt').length;
+  t('gültige Werte lösen keinen Hinweis aus', treffer === 2, treffer + ' Meldungen');
+}
+
+console.log('== Doppelte Attributnamen werden gemeldet ==');
+{
+  const m = buildModel(`BusinessObjects:
+  A:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    attributes:
+    - name: ID
+      type: int
+    - name: Wert
+      type: text
+    - name: ID
+      type: char(3)
+`);
+  t('doppelter Attributname gemeldet', has(m.messages, 'warn', 'A.ID: Attribut doppelt'));
+  t('nur einmal je Name gemeldet',
+    m.messages.filter(x => x.group === 'Attribut doppelt').length === 1);
+  t('eindeutige Attribute lösen nichts aus', !has(m.messages, 'warn', 'A.Wert'));
+}
+
 console.log('== Rundlauf am ausgelieferten Modell ==');
 const real = fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-attr.yaml'), 'utf8');
 const rm = buildModel(real);

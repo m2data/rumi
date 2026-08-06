@@ -829,6 +829,13 @@ function buildModel(text){
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
     });
+    // Attributnamen müssen im Objekt eindeutig sein: sonst ist nicht bestimmbar,
+    // welchen Eintrag ein "references" meint, und die Anzeige wiederholt sich.
+    const attrSeen = new Set(), attrDup = new Set();
+    o.attrs.forEach(a=>{ if(attrSeen.has(a.name)) attrDup.add(a.name); else attrSeen.add(a.name); });
+    attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt',
+      title:`${o.name}.${n}: Attribut doppelt`,
+      body:`Der Attributname "${n}" kommt in diesem Geschäftsobjekt mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
     for(const r of o.rels){
       if(!names.has(r.to)){
         messages.push({level:'err', group:'Ziel unbekannt', title:`${o.name} → ${r.to}: Ziel unbekannt`, body:`"${r.to}" ist unter ${rootKey} nicht definiert. Die Beziehung wird nicht gezeichnet.`});
@@ -836,6 +843,14 @@ function buildModel(text){
       }
       targeted.add(r.to);
       if(r.to === o.name) messages.push({level:'info', group:'Selbstbezug', title:`${o.name}: Selbstbezug`, body:'Das Objekt verweist auf sich selbst — als Hierarchie meist gewollt, hier als Schleife gezeichnet.'});
+      // Unbekannte Kardinalität fällt sonst nicht auf: gezeichnet wird ein
+      // schlichter Strich, und die Anordnung nimmt die Seite als „eins" an.
+      [['from', r.from], ['to', r.toCard]].forEach(([seite, wert])=>{
+        if(wert && !CARD_LABEL[wert]) messages.push({level:'warn', group:'Kardinalität unbekannt',
+          title:`${o.name} → ${r.to}: Kardinalität "${wert}" unbekannt`,
+          body:`Unter "cardinality: ${seite}" steht ein unbekannter Wert. Erlaubt sind ${Object.keys(CARD_LABEL).join(', ')}. `
+             + 'Die Seite wird wie „genau eins" gezeichnet und auch beim Anordnen so behandelt.'});
+      });
       // Zwei Beziehungen zwischen denselben Objekten sind nur dann dieselbe,
       // wenn sie auch gleich heissen. Verschiedene Namen — und ebenso benannt
       // gegen unbenannt — beschreiben verschiedene Sachverhalte.
