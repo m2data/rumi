@@ -84,7 +84,9 @@ function spreadLabels(scope){
     if(!A || !B) return null;
     const p = polyPoint(routePoints(e, A, B), t);
     const w = measure(e.label, F) + 8;
-    return {x:p.x - w/2 - 1, y:p.y - 8, w:w + 2, h:16};
+    // etwas Luft um jede Beschriftung: zwei Texte, die sich um wenige Pixel
+    // verfehlen, lesen sich sonst wie ein zusammenhängender Wortsalat
+    return {x:p.x - w/2 - 4, y:p.y - 11, w:w + 8, h:22};
   };
   const hit = (r, s)=> r && s && r.x < s.x+s.w && s.x < r.x+r.w && r.y < s.y+s.h && s.y < r.y+r.h;
   const cand = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2, 0.8];

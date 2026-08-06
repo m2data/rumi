@@ -760,17 +760,38 @@ function layered(nodes, edges, dir, ortho){
           const P = polyOf(e2); if(!P) return;
           for(let i=0;i<P.length-1;i++) segsL.push({e:e2, a:P[i], b:P[i+1]});
         });
+        const schnittpunkt = (a,b,c,d)=>{
+          const rx = b.x-a.x, ry = b.y-a.y, sx = d.x-c.x, sy = d.y-c.y;
+          const den = rx*sy - ry*sx;
+          if(!den) return null;
+          const t = ((c.x-a.x)*sy - (c.y-a.y)*sx) / den;
+          return {x:a.x + rx*t, y:a.y + ry*t};
+        };
         let s = 0;
         for(let i=0;i<segsL.length;i++) for(let j=i+1;j<segsL.length;j++){
-          if(segsL[i].e === segsL[j].e) continue;
-          if(segCross(segsL[i].a, segsL[i].b, segsL[j].a, segsL[j].b)) s++;
+          const e1 = segsL[i].e, e2 = segsL[j].e;
+          if(e1 === e2) continue;
+          if(segCross(segsL[i].a, segsL[i].b, segsL[j].a, segsL[j].b)){
+            // Der ORT entscheidet mit: kreuzen sich zwei Kanten mit
+            // gemeinsamem Endknoten direkt vor diesem Kasten, ist das das
+            // auffällige X am Anschluss — fast immer durch die Reihung
+            // vermeidbar und darum teuer. Dieselbe Kreuzung weit draußen
+            // stört kaum mehr als jede andere.
+            const gem = e1.from === e2.from || e1.from === e2.to ? e1.from
+                      : e1.to === e2.from  || e1.to === e2.to    ? e1.to : null;
+            if(!gem){ s += 1; continue; }
+            const n0 = nodeOf.get(gem);
+            const pt = schnittpunkt(segsL[i].a, segsL[i].b, segsL[j].a, segsL[j].b);
+            const dist = (n0 && pt) ? Math.hypot(pt.x - (n0.x + n0.w/2), pt.y - (n0.y + n0.h/2)) : 1e9;
+            s += dist < 140 ? 6 : 2;
+          }
         }
         edges.forEach(e2=>{
           const P = polyOf(e2); if(!P) return;
           for(const n of nodes){
             if(n.id === e2.from || n.id === e2.to) continue;
             for(let i=0;i<P.length-1;i++)
-              if(schneidet(P[i], P[i+1], n)){ s += 3; break; }
+              if(schneidet(P[i], P[i+1], n)){ s += 8; break; }
           }
         });
         return s;
@@ -796,10 +817,21 @@ function layered(nodes, edges, dir, ortho){
             const beide = grp[p].e === grp[q].e ? [grp[p].e] : [grp[p].e, grp[q].e];
             const snap = merken(beide);
             swapT(grp[p], grp[q]);
+            // Zwei Varianten: Züge behalten (oft löst der Tausch die Kreuzung
+            // am Kasten, und die alten Züge passen weiter) oder neu führen
+            // (wenn die Züge zur neuen Anschlusslage umziehen müssen). Die
+            // bessere gewinnt — gegen den Stand ohne Tausch.
+            const sBehalten = score();
             beide.forEach(e2=>{ interpoliereWeich(e2); haerte(e2); });
-            const s = score();
-            if(s < best){ best = s; besser = true; }
-            else { swapT(grp[p], grp[q]); zurueck(snap); }
+            const sNeu = score();
+            if(sBehalten < best && sBehalten <= sNeu){
+              best = sBehalten; besser = true;
+              zurueck(snap);                       // Neuführung verwerfen, Tausch bleibt
+            } else if(sNeu < best){
+              best = sNeu; besser = true;          // Tausch samt Neuführung bleibt
+            } else {
+              swapT(grp[p], grp[q]); zurueck(snap);
+            }
           }
         }
         if(!besser) break;
