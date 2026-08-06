@@ -2,3 +2,6 @@
 # gehören aber nicht ins Repo. Nur das Build-Ergebnis wird getrackt.
 dist/*.html
 !dist/geschaeftsobjekt-explorer.html
+
+# Lokale Einstellungen von Claude Code
+.claude/settings.local.json
