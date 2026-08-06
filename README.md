@@ -23,10 +23,7 @@ läuft offline und lädt nichts nach.
   Beziehungsbeschriftungen sitzen auf der Kante und lassen sich frei entlang der
   Beziehung ziehen; überlappende Beschriftungen werden beim Auto-Layout, beim
   Anordnen einer Auswahl, beim Neuziehen von Kanten und nach dem Verschieben
-  automatisch entzerrt — von Hand platzierte bleiben stehen. Werden Objekte
-  bewegt (Ziehen, Pfeiltasten, Ausrichten), folgen ihre Kanten dem zuletzt
-  gewählten Verfahren: im orthogonalen Plan bleiben sie rechtwinklig, sonst
-  laufen sie wieder frei. Ist ein Bereich
+  automatisch entzerrt — von Hand platzierte bleiben stehen. Ist ein Bereich
   markiert (mindestens zwei Objekte), wirkt das gewählte Verfahren nur auf ihn —
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.

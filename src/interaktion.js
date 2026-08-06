@@ -350,7 +350,11 @@ svg.addEventListener('pointermove', ev=>{
   }
   if(z.art === 'knoten'){
     const dx = (ev.clientX - z.sx)/S.t.k, dy = (ev.clientY - z.sy)/S.t.k;
-    if(!z.moved && Math.abs(dx) + Math.abs(dy) > 2) z.moved = true;   // erst ab echter Bewegung
+    if(!z.moved && Math.abs(dx) + Math.abs(dy) > 2){
+      z.moved = true;
+      // jetzt erst die Kanten über die Auswahlgrenze lösen und neu ziehen
+      z.outer.forEach(e=>{ e.bends = null; e.portFrom = null; e.portTo = null; });
+    }
     z.items.forEach(it=>{
       it.n.x = Math.round(it.ox + dx); it.n.y = Math.round(it.oy + dy);
       it.g.setAttribute('transform', `translate(${it.n.x},${it.n.y})`);
@@ -358,9 +362,6 @@ svg.addEventListener('pointermove', ev=>{
     z.inner.forEach(({e, orig})=>{
       e.bends = orig.map(q=>({x:Math.round(q.x + dx), y:Math.round(q.y + dy)}));
     });
-    // Kanten über die Auswahlgrenze folgen der Bewegung: bei jedem Schritt neu
-    // geformt, damit sie im Ortho-Modus rechtwinklig bleiben.
-    if(z.moved) z.outer.forEach(loosenEdge);
     drawEdges();
     return;
   }

@@ -60,24 +60,6 @@ function materializeOrtho(e){
   return true;
 }
 
-/* Eine Kante von ihrer bisherigen Führung lösen und nach dem zuletzt gewählten
-   Verfahren neu formen. Nötig, sobald Knoten bewegt werden (Ziehen, Pfeiltasten,
-   Ausrichten, Auswahl anordnen): die alten Stützpunkte passen dann nicht mehr.
-   Im Ortho-Modus bleibt die Kante rechtwinklig — Anschlussseiten aus der Lage
-   der Kästen, dazwischen eine Stufe; liegen sich die Anschlüsse gegenüber, wird
-   daraus eine gerade Linie. Sonst führt sie wieder frei von Mitte zu Mitte. */
-function loosenEdge(e){
-  e.bends = null; e.portFrom = null; e.portTo = null;
-  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
-  e.ortho = S.layout.algo === 'ortho' && !!A && !!B && A !== B;
-  if(!e.ortho) return;
-  const ac = {x:A.x + A.w/2, y:A.y + A.h/2}, bc = {x:B.x + B.w/2, y:B.y + B.h/2};
-  e.portFrom = nearestPort(A, bc.x, bc.y);
-  e.portTo   = nearestPort(B, ac.x, ac.y);
-  const c = orthoCorners(portPoint(A, e.portFrom), portPoint(B, e.portTo), e.portFrom.side);
-  e.bends = c.length ? c : null;
-}
-
 /* Beschriftungen, die sich überdecken, entlang ihrer Kante auseinanderschieben.
    Greedy — jede bewegliche Beschriftung nimmt die Position (aus einer
    Kandidatenliste rund um die Mitte), die möglichst nicht mit bereits
