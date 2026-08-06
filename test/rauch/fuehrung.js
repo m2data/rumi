@@ -57,6 +57,42 @@ for(const dir of ['TB','LR']){
   t(`${dir}: kein weicher Zug pendelt zwischen den Seiten`, zack.length === 0, zack.join(', '));
 }
 
+console.log('== Kanten laufen an fremden Kästen vorbei, nicht hindurch ==');
+{
+  const segRect = (a, b, r)=>{
+    if(Math.max(a.x,b.x) < r.x || Math.min(a.x,b.x) > r.x+r.w
+    || Math.max(a.y,b.y) < r.y || Math.min(a.y,b.y) > r.y+r.h) return false;
+    const cr = (p,q,s)=> (s.y-p.y)*(q.x-p.x) - (q.y-p.y)*(s.x-p.x);
+    const drin = p => p.x > r.x && p.x < r.x+r.w && p.y > r.y && p.y < r.y+r.h;
+    if(drin(a) || drin(b)) return true;
+    const E = [{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+    for(let i=0;i<4;i++){
+      const c = E[i], d = E[(i+1)%4];
+      if(((cr(a,b,c)>0)!==(cr(a,b,d)>0)) && ((cr(c,d,a)>0)!==(cr(c,d,b)>0))) return true;
+    }
+    return false;
+  };
+  const schnitte = ()=>{
+    const s = [];
+    S.graph.edges.forEach(e=>{
+      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+      if(!A || !B || A === B || !e.bends) return;
+      const pts = api.routePoints(e, A, B);
+      if(S.graph.nodes.some(n=>{
+        if(n.hidden || n.id === e.from || n.id === e.to) return false;
+        for(let i=0;i<pts.length-1;i++) if(segRect(pts[i], pts[i+1], n)) return true;
+        return false;
+      })) s.push(e.from.replace('o:','') + '>' + e.to.replace('o:',''));
+    });
+    return s;
+  };
+  for(const dir of ['TB','LR']){
+    layoutMit('hier', dir);
+    const s = schnitte();
+    t(`${dir}: kein geführter Zug schneidet einen fremden Kasten`, s.length === 0, s.join(', '));
+  }
+}
+
 console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==');
 {
   layoutMit('hier', 'TB');

@@ -1774,6 +1774,54 @@ function layered(nodes, edges, dir, ortho){
     }
   });
 
+  /* Weiche Diagonalen dürfen fremde Kästen nicht schneiden: die Spalte d.c ist
+     zwar frei, aber die Schräge erreicht sie erst in Bandmitte und kann am
+     Bandrand noch durch einen Nachbarkasten laufen. Wo das passiert, wird die
+     Querung des betroffenen Bandes wieder senkrecht (das Punktepaar an den
+     Bandgrenzen) — die Schräge bleibt auf die kastenfreien Kanäle beschränkt.
+     Nur lokal: kollisionsfreie Kanten behalten ihre gerade Diagonale. */
+  if(!ortho){
+    const layOf = new Map(items.map(it => [it.n, it.lay]));
+    const schneidet = (a, b, r)=>{
+      if(Math.max(a.x,b.x) < r.x || Math.min(a.x,b.x) > r.x+r.w
+      || Math.max(a.y,b.y) < r.y || Math.min(a.y,b.y) > r.y+r.h) return false;
+      const cr = (p,q,s)=> (s.y-p.y)*(q.x-p.x) - (q.y-p.y)*(s.x-p.x);
+      const drin = p => p.x > r.x && p.x < r.x+r.w && p.y > r.y && p.y < r.y+r.h;
+      if(drin(a) || drin(b)) return true;
+      const ecken = [{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+      for(let i=0;i<4;i++){
+        const c = ecken[i], d = ecken[(i+1)%4];
+        if(((cr(a,b,c)>0)!==(cr(a,b,d)>0)) && ((cr(c,d,a)>0)!==(cr(c,d,b)>0))) return true;
+      }
+      return false;
+    };
+    const bendsMix = (info, hart)=> info.ds.flatMap((d,i)=> hart.has(i)
+      ? (info.rev ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
+                  : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))])
+      : [ptAt(d.c, mainOf[d.lay])]);
+    edges.forEach(e=>{
+      const info = chain.get(e);
+      if(!info || !info.ds.length || !e.portFrom) return;
+      const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
+      if(!A || !B) return;
+      const hart = new Set();
+      for(let runde = 0; runde <= info.ds.length; runde++){
+        const pts = [portPoint(A, e.portFrom), ...bendsMix(info, hart), portPoint(B, e.portTo)];
+        let neu = false;
+        for(const n of nodes){
+          if(n.id === e.from || n.id === e.to) continue;
+          for(let i=0;i<pts.length-1;i++){
+            if(!schneidet(pts[i], pts[i+1], n)) continue;
+            const k = info.ds.findIndex(d => d.lay === layOf.get(n));
+            if(k >= 0 && !hart.has(k)){ hart.add(k); neu = true; }
+          }
+        }
+        if(!neu) break;
+      }
+      if(hart.size) e.bends = bendsMix(info, hart);
+    });
+  }
+
   // Reihenfolge zählt: erst endgültige Lagen, dann die Kantenführung darauf rechnen.
   // Das Ebenenverfahren erzeugt keine Überlappungen, separate() würde nur stören.
   placeSatellites();
