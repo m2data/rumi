@@ -11,10 +11,18 @@ function setView(v, {autoFit = true} = {}){
   if(known.length === S.graph.nodes.length && known.length){
     S.graph.nodes.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutes();
+  } else if(known.length){
+    // Nur einzelne Kästen sind neu (Objekt angelegt, Delta eingespielt): das
+    // Gelegte bleibt liegen — samt Kantenzügen. Ein volles Auto-Layout warf
+    // hier jeden von Hand gezogenen Zug weg, weil applyAutoLayout die Knicke
+    // löscht und persist() gleich darauf den leeren Stand merkt.
+    known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
+    applyRoutes();
+    platziereNeue(S.graph.nodes.filter(n => !saved[n.id] && !n.hidden), known);
+    separate(visNodes());
+    persist();
   } else {
     applyAutoLayout(S.graph);
-    known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
-    if(known.length) separate(visNodes());
     persist();
   }
   S.sel = new Set([...S.sel].filter(id => S.graph.byId.has(id)));
@@ -366,6 +374,10 @@ function renderDetails(){
   if(!n){ box.hidden = true; empty.hidden = false; return; }
   box.hidden = false; empty.hidden = true;
 
+  // Ein angefangenes Formular gehört zu genau einem Objekt: wechselt die
+  // Auswahl, ist es vom Tisch (wie die Beschreibung im Hierarchie-Modus).
+  if(S.pflege && (S.pflege !== n.id || S.sel.size > 1)){ S.pflege = null; pfEntwurf = null; }
+
   if(S.sel.size > 1){
     const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(Boolean);
     box.innerHTML =
@@ -377,6 +389,8 @@ function renderDetails(){
       b.addEventListener('click', ()=> select(b.dataset.goto, true)));
     return;
   }
+
+  if(S.pflege === n.id){ pflegeFormular(box); return; }
 
   if(n.kind === 'source'){
     box.innerHTML =
@@ -393,6 +407,7 @@ function renderDetails(){
     box.innerHTML =
       `<div class="grouphead">GESCHÄFTSOBJEKT</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
+       <button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
@@ -428,6 +443,8 @@ function renderDetails(){
     b.addEventListener('click', ()=> selectEdgeByPair(b.dataset.edge)));
   box.querySelectorAll('[data-related]').forEach(b=>
     b.addEventListener('click', ()=> addRelated(n.id)));
+  box.querySelectorAll('[data-edit]').forEach(b=>
+    b.addEventListener('click', ()=> pflegeStart(n.id)));
 }
 
 const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur diese Sitzung)
@@ -1119,19 +1136,22 @@ function reindentBlock(block, from, to){
 
 /* Einen Objektblock in Kopfzeile und Felder zerlegen. Ein Feld ist entweder ein
    Einzelwert („Domain: X", auch mehrzeilig bei „desc: >") oder eine Liste
-   („sources:" mit eingerückten Einträgen darunter). */
+   („sources:" mit eingerückten Einträgen darunter). Was vor dem ersten Feld
+   steht — ein Kommentar zum ganzen Objekt — gehört zu keinem Feld und käme
+   sonst beim Neuschreiben abhanden: es steht als `vorspann` bereit. */
 function splitObjectFields(lines){
   let fieldCol = null;
   for(let i = 1; i < lines.length; i++) if(!yBlank(lines[i])){ fieldCol = yCol(lines[i]); break; }
-  const fields = [];
+  const fields = [], vorspann = [];
   let cur = null;
   for(let i = 1; i < lines.length; i++){
     const l = lines[i];
     const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w-]*)"?\s*:/) : null;
     if(m){ cur = {key: m[1], lines: [l]}; fields.push(cur); }
     else if(cur) cur.lines.push(l);
+    else vorspann.push(l);
   }
-  return {head: lines[0], fieldCol, fields};
+  return {head: lines[0], fieldCol, fields, vorspann};
 }
 
 /* Die Listeneinträge eines Feldes. Ein Eintrag beginnt mit „- " und reicht bis

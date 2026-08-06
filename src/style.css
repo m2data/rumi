@@ -286,6 +286,44 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 }
 .relbtn:hover{background:var(--obj);color:#fff}
 .relbtn:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
+.relbtn.edit{border-color:var(--hot);background:var(--panel);color:var(--hot)}
+.relbtn.edit:hover{background:var(--hot);color:#fff}
+
+/* ---------- Pflege: Formular im Reiter „Details" ---------- */
+.listtools .newobj{color:var(--hot);white-space:nowrap}
+.listtools .newobj:hover{background:#FBE9F1}
+.pf{font-size:11.5px}
+.pfr{display:flex;align-items:baseline;gap:8px;padding:3px 0}
+.pfr>span{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 78px;letter-spacing:.03em}
+.pfr.col{flex-direction:column;align-items:stretch;gap:3px}
+.pfr.col>span{flex:none}
+.pf input[type=text],.pf input:not([type]),.pf textarea,.pf select{
+  font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--panel);
+  border:1px solid var(--hair);border-radius:3px;padding:3px 5px;min-width:0;flex:1 1 auto;
+}
+.pf textarea{resize:vertical;line-height:1.45}
+.pf input:focus,.pf textarea:focus,.pf select:focus{outline:2px solid var(--hot);outline-offset:-1px}
+.pfa,.pfb{border-bottom:1px dotted var(--hair-soft);padding:5px 0}
+.pfz{display:flex;align-items:center;gap:5px;margin-top:3px}
+.pfz:first-child{margin-top:0}
+.pfk{display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:9.5px;color:var(--muted);flex:0 0 auto}
+.pfk input{width:12px;height:12px;margin:0;accent-color:var(--obj);flex:none}
+.pfsep{font-family:var(--mono);color:var(--muted)}
+.pfx{
+  flex:0 0 auto;background:none;border:1px solid var(--hair);border-radius:3px;color:var(--muted);
+  font:600 12px var(--ui);line-height:1;padding:2px 6px;cursor:pointer;
+}
+.pfx:hover{border-color:var(--err);color:var(--err)}
+.pfadd{
+  background:none;border:0;padding:4px 2px;font:500 11px var(--ui);color:var(--obj);
+  cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+}
+.pfadd:hover{background:var(--obj-soft)}
+.pfweg{
+  display:block;width:100%;margin:16px 0 4px;padding:5px 10px;font:600 11px var(--ui);
+  border:1px solid var(--hair);border-radius:6px;background:var(--panel);color:var(--err);cursor:pointer;
+}
+.pfweg:hover{background:var(--err);color:#fff;border-color:var(--err)}
 .attrs{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .attrs td{padding:3px 0;vertical-align:baseline;border-bottom:1px dotted var(--hair-soft)}
 .attrs .an{font-size:11px;color:var(--ink)}

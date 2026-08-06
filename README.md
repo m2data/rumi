@@ -17,6 +17,16 @@ läuft offline und lädt nichts nach.
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen. Im Baum
   lassen sich Diagramme per Ziehen umsortieren und umhängen (obere/untere Kante =
   davor/danach, Mitte = als Unterdiagramm).
+- **Pflegen** – Geschäftsobjekte und ihre Beziehungen im Reiter „Details"
+  bearbeiten: Name, Domain, Beschreibung, Business Keys, Quellen, Attribute
+  (Typ, nullable, PK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
+  Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
+  „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus.
+  Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,
+  ebenso Anordnung, Kantenzüge und die Hierarchiebeschreibung. Geschrieben wird
+  **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —
+  Kommentare, Reihenfolge, Einrückung und Schreibvarianten des Übrigen bleiben
+  stehen. Jede Bearbeitung ist eine Aktion im Verlauf, Strg+Z nimmt sie zurück.
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
   eine Kante löscht alle ihre Stützpunkte und wählt die kürzeste Verbindung).
@@ -60,7 +70,9 @@ gespeichert:
    Deltas. Unterschiedlich benannte Beziehungen zum selben Ziel bleiben als zwei
    Beziehungen erhalten. Einzelwerte wie Domain und Beschreibung nimmt das
    Delta. So lassen sich zwei Modelle, die dieselben Objekte aus verschiedenen
-   Blickwinkeln beschreiben, zusammenführen.
+   Blickwinkeln beschreiben, zusammenführen. Die Objekte selbst lassen sich
+   auch **in der App** pflegen (siehe „Pflegen") und über „Speichern" wieder
+   als diese YAML ausgeben.
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
    Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)
@@ -166,7 +178,7 @@ Projektstruktur:
 
     src/        Quellen: index.html (Gerüst), style.css/svg.css und die
                 JS-Module (yaml, model, layout, render, app, route, edit,
-                interaktion, hierarchie, ui)
+                interaktion, hierarchie, pflege, ui)
     build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
     dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
     models/     Beispiel-YAML (Geschäftsobjekte + Hierarchie)

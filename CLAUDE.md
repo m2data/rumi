@@ -76,7 +76,8 @@ und Testausgaben. Auch Bezeichner sind teils deutsch (`zeiger`, `stuetzpunkt`,
 `dist/geschaeftsobjekt-explorer.html` zusammengebaut. Kein Bündler, keine
 Abhängigkeiten, nichts wird nachgeladen — keine CDN, keine externen Schriften.
 Die Module (yaml, model, layout, render, app, route, edit, interaktion,
-hierarchie, ui) landen in **einem** Gültigkeitsbereich; es gibt keine Importe.
+hierarchie, pflege, ui) landen in **einem** Gültigkeitsbereich; es gibt keine
+Importe.
 Näheres in [README.md](README.md).
 
 **Nach jeder Änderung:**

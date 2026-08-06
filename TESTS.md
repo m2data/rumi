@@ -61,6 +61,10 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
 - **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
   -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen.
+- **`pflege.js`** — Geschäftsobjekte bearbeiten: Formular im Reiter „Details",
+  Text-Chirurgie am Modell-YAML (Kommentare und Formatierung unberührter
+  Stellen bleiben), Umbenennen samt Verweisen und Kennungen, Anlegen, Löschen,
+  Rückgängig.
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
   (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel).

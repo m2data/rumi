@@ -296,16 +296,19 @@ function hierShownSet(){
   return new Set((node ? node.objekte : []).map(o => 'o:' + o));
 }
 
-/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unter die bereits
-   platzierten setzen, damit die bestehende Anordnung erhalten bleibt. */
-function hierPlaceFresh(){
-  const saved = S.hierSaved[S.hierSel] || {};
-  const platziert = visNodes().filter(n => saved[n.id]);
-  const neu = visNodes().filter(n => !saved[n.id]);
+/* Kästen ohne gemerkte Lage in einer Reihe unter die bereits platzierten
+   setzen, damit die bestehende Anordnung erhalten bleibt. */
+function platziereNeue(neu, platziert){
   if(!neu.length) return;
   let x = platziert.length ? Math.min(...platziert.map(n => n.x)) : 0;
   const y = platziert.length ? Math.max(...platziert.map(n => n.y + n.h)) + 40 : 0;
   neu.forEach(n=>{ n.x = Math.round(x); n.y = Math.round(y); x += n.w + 30; });
+}
+
+/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unterbringen. */
+function hierPlaceFresh(){
+  const saved = S.hierSaved[S.hierSel] || {};
+  platziereNeue(visNodes().filter(n => !saved[n.id]), visNodes().filter(n => saved[n.id]));
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */

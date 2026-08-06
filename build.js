@@ -24,7 +24,7 @@ const teile = [
     wrap: s => `<style>\n${s}\n</style>` },
 
   { marker: '/* einsetzen: skript */',
-    module: ['yaml.js', 'model.js', 'layout.js', 'render.js', 'app.js', 'route.js', 'edit.js', 'interaktion.js', 'hierarchie.js', 'ui.js'] },
+    module: ['yaml.js', 'model.js', 'layout.js', 'render.js', 'app.js', 'route.js', 'edit.js', 'interaktion.js', 'hierarchie.js', 'pflege.js', 'ui.js'] },
 
   { marker: '/* einsetzen: svg.css */', file: 'svg.css',
     wrap: s => 'const SVG_CSS = `\n' + s + '\n`;' },
