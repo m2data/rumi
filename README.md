@@ -104,7 +104,9 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
   `one_or_many`, `many`.
 - Die App prüft das Modell und meldet Auffälligkeiten (unbekanntes Ziel,
   fehlende Domain, doppelte Beziehung, unbekannte Kardinalität, doppelter
-  Attributname, Selbstbezug …) im Reiter „Prüfung".
+  Attributname, Selbstbezug …) im Reiter „Prüfung". Ein Klick auf den
+  Objektnamen im Hinweis springt zum Objekt: auswählen, bei Bedarf einblenden,
+  zentrieren.
   Als doppelt gilt eine Beziehung nur, wenn zwischen denselben Objekten eine
   **gleichnamige** noch einmal steht; zwei verschieden benannte Beziehungen
   (auch benannt gegen unbenannt) sind zwei Sachverhalte und in Ordnung.

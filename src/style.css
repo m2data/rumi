@@ -306,6 +306,14 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .mgroup.open .mgbody{display:block}
 .mgi{font-size:11px;line-height:1.4;padding:4px 0;border-top:1px solid var(--hair-soft)}
 .mgi-obj{font-family:var(--mono);font-size:10.5px;color:var(--ink);font-weight:600}
+/* Klickbare Objektnennung in einem Hinweis: springt im Diagramm zum Objekt */
+button.mlink, button.mgi-obj{
+  background:none;border:0;padding:0;cursor:pointer;text-align:left;
+  font:inherit;color:var(--ink);text-decoration:underline dotted var(--muted);
+  text-underline-offset:2px;
+}
+button.mgi-obj{font-family:var(--mono);font-size:10.5px;font-weight:600}
+button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:var(--obj)}
 .empty{color:var(--muted);font-size:12px;line-height:1.5;padding:8px 0}
 
 .legend{font-size:11px;line-height:1.5;color:var(--muted)}

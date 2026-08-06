@@ -586,6 +586,48 @@ console.log('== Hinweise gruppieren und aufklappen ==');
   api.renderMessages();
 }
 
+console.log('== Klick auf einen Hinweis springt zum Objekt ==');
+{
+  api.setView(1);
+  const prev = S.model.messages;
+  const kunde = S.graph.byId.get('o:Kunde'), best = S.graph.byId.get('o:Bestellung');
+  S.model.messages = [
+    {level:'warn', group:'keine Domain', obj:'Kunde',      title:'Kunde: keine Domain',      body:'a'},
+    {level:'warn', group:'kein Business Key', obj:'Bestellung', title:'Bestellung: kein Business Key', body:'b'},
+    {level:'info', title:'Beziehungen ohne Namen', body:'global, ohne Objekt'}
+  ];
+  api.renderMessages();
+  const ml = document.getElementById('msgList');
+  const btns = ml.querySelectorAll('[data-msgobj]');
+  t('Hinweise mit Objekt sind klickbar', btns.length === 2, btns.length + ' Knöpfe');
+  t('globale Hinweise bleiben unklickbar', ml.querySelectorAll('button.mlink').length === 2);
+  api.setSelection([]);
+  dispatch(btns[0], 'click', {});
+  t('Klick wählt das Objekt aus', S.selected === 'o:Kunde' && S.sel.has('o:Kunde'),
+    'selected=' + S.selected);
+  // ausgeblendetes Objekt wird eingeblendet
+  best.hidden = true;
+  dispatch(document.getElementById('msgList').querySelectorAll('[data-msgobj]')[1], 'click', {});
+  t('Klick blendet ein verstecktes Objekt ein', best.hidden === false);
+  t('und wählt es aus', S.selected === 'o:Bestellung');
+  // in einer Gruppe ist die Objektnennung der Klickpunkt
+  S.model.messages = [
+    {level:'warn', group:'keine Domain', obj:'Kunde',      title:'Kunde: keine Domain',      body:'a'},
+    {level:'warn', group:'keine Domain', obj:'Bestellung', title:'Bestellung: keine Domain', body:'b'}
+  ];
+  api.renderMessages();
+  dispatch(document.getElementById('msgList').querySelector('.mgh'), 'click', {});
+  const item = document.getElementById('msgList').querySelectorAll('button.mgi-obj')[0];
+  t('Gruppeneinträge sind klickbar', !!item);
+  if(item){
+    dispatch(item, 'click', {});
+    t('Klick im Gruppeneintrag springt ebenfalls', S.selected === 'o:Kunde');
+  }
+  S.model.messages = prev;
+  api.renderMessages();
+  api.setSelection([]);
+}
+
 console.log('== Domänen zusammenklappen ==');
 {
   api.setView(1);

@@ -431,7 +431,12 @@ function renderMessages(){
     if(!groups.has(key)) groups.set(key, {key, level:m.level, label, items:[]});
     groups.get(key).items.push(m);
   });
-  const one = m => `<div class="msg ${m.level}"><strong>${lvl(m.level)}</strong>${esc(m.title)}<br>${esc(m.body)}</div>`;
+  // Betrifft der Hinweis ein Objekt (m.obj), wird sein Titel klickbar:
+  // auswählen, bei Bedarf einblenden und im Diagramm zentrieren.
+  const link = (m, text, cls)=> m.obj
+    ? `<button class="${cls}" data-msgobj="${esc(m.obj)}" title="Im Diagramm zeigen">${esc(text)}</button>`
+    : `<span class="${cls}">${esc(text)}</span>`;
+  const one = m => `<div class="msg ${m.level}"><strong>${lvl(m.level)}</strong>${link(m, m.title, 'mlink')}<br>${esc(m.body)}</div>`;
   let html = '';
   for(const g of groups.values()){
     if(g.items.length === 1){ html += one(g.items[0]); continue; }
@@ -441,7 +446,7 @@ function renderMessages(){
         <span class="mcaret">▾</span><span class="mgt"><strong>${lvl(g.level)}</strong>${esc(g.label)}</span>
         <span class="mcount">${g.items.length}×</span></button>
       <div class="mgbody">${g.items.map(m=>
-        `<div class="mgi"><span class="mgi-obj">${esc(objOf(m.title))}</span><br>${esc(m.body)}</div>`).join('')}</div></div>`;
+        `<div class="mgi">${link(m, objOf(m.title), 'mgi-obj')}<br>${esc(m.body)}</div>`).join('')}</div></div>`;
   }
   $('msgList').innerHTML = html || '<div class="empty">Keine Auffälligkeiten gefunden.</div>';
   $('msgList').querySelectorAll('.mgh').forEach(b=> b.addEventListener('click', ()=>{
@@ -449,6 +454,25 @@ function renderMessages(){
     if(expandedMsgGroups.has(k)) expandedMsgGroups.delete(k); else expandedMsgGroups.add(k);
     renderMessages();
   }));
+  $('msgList').querySelectorAll('[data-msgobj]').forEach(b=>
+    b.addEventListener('click', ()=> gotoObject(b.dataset.msgobj)));
+}
+
+/* Aus der Prüfliste zum Objekt springen: auswählen, bei Bedarf einblenden und
+   zentrieren. Anders als select(id, true) wird nicht umgeschaltet (ein zweiter
+   Klick wählt nicht ab) und die Seitenleiste bleibt auf der Prüfliste stehen —
+   wer Hinweise abarbeitet, will die Liste nicht bei jedem Sprung verlieren. */
+function gotoObject(name){
+  const n = S.graph.byId.get('o:' + name);
+  if(!n){ toast(`„${name}" kommt in dieser Ansicht nicht vor`); return; }
+  if(n.hidden){ setVisible(n.id, true); toast(name + ' eingeblendet'); }
+  S.selEdge = null;
+  S.sel = new Set([n.id]); S.selected = n.id;
+  draw(); syncListSelection(); renderDetails(); updateAlignBar(); syncLayoutMenu();
+  const r = svg.getBoundingClientRect();
+  S.t.x = r.width/2 - (n.x + n.w/2)*S.t.k;
+  S.t.y = r.height/2 - (n.y + n.h/2)*S.t.k;
+  applyTransform();
 }
 
 /* Namensnennung nach CC-BY und Verwandtem: eine Zeile, überall dieselbe. */

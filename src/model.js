@@ -51,7 +51,7 @@ function readRels(raw, objName, messages){
   else if(raw && typeof raw === 'object')
     list = Object.entries(raw).map(([k, v]) => readRel(v && typeof v === 'object' ? v : {}, k));
   const bad = list.filter(r => !r).length;
-  if(bad) messages.push({level:'err', group:'Beziehung unlesbar', title:`${objName}: ${bad} Beziehung(en) unlesbar`,
+  if(bad) messages.push({level:'err', group:'Beziehung unlesbar', obj:objName, title:`${objName}: ${bad} Beziehung(en) unlesbar`,
     body:'Ein Eintrag unter "relationships" enthält kein Ziel. Erwartet wird "to:" — entweder direkt oder im Rumpf unter dem Beziehungsnamen.'});
   return list.filter(Boolean);
 }
@@ -111,9 +111,9 @@ function buildModel(text){
   const srcUsage = new Map();
 
   for(const o of Object.values(objects)){
-    if(!o.domain) messages.push({level:'warn', group:'keine Domain', title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
-    if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
-    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. In Ansicht 3 bleibt es unverbunden.'});
+    if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
+    if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
+    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. In Ansicht 3 bleibt es unverbunden.'});
     o.sources.forEach(s=>{
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
@@ -122,20 +122,20 @@ function buildModel(text){
     // welchen Eintrag ein "references" meint, und die Anzeige wiederholt sich.
     const attrSeen = new Set(), attrDup = new Set();
     o.attrs.forEach(a=>{ if(attrSeen.has(a.name)) attrDup.add(a.name); else attrSeen.add(a.name); });
-    attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt',
+    attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt', obj:o.name,
       title:`${o.name}.${n}: Attribut doppelt`,
       body:`Der Attributname "${n}" kommt in diesem Geschäftsobjekt mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
     for(const r of o.rels){
       if(!names.has(r.to)){
-        messages.push({level:'err', group:'Ziel unbekannt', title:`${o.name} → ${r.to}: Ziel unbekannt`, body:`"${r.to}" ist unter ${rootKey} nicht definiert. Die Beziehung wird nicht gezeichnet.`});
+        messages.push({level:'err', group:'Ziel unbekannt', obj:o.name, title:`${o.name} → ${r.to}: Ziel unbekannt`, body:`"${r.to}" ist unter ${rootKey} nicht definiert. Die Beziehung wird nicht gezeichnet.`});
         continue;
       }
       targeted.add(r.to);
-      if(r.to === o.name) messages.push({level:'info', group:'Selbstbezug', title:`${o.name}: Selbstbezug`, body:'Das Objekt verweist auf sich selbst — als Hierarchie meist gewollt, hier als Schleife gezeichnet.'});
+      if(r.to === o.name) messages.push({level:'info', group:'Selbstbezug', obj:o.name, title:`${o.name}: Selbstbezug`, body:'Das Objekt verweist auf sich selbst — als Hierarchie meist gewollt, hier als Schleife gezeichnet.'});
       // Unbekannte Kardinalität fällt sonst nicht auf: gezeichnet wird ein
       // schlichter Strich, und die Anordnung nimmt die Seite als „eins" an.
       [['from', r.from], ['to', r.toCard]].forEach(([seite, wert])=>{
-        if(wert && !CARD_LABEL[wert]) messages.push({level:'warn', group:'Kardinalität unbekannt',
+        if(wert && !CARD_LABEL[wert]) messages.push({level:'warn', group:'Kardinalität unbekannt', obj:o.name,
           title:`${o.name} → ${r.to}: Kardinalität "${wert}" unbekannt`,
           body:`Unter "cardinality: ${seite}" steht ein unbekannter Wert. Erlaubt sind ${Object.keys(CARD_LABEL).join(', ')}. `
              + 'Die Seite wird wie „genau eins" gezeichnet und auch beim Anordnen so behandelt.'});
@@ -145,7 +145,7 @@ function buildModel(text){
       // gegen unbenannt — beschreiben verschiedene Sachverhalte.
       const pair = [o.name, r.to].sort().join('\u0000') + '\u0000' + (r.name || '');
       if(seenPair.has(pair) && r.to !== o.name)
-        messages.push({level:'warn', group:'Beziehung doppelt', title:`${o.name} ↔ ${r.to}: Beziehung doppelt`,
+        messages.push({level:'warn', group:'Beziehung doppelt', obj:o.name, title:`${o.name} ↔ ${r.to}: Beziehung doppelt`,
           body: (r.name ? `Die Beziehung „${r.name}" ist` : 'Eine unbenannte Beziehung ist')
             + ' zwischen diesen beiden Objekten mehrfach definiert, gegebenenfalls in beide Richtungen. Prüfen, welche fachlich führt. Unterschiedlich benannte Beziehungen gelten als verschieden und werden hier nicht gemeldet.'});
       seenPair.add(pair);
@@ -153,7 +153,7 @@ function buildModel(text){
   }
   for(const o of Object.values(objects)){
     if(!o.rels.length && !targeted.has(o.name))
-      messages.push({level:'info', group:'freistehend', title:`${o.name}: freistehend`, body:'Keine ein- oder ausgehenden Beziehungen. Das Objekt hängt im Modell isoliert.'});
+      messages.push({level:'info', group:'freistehend', obj:o.name, title:`${o.name}: freistehend`, body:'Keine ein- oder ausgehenden Beziehungen. Das Objekt hängt im Modell isoliert.'});
   }
   for(const [s, users] of srcUsage)
     if(users.length > 1)
@@ -164,12 +164,12 @@ function buildModel(text){
       if(!a.ref) continue;
       const [tObj, tAttr] = String(a.ref).split('.');
       if(!names.has(tObj)){
-        messages.push({level:'err', group:'Verweisziel unbekannt', title:`${o.name}.${a.name}: Verweisziel unbekannt`,
+        messages.push({level:'err', group:'Verweisziel unbekannt', obj:o.name, title:`${o.name}.${a.name}: Verweisziel unbekannt`,
           body:`"${a.ref}" zeigt auf das Geschäftsobjekt "${tObj}", das unter ${rootKey} nicht definiert ist.`});
         continue;
       }
       if(tAttr && objects[tObj].attrs.length && !objects[tObj].attrs.some(x => x.name === tAttr))
-        messages.push({level:'warn', group:'Attribut im Ziel fehlt', title:`${o.name}.${a.name}: Attribut im Ziel fehlt`,
+        messages.push({level:'warn', group:'Attribut im Ziel fehlt', obj:o.name, title:`${o.name}.${a.name}: Attribut im Ziel fehlt`,
           body:`"${a.ref}" verweist auf ein Attribut "${tAttr}", das bei ${tObj} nicht aufgeführt ist.`});
     }
 
