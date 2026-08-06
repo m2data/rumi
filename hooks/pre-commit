@@ -1,6 +1,5 @@
 #!/bin/sh
 # Zusammenbau + alle Tests vor jedem Commit: haelt Kaputtes aus dem Verzeichnis.
-# (UMZUG.md: "Als pre-commit-Hook eingetragen, kommt nichts Kaputtes ins Verzeichnis.")
 #
 # Aktivieren (einmalig pro Klon):  git config core.hooksPath hooks
 #
