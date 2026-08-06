@@ -28,7 +28,9 @@ läuft offline und lädt nichts nach.
   so lässt sich für einen Teil ein anderes Auto-Layout verwenden, der übrige
   Plan bleibt liegen.
 - **Auswählen**: Umschalt+Ziehen wählt einen Rahmen, Strg+Klick einzelne Objekte
-  dazu oder weg. **Rückgängig/Wiederherstellen** der letzten 10 Aktionen mit
+  dazu oder weg. Die **Pfeiltasten** verschieben die Auswahl (fein, mit Umschalt
+  um ein Rasterfeld), **Entf** blendet sie aus.
+  **Rückgängig/Wiederherstellen** der letzten 10 Aktionen mit
   Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z).
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).

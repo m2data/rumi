@@ -602,6 +602,43 @@ console.log('== Domänen zusammenklappen ==');
   }
 }
 
+console.log('== Pfeiltasten verschieben, Entf blendet aus ==');
+{
+  api.setView(1);
+  const taste = (key, opts={}) => dispatch(document.getElementById('canvas'), 'keydown', {key, ...opts});
+  const a = S.graph.nodes.find(n => !n.hidden), b = S.graph.nodes.filter(n => !n.hidden)[1];
+  api.setSelection([a.id, b.id]);
+  const ax = a.x, ay = a.y, bx = b.x;
+  taste('ArrowRight');
+  t('Pfeil rechts verschiebt die ganze Auswahl fein', a.x === ax + 4 && b.x === bx + 4,
+    `a ${ax}→${a.x}, b ${bx}→${b.x}`);
+  taste('ArrowDown', {shiftKey:true});
+  t('Umschalt+Pfeil verschiebt um ein Rasterfeld', a.y === ay + 24, `${ay} → ${a.y}`);
+
+  // Kante innerhalb der Auswahl wandert starr mit
+  const innen = S.graph.edges.find(e => e.from === a.id && e.to === b.id || e.from === b.id && e.to === a.id);
+  if(innen){
+    innen.bends = [{x:100, y:100}];
+    taste('ArrowRight');
+    t('Stützpunkte innerhalb der Auswahl wandern mit', innen.bends[0].x === 104, 'x=' + innen.bends[0].x);
+    innen.bends = null;
+  }
+
+  // ohne Auswahl passiert nichts
+  api.setSelection([]);
+  const cx = a.x;
+  taste('ArrowRight');
+  t('ohne Auswahl bewegt sich nichts', a.x === cx);
+
+  // Entf blendet aus, Strg+Z holt zurück
+  api.setSelection([a.id]);
+  taste('Delete');
+  t('Entf blendet das markierte Objekt aus', a.hidden === true);
+  t('und hebt die Auswahl auf', S.sel.size === 0);
+  api.undo();
+  t('Rückgängig holt es zurück', S.graph.byId.get(a.id).hidden === false);
+}
+
 console.log('== Kurztasten greifen nicht in Eingabefeldern ==');
 {
   api.setView(1);

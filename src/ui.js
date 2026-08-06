@@ -696,9 +696,44 @@ document.addEventListener('keydown', ev=>{
     setSelection(visNodes().map(n=>n.id));
     toast(S.sel.size + ' Objekte gewählt');
   }
+  // Auswahl mit den Pfeiltasten verschieben: fein, mit Umschalt ein Rasterfeld
+  if(PFEIL[ev.key]){
+    const [dx, dy] = PFEIL[ev.key], s = ev.shiftKey ? 24 : 4;
+    if(moveSelection(dx * s, dy * s)) ev.preventDefault();
+    return;
+  }
+  // Entf blendet die markierten Objekte aus (Strg+Z holt sie zurück)
+  if(ev.key === 'Delete'){
+    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
+    if(!list.length) return;
+    ev.preventDefault();
+    setGroupVisible(list, false);
+    toast(list.length + (list.length === 1 ? ' Objekt ausgeblendet' : ' Objekte ausgeblendet'));
+    return;
+  }
   if(ev.key >= '1' && ev.key <= '3') setView(+ev.key);
   if(ev.key === 'f' || ev.key === 'F') fit();
 });
+
+const PFEIL = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]};
+
+/* Die markierten Objekte um dx/dy verschieben — mit derselben Kantenbehandlung
+   wie beim Ziehen mit der Maus: Kanten innerhalb der Auswahl wandern starr mit,
+   Kanten nach außen werden gelöst und neu gezogen. Gibt false zurück, wenn
+   nichts markiert ist. */
+function moveSelection(dx, dy){
+  const ids = new Set([...S.sel].filter(id => isVisible(id)));
+  if(!ids.size) return false;
+  S.graph.edges.forEach(e=>{
+    const a = ids.has(e.from), b = ids.has(e.to);
+    if(a && b){ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); }
+    else if(a !== b && !e.manual){ e.bends = null; e.portFrom = null; e.portTo = null; }
+  });
+  ids.forEach(id=>{ const n = S.graph.byId.get(id); n.x = Math.round(n.x + dx); n.y = Math.round(n.y + dy); });
+  spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
+  draw(); persist();
+  return true;
+}
 
 /* =====================================================================
    10 — Kopfzeile und Menü
