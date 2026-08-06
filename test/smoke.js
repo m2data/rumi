@@ -639,6 +639,48 @@ console.log('== Pfeiltasten verschieben, Entf blendet aus ==');
   t('Rückgängig holt es zurück', S.graph.byId.get(a.id).hidden === false);
 }
 
+console.log('== Verschieben behält die Kantenform des Verfahrens ==');
+{
+  api.setView(1);
+  const algoVorher = S.layout.algo;
+  const sichtbar = id => !S.graph.byId.get(id).hidden;
+  const e = S.graph.edges.find(x => x.from !== x.to && !x.manual && sichtbar(x.from) && sichtbar(x.to));
+  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+  const taste = key => dispatch(document.getElementById('canvas'), 'keydown', {key});
+  const schraeg = ()=>{
+    const p = api.routePoints(e, A, B);
+    return p.slice(1).filter((q,i)=> Math.abs(q.x - p[i].x) > 1.1 && Math.abs(q.y - p[i].y) > 1.1).length;
+  };
+
+  // Ortho: die gelöste Kante bleibt rechtwinklig, statt zum Bogen zu werden
+  S.layout.algo = 'ortho';
+  api.setSelection([A.id]);
+  taste('ArrowRight');
+  t('Ortho: gelöste Kante bekommt Anschlusspunkte', !!e.portFrom && !!e.portTo);
+  t('Ortho: die Kante bleibt eckig', e.ortho === true);
+  t('Ortho: jedes Stück läuft waagrecht oder senkrecht', schraeg() === 0, schraeg() + ' schräge Stücke');
+
+  // dasselbe beim Ziehen mit der Maus
+  e.ortho = false; e.bends = null; e.portFrom = null; e.portTo = null;
+  api.setSelection([A.id]);
+  const g = document.getElementById('nodes').querySelector('[data-id="' + A.id + '"]');
+  dispatch(g, 'pointerdown', {clientX:0, clientY:0});
+  dispatch(svg, 'pointermove', {clientX:40, clientY:25});
+  dispatch(svg, 'pointerup', {clientX:40, clientY:25});
+  t('Ortho: auch nach dem Ziehen mit der Maus eckig', e.ortho === true && !!e.portFrom);
+  t('Ortho: auch dann nur achsparallele Stücke', schraeg() === 0, schraeg() + ' schräge Stücke');
+
+  // Hierarchisch: wieder frei geführt
+  S.layout.algo = 'hier';
+  api.setSelection([A.id]);
+  taste('ArrowRight');
+  t('Hierarchisch: die Kante wird wieder frei geführt',
+    e.ortho === false && !e.bends && !e.portFrom, JSON.stringify({o:e.ortho, b:e.bends, p:e.portFrom}));
+
+  S.layout.algo = algoVorher;
+  api.setSelection([]);
+}
+
 console.log('== Kurztasten greifen nicht in Eingabefeldern ==');
 {
   api.setView(1);

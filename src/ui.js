@@ -585,9 +585,7 @@ function alignSelection(mode){
   }
   // Umgelenkte Kanten zwischen bewegten Knoten sind danach nicht mehr stimmig
   S.graph.edges.forEach(e=>{
-    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual){
-      e.bends = null; e.portFrom = null; e.portTo = null;
-    }
+    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual) loosenEdge(e);
   });
   draw(); persist();
 }
@@ -724,12 +722,13 @@ const PFEIL = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,
 function moveSelection(dx, dy){
   const ids = new Set([...S.sel].filter(id => isVisible(id)));
   if(!ids.size) return false;
+  ids.forEach(id=>{ const n = S.graph.byId.get(id); n.x = Math.round(n.x + dx); n.y = Math.round(n.y + dy); });
+  // erst danach die Kanten: die neue Form ergibt sich aus der neuen Lage
   S.graph.edges.forEach(e=>{
     const a = ids.has(e.from), b = ids.has(e.to);
     if(a && b){ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); }
-    else if(a !== b && !e.manual){ e.bends = null; e.portFrom = null; e.portTo = null; }
+    else if(a !== b && !e.manual) loosenEdge(e);
   });
-  ids.forEach(id=>{ const n = S.graph.byId.get(id); n.x = Math.round(n.x + dx); n.y = Math.round(n.y + dy); });
   spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   draw(); persist();
   return true;
@@ -823,6 +822,8 @@ function arrangeSelection(){
   const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
   sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte
   sub.forEach(e=>{ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); });
+  // Kanten über die Auswahlgrenze nach dem gewählten Verfahren neu formen
+  S.graph.edges.forEach(e=>{ if(ids.has(e.from) !== ids.has(e.to)) loosenEdge(e); });
   spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   S.selEdge = null; persist(); draw();
   const a = ALGOS[S.layout.algo] || ALGOS.hier;
@@ -1111,7 +1112,7 @@ function listItemKey(item){
     const nm = l.match(/^name\s*:\s*"?([^"#]+?)"?\s*$/);
     if(nm && name === null) name = nm[1].trim();
   }
-  if(ziel !== null) return 'bez:' + ziel + ' ' + (name || '');
+  if(ziel !== null) return 'bez:' + ziel + '\u0000' + (name || '');
   if(name !== null) return 'attr:' + name;
   return 'wert:' + (direkt[0] || '');
 }
