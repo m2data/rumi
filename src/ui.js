@@ -42,7 +42,16 @@ function applyAutoLayout(g){
 }
 
 /* Ablage: im Claude-Artefakt window.storage, in einer heruntergeladenen
-   Datei localStorage. Beides kann fehlen, dann wird still nicht gespeichert. */
+   Datei localStorage. Beides kann fehlen, dann wird nicht gespeichert —
+   aber nicht still: bei einem großen Modell läuft localStorage über die
+   Quota, und ohne Warnung verschwänden Positionen erst beim nächsten
+   Öffnen. Einmal je Sitzung reicht, sonst nervt der Toast bei jedem Zug. */
+let storeWarned = false;
+function warnStoreOnce(){
+  if(storeWarned) return;
+  storeWarned = true;
+  toast('Speichern im Browser fehlgeschlagen (Speicher voll?) — Positionen über „Datei & Export" als JSON sichern');
+}
 const store = {
   async get(key){
     if(window.storage){
@@ -52,7 +61,7 @@ const store = {
   },
   async set(key, value){
     if(window.storage){ try{ await window.storage.set(key, value); }catch(_){} }
-    try{ localStorage.setItem(key, value); }catch(_){}
+    try{ localStorage.setItem(key, value); }catch(_){ warnStoreOnce(); }
   }
 };
 
@@ -105,7 +114,7 @@ function writeStore(){
   // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
-  try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){}
+  try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
   recordHistory(snap);
 }
 
@@ -949,7 +958,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   // Diagramm exportieren
   if(a === 'html') exportHTML();
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
-  if(a === 'png') exportPNG();
+  if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
 
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
@@ -1000,20 +1009,34 @@ ${inner}
 ${att ? `<text class="att" x="${b.x + 12}" y="${b.y + b.h + 13}">${esc(att)}</text>` : ''}
 </svg>`;
 }
-function exportPNG(){
-  const b = bbox(30), scale = 2;
+/* Browser deckeln Canvas-Flächen (üblich 16384 px je Seite); darüber liefert
+   toBlob kommentarlos nichts. Vorab prüfen und benennen statt still scheitern. */
+const PNG_MAX_SIDE = 16384;
+
+function exportPNG(scale){
+  scale = scale || 2;
+  const b = bbox(30);
   const head = hierExportHeader(b);
   const headH = head ? head.height : 0;
+  const w = Math.round(b.w*scale), h = Math.round((headH + b.h + (attributionLine() ? 20 : 0))*scale);
+  if(w > PNG_MAX_SIDE || h > PNG_MAX_SIDE){
+    toast(`PNG wäre ${w} × ${h} px — zu groß für den Browser. Kleinerer Maßstab oder SVG.`);
+    return;
+  }
   const blob = new Blob([exportSVG()], {type:'image/svg+xml;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = ()=>{
     const c = document.createElement('canvas');
-    c.width = Math.round(b.w*scale); c.height = Math.round((headH + b.h + (attributionLine() ? 20 : 0))*scale);
+    c.width = w; c.height = h;
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#E7ECF1'; ctx.fillRect(0,0,c.width,c.height);
     ctx.drawImage(img, 0, 0, c.width, c.height);
-    c.toBlob(bl=>{ downloadBlob(bl, diagramName()+'.png'); URL.revokeObjectURL(url); });
+    c.toBlob(bl=>{
+      URL.revokeObjectURL(url);
+      if(!bl){ toast('PNG-Export fehlgeschlagen — SVG nutzen'); return; }
+      downloadBlob(bl, diagramName()+'.png');
+    });
   };
   img.onerror = ()=>{ toast('PNG-Export fehlgeschlagen — SVG nutzen'); URL.revokeObjectURL(url); };
   img.src = url;

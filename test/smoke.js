@@ -29,7 +29,7 @@ const t = (name, cond, info)=>{
 // App im eigenen Gültigkeitsbereich starten
 let S, api = {};
 const runner = new Function('document','window','localStorage','sessionStorage','CSS','URL','Blob','Image','FileReader',
-  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure, boot, loopGeom, loopPoint});');
+  'setTimeout','clearTimeout','__expose', script + '\n__expose({S, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, spreadLabels, polyPoint, measure, boot, loopGeom, loopPoint, exportPNG});');
 
 try{
   runner(document, win, win.localStorage, win.sessionStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
@@ -743,6 +743,40 @@ console.log('== Zweiter Weg: Kante aus dem Detailbereich ==');
     t('Kante darüber ausgewählt', !!S.selEdge, 'selEdge=' + S.selEdge);
     t('Griffe erscheinen', document.getElementById('handles').querySelectorAll('.pt').length === 2);
   }
+}
+
+console.log('== Speichern meldet volle Quota (einmal je Sitzung) ==');
+{
+  api.setMode && S.mode === 'hierarchie' && api.setMode('komplett');
+  const echtes = win.localStorage.setItem.bind(win.localStorage);
+  const toastEl = document.getElementById('toast');
+  win.localStorage.setItem = ()=>{ throw new Error('QuotaExceededError'); };
+  toastEl.textContent = '';
+  api.persist();
+  t('voller Speicher löst einen Hinweis aus', toastEl.textContent.includes('Speichern im Browser fehlgeschlagen'),
+    JSON.stringify(toastEl.textContent));
+  toastEl.textContent = '';
+  api.persist();
+  t('der Hinweis kommt nur einmal je Sitzung', toastEl.textContent === '',
+    JSON.stringify(toastEl.textContent));
+  win.localStorage.setItem = echtes;
+}
+
+console.log('== PNG-Export: Maßstab wählbar, Größenlimit benannt ==');
+{
+  const scales = document.getElementById('menu').querySelectorAll('[data-act="png"][data-scale]');
+  const werte = [...scales].map(b => b.dataset.scale).sort().join(',');
+  t('Maßstäbe 1×/2×/4× im Menü', werte.includes('1') && werte.includes('2') && werte.includes('4'), werte);
+  // Ein Knoten weit draußen macht die Fläche größer als das Canvas-Limit
+  const n = S.graph.nodes.find(x => !x.hidden);
+  const ox = n.x;
+  n.x = 400000;
+  const toastEl = document.getElementById('toast');
+  toastEl.textContent = '';
+  api.exportPNG(2);
+  t('zu großes PNG wird benannt statt still zu scheitern', toastEl.textContent.includes('zu groß'),
+    JSON.stringify(toastEl.textContent));
+  n.x = ox;
 }
 
 console.log('== Absicherung: Exportschalter bleibt nicht hängen ==');

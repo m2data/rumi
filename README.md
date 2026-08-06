@@ -35,7 +35,7 @@ läuft offline und lädt nichts nach.
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Laden/Speichern** der drei Dateien (siehe unten) und **Export** als
-  eigenständige HTML, SVG oder PNG.
+  eigenständige HTML, SVG oder PNG (Maßstab 1×, 2× oder 4×, etwa für Druck).
 - Alles offline, ohne externe Abhängigkeiten. Schriften optional lokal
   einbettbar (`node fonts-einbetten.js <ordner-mit-woff2>`).
 

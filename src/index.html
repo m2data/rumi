@@ -96,7 +96,14 @@
         <div class="head">DIAGRAMM EXPORTIEREN</div>
         <button data-act="html">Stand als HTML sichern</button>
         <button data-act="svg">Diagramm als SVG</button>
-        <button data-act="png">Diagramm als PNG</button>
+        <div class="pngrow">
+          <button data-act="png" data-scale="2">Diagramm als PNG</button>
+          <span class="pngscales" role="group" aria-label="PNG-Maßstab">
+            <button data-act="png" data-scale="1" title="Bildschirmgröße">1×</button>
+            <button data-act="png" data-scale="2" title="Doppelte Auflösung (Standard)">2×</button>
+            <button data-act="png" data-scale="4" title="Vierfache Auflösung, z. B. für Druck">4×</button>
+          </span>
+        </div>
       </div>
     </div>
   </div>

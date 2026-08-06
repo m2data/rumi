@@ -103,6 +103,15 @@ body.modus-hierarchie .views{display:none}
 .dirgrid.off,#dirHead.off{opacity:.32}
 .dirgrid.off{pointer-events:none}
 .menu .head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--muted);padding:6px 10px 3px}
+/* PNG-Zeile: Haupteintrag (Standard 2×) plus Maßstabsknöpfe rechts daneben */
+.pngrow{display:flex;align-items:center}
+.pngrow > button{flex:1 1 auto;width:auto;white-space:nowrap}
+.pngscales{display:flex;gap:2px;padding-right:6px}
+.pngscales button{
+  width:auto;padding:3px 6px;font-family:var(--mono);font-size:10px;color:var(--muted);
+  border:1px solid var(--hair-soft);border-radius:2px;
+}
+.pngscales button:hover{color:var(--ink);background:var(--obj-soft)}
 
 /* ---------- Hauptbereich ---------- */
 main{flex:1 1 auto;display:flex;min-height:0}
