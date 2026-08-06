@@ -1719,7 +1719,7 @@ function layered(nodes, edges, dir, ortho){
     /* Eine Kante auf die Luftlinie führen. Gibt {alt, warSchlecht, vorher}
        für die Rücknahme-Heuristik des Erstlaufs zurück (der Anschluss-Tausch
        weiter unten führt ohne sie — dort wacht die Gesamtbewertung). */
-    const interpoliere = e=>{
+    const interpoliere = (e, seiteZwang)=>{
       const info = chain.get(e);
       if(!info || !info.ds.length) return null;
       const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
@@ -1757,7 +1757,7 @@ function layered(nodes, edges, dir, ortho){
       // eine Anschlusslage, das baute selbst ein Zickzack. Und: einmal gewählte
       // Ausweichseite beibehalten, sonst pendelt die Kante bei mehreren vollen
       // Ebenen zwischen links und rechts.
-      let seite = 0;
+      let seite = seiteZwang || 0;
       const ausweich = (lay, wunsch)=>{
         let zLo = wunsch, zHi = wunsch, drin = true, guard = 0;
         while(drin && guard++ < 6){
@@ -1788,16 +1788,34 @@ function layered(nodes, edges, dir, ortho){
         refC = d.c; refM = mainOf[d.lay];
       });
       e.bends = bendsOf(info);
-      return {info, alt, warSchlecht, vorher};
+      return {info, alt, warSchlecht, vorher, seite};
+    };
+    /* Musste die Kante ausweichen, wird auch die GEGENSEITE durchgerechnet
+       und die kreuzungsärmere behalten. Die nähere Seite ist sonst oft die
+       falsche: läuft die Luftlinie durch einen Kasten, hinter dem das Ziel
+       einer Geschwisterkante liegt, legt das nahe Ausweichen den Zug genau
+       über diese Kante — ein Doppel-X, das kein Anschluss-Tausch mehr löst. */
+    const fuehreBeste = e=>{
+      const r = interpoliere(e);
+      if(!r || !r.seite) return r;
+      const zugA = {bends: e.bends ? e.bends.map(p=>({x:p.x, y:p.y})) : null,
+                    cs: r.info.ds.map(d=>d.c)};
+      const kA = kreuzungen(e);
+      interpoliere(e, -r.seite);
+      if(kA <= kreuzungen(e)){                    // Gegenseite nicht besser: zurück
+        e.bends = zugA.bends;
+        r.info.ds.forEach((d,k)=>{ d.c = zugA.cs[k]; });
+      }
+      return r;
     };
     edges.forEach(e=>{
-      const r = interpoliere(e);
+      const r = fuehreBeste(e);
       if(r && !r.warSchlecht && kreuzungen(e) > r.vorher){
         r.info.ds.forEach((d,k)=>{ d.c = r.alt[k]; });
         e.bends = bendsOf(r.info);
       }
     });
-    interpoliereWeich = interpoliere;      // für Härtung und Anschluss-Tausch darunter
+    interpoliereWeich = fuehreBeste;       // für Härtung und Anschluss-Tausch darunter
   }
 
   /* Weiche Diagonalen dürfen fremde Kästen nicht schneiden: die Spalte d.c ist

@@ -163,7 +163,7 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
     }
   }
   t('TB: höchstens 2 auffällige X direkt am Kasten', nah.length <= 2, nah.length + ': ' + nah.join(', '));
-  t('TB: höchstens 62 geroutete Kreuzungen insgesamt', n <= 62, n + ' Kreuzungen');
+  t('TB: höchstens 50 geroutete Kreuzungen insgesamt', n <= 50, n + ' Kreuzungen');
 }
 
 console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==');
