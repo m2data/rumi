@@ -30,8 +30,9 @@ läuft offline und lädt nichts nach.
 - **Auswählen**: Umschalt+Ziehen wählt einen Rahmen, Strg+Klick einzelne Objekte
   dazu oder weg. Die **Pfeiltasten** verschieben die Auswahl (fein, mit Umschalt
   um ein Rasterfeld), **Entf** blendet sie aus.
-  **Rückgängig/Wiederherstellen** der letzten 10 Aktionen mit
-  Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z).
+  **Rückgängig/Wiederherstellen** der letzten 20 Aktionen mit
+  Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z); auch ein eingespieltes
+  Delta-Modell lässt sich so wieder herausnehmen.
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Suchen**: das Feld über den Reitern der Seitenleiste — also aus jedem

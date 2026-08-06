@@ -4710,16 +4710,18 @@ function writeStore(){
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(snap);
+  recordHistory(JSON.stringify({yaml:S.yamlText, stand:blob}));
 }
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
-   Schnappschuss-basiert auf layoutFile(): jede gespeicherte Aktion (Verschieben,
-   Anordnen, Kante umlenken, Ein-/Ausblenden, Inhalt) legt einen Stand ab. Es
-   werden die letzten 10 Aktionen behalten (also 11 Stände). */
-const HIST_MAX = 10;
+   Schnappschuss-basiert: jede gespeicherte Aktion (Verschieben, Anordnen,
+   Kante umlenken, Ein-/Ausblenden, Inhalt, Delta-Geschäftsobjekte) legt einen
+   Stand aus Modelltext und layoutFile() ab. Das Modell gehört dazu, damit auch
+   ein eingespieltes Delta rückgängig geht. Es werden die letzten 20 Aktionen
+   behalten (also 21 Stände). */
+const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify(layoutFile())]; histPos = 0; }
+function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -4731,8 +4733,15 @@ function recordHistory(snap){
 function restoreHistory(snap){
   restoringHistory = true;                                 // die folgenden persist()/writeStore() nicht mitschreiben
   try{
+    const p = JSON.parse(snap);
+    // Anderer Modelltext (Delta rückgängig/wiederhergestellt): Modell neu bauen
+    if(p.yaml !== S.yamlText){
+      S.yamlText = p.yaml;
+      S.model = buildModel(p.yaml);
+      renderMessages();
+    }
     const beforeOutline = S.outlineText;
-    adoptLayoutFile(JSON.parse(snap));
+    adoptLayoutFile(p.stand);
     // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
     if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
     if(S.mode === 'hierarchie'){
@@ -5821,9 +5830,10 @@ function loadDelta(text){
   S.model = buildModel(merged.text);
   S.yamlText = merged.text;
   renderMessages(); syncLayoutMenu();
-  setView(S.view);                       // vorhandene bleiben, neue werden platziert
+  // Kein resetHistory: die Verlaufsstände tragen den Modelltext mit, ein Delta
+  // ist damit eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
+  setView(S.view);                       // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
   if(S.mode === 'hierarchie') setMode('hierarchie');
-  resetHistory();                        // Modell hat sich geändert -> Verlauf neu beginnen
   toast(`Delta: ${merged.added} neu, ${merged.merged} zusammengeführt`);
 }
 $('layoutInput').addEventListener('change', e=>{

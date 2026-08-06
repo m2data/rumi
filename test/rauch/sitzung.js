@@ -148,6 +148,28 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
   t('Objektzahl wächst genau um die neuen', Object.keys(S.model.objects).length === before + 1, before + ' → ' + Object.keys(S.model.objects).length);
 }
 
+console.log('== Delta-Geschäftsobjekte sind rückgängig machbar ==');
+{
+  // Ein Delta ist eine normale Aktion im Verlauf: Strg+Z nimmt es samt Modell
+  // wieder heraus, Strg+Y bringt es zurück. Früher setzte loadDelta den
+  // Verlauf zurück — das Delta war unumkehrbar.
+  const vorher = Object.keys(S.model.objects).length;
+  const altYaml = S.yamlText;
+  api.loadDelta('BusinessObjects:\n  UndoProbe:\n    Domain: T\n    business_keys:\n    - K');
+  t('Delta ergänzt das Objekt', Object.keys(S.model.objects).length === vorher + 1
+    && !!S.model.objects.UndoProbe, Object.keys(S.model.objects).length + '');
+  api.undo();
+  t('Rückgängig entfernt das Delta wieder', Object.keys(S.model.objects).length === vorher
+    && !S.model.objects.UndoProbe, Object.keys(S.model.objects).length + '');
+  t('auch der Modelltext ist wieder der alte', S.yamlText === altYaml);
+  api.redo();
+  t('Wiederherstellen bringt das Delta zurück', !!S.model.objects.UndoProbe);
+  api.undo();                                              // Endzustand: ohne Delta
+  t('Objektliste zeigt wieder den alten Stand',
+    document.getElementById('objectList').querySelectorAll('button[data-id]').length
+      === S.graph.nodes.length, 'Listeneinträge');
+}
+
 console.log('== Jeder Tab behält beim Neuladen seine eigene Sitzung ==');
 {
   // Geteilte Sitzung (localStorage) und Tab-Sitzung (sessionStorage) zeigen auf

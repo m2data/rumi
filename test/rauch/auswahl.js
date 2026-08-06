@@ -66,6 +66,26 @@ console.log('== Rückgängig / Wiederherstellen ==');
     `x ${Math.round(a2.x)} statt ${Math.round(ox + 200)}`);
 }
 
+console.log('== Verlauf reicht 20 Aktionen zurück ==');
+{
+  api.setView(1);
+  const n = S.graph.nodes.find(x => !x.hidden);
+  const start = n.x;
+  for(let i = 1; i <= 25; i++){ n.x = start + i; api.persist(); }   // 25 Aktionen
+  let undos = 0;
+  while(undos < 30){
+    const vorher = S.graph.byId.get(n.id).x;
+    api.undo();
+    if(S.graph.byId.get(n.id).x === vorher) break;                  // nichts mehr zurückzunehmen
+    undos++;
+  }
+  t('genau 20 Aktionen lassen sich zurücknehmen', undos === 20, undos + ' Undos');
+  t('der älteste erreichbare Stand ist Aktion 5', S.graph.byId.get(n.id).x === start + 5,
+    'x=' + S.graph.byId.get(n.id).x + ', erwartet ' + (start + 5));
+  while(S.graph.byId.get(n.id).x !== start + 25){ const v = S.graph.byId.get(n.id).x; api.redo(); if(S.graph.byId.get(n.id).x === v) break; }
+  n.x = start; api.persist();                                       // aufräumen
+}
+
 console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert ist ==');
 {
   api.setView(1);
