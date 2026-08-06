@@ -169,6 +169,28 @@ console.log('== Suche greift über den Objektnamen hinaus ==');
 
   suche('');                                   // Filter zurücksetzen
   api.setView(1);
+
+  // Die Suche gehört nicht mehr in den Reiter „Objekte": sie wirkt aufs
+  // Diagramm und muss aus jedem Reiter erreichbar bleiben.
+  const feld = document.getElementById('search');
+  t('Suchfeld liegt außerhalb der Reiter-Inhalte', !feld.closest('.pane'),
+    feld.closest('.pane') ? feld.closest('.pane').id : 'außerhalb');
+  t('Suchleiste steht über den Reitern', !!document.querySelector('.searchbar .search'));
+  dispatch([...document.querySelectorAll('.sidetab')].find(s => s.dataset.pane === 'details'), 'click', {});
+  t('bleibt auch im Reiter „Details" im Baum', !document.getElementById('search').closest('.pane'));
+  dispatch([...document.querySelectorAll('.sidetab')].find(s => s.dataset.pane === 'objects'), 'click', {});
+
+  // Trefferzahl neben dem Feld
+  const hits = () => document.getElementById('searchHits').textContent;
+  const alleSichtbar = S.graph.nodes.filter(n => !n.hidden).length;
+  suche('pflanzabstand');
+  t('Trefferzahl zeigt Treffer und Gesamtzahl', hits() === '1/' + alleSichtbar, hits());
+  suche('gibtesnicht');
+  t('ohne Treffer steht 0 da', hits() === '0/' + alleSichtbar, hits());
+  t('und die Zahl wird als Warnung markiert',
+    document.getElementById('searchHits').classList.contains('none'));
+  suche('');
+  t('ohne Suchbegriff bleibt die Zahl leer', hits() === '', hits());
 }
 
 console.log('== Kein Text klebt am Kastenrand ==');

@@ -96,13 +96,23 @@ function neighbourhood(){
 
 function draw(){
   const nb = neighbourhood();
-  gNodes.innerHTML = visNodes().map(n=>{
+  const list = visNodes();
+  let treffer = 0;
+  gNodes.innerHTML = list.map(n=>{
+    const passt = matchesFilter(n, S.filter);
+    if(passt) treffer++;
     let c = '';
     if(S.sel.has(n.id)) c = 'selected';
     else if(nb && !nb.keep.has(n.id)) c = 'faded';
-    else if(!matchesFilter(n, S.filter)) c = 'faded';
+    else if(!passt) c = 'faded';
     return nodeMarkup(n, c);
   }).join('');
+  // Trefferzahl an der Suchleiste: aus demselben Durchgang, also immer stimmig
+  const hits = $('searchHits');
+  if(hits){
+    hits.textContent = S.filter ? treffer + '/' + list.length : '';
+    hits.classList.toggle('none', !!S.filter && treffer === 0);
+  }
   drawEdges();
   applyTransform();
 }

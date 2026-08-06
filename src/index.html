@@ -119,6 +119,19 @@
     </div>
     <div class="hier-tree" id="hierTree" role="tree" aria-label="Diagramm-Hierarchie" hidden></div>
 
+    <!-- Suche steht über den Reitern: sie wirkt aufs Diagramm, nicht auf einen
+         einzelnen Reiter, und bleibt so in jedem Reiter erreichbar. -->
+    <div class="searchbar">
+      <svg class="sicon" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10.4 10.4L14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input class="search" id="search" type="search" placeholder="Objekt, Attribut, Quelle suchen …"
+             title="Hebt passende Objekte im Diagramm hervor. Gesucht wird in Objektname, Domain, Business Keys, Quellen, Attributnamen samt Verweis und Beziehungsnamen."
+             aria-label="Objekt, Attribut, Quelle oder Beziehung suchen">
+      <span class="shits" id="searchHits" aria-live="polite"></span>
+    </div>
+
     <div class="sidetabs" role="tablist" aria-label="Seitenleiste">
       <button class="sidetab tab-hier" role="tab" data-pane="beschreibung" aria-selected="false">Beschreibung</button>
       <button class="sidetab" role="tab" data-pane="objects" aria-selected="true">Objekte</button>
@@ -131,9 +144,6 @@
     <div class="pane" id="pane-beschreibung"><div class="hier-desc" id="hierDesc"></div></div>
 
     <div class="pane active" id="pane-objects">
-      <input class="search" id="search" type="search" placeholder="Objekt, Attribut, Quelle suchen …"
-             title="Sucht in Objektname, Domain, Business Keys, Quellen, Attributnamen samt Verweis und Beziehungsnamen"
-             aria-label="Objekt, Attribut, Quelle oder Beziehung suchen">
       <div class="listtools">
         <span>Anzeigen:</span>
         <button id="showAll">alle</button>
