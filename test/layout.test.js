@@ -367,6 +367,52 @@ console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) =='
   }
 }
 
+console.log('== Weiche Führung: leichte Schräge statt Treppe (Blitzmuster) ==');
+{
+  // Kante über eine Zwischenebene hinweg (A -> C neben der Kette A -> B -> C).
+  // Rechtwinklig braucht sie das Punktepaar an den Bandgrenzen (senkrecht durchs
+  // Band, quer im Kanal); weich gezeichnet wurde daraus ein Blitz, wo eine
+  // leichte Schräge genügt — jetzt: EIN Punkt in Bandmitte je Zwischenebene.
+  const m = buildModel(`BusinessObjects:
+  A:
+    relationships:
+    - to: B
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: C
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  B:
+    relationships:
+    - to: C
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  C:
+    Domain: x
+`);
+  const lang = g => g.edges.find(e => e.from === 'o:A' && e.to === 'o:C');
+  const gh = makeGraph(m, 1);
+  ALGOS.hier.fn(gh.nodes, gh.edges, 'TB');
+  const eh = lang(gh);
+  t('hierarchisch: ein Stützpunkt je Zwischenebene',
+    eh.bends && eh.bends.length === 1, 'bends=' + (eh.bends ? eh.bends.length : 0));
+  {
+    // und der liegt in der Bandmitte der Zwischenebene — die Kante läuft schräg
+    const B = gh.byId.get('o:B');
+    t('der Punkt liegt auf Höhe der Zwischenebene',
+      Math.abs(eh.bends[0].y - (B.y + B.h/2)) <= 1,
+      eh.bends[0].y + ' vs ' + (B.y + B.h/2));
+  }
+  const go = makeGraph(m, 1);
+  ALGOS.ortho.fn(go.nodes, go.edges, 'TB');
+  const eo = lang(go);
+  t('orthogonal: weiterhin das Punktepaar an den Bandgrenzen',
+    eo.bends && eo.bends.length === 2, 'bends=' + (eo.bends ? eo.bends.length : 0));
+}
+
 console.log('== Alle vier Flussrichtungen sind gleichwertig ==');
 {
   // Kette: der Fluss läuft in die gewählte Richtung

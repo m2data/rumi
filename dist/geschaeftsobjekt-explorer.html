@@ -1576,6 +1576,15 @@ function layered(nodes, edges, dir, ortho){
   const dpts = (ds, rev) => ds.flatMap(d => rev
     ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
     : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))]);
+  // Weiche Führung: EIN Punkt in Bandmitte je Zwischenebene statt des Paars.
+  // Das Paar erzwingt Treppen — senkrecht durchs Band, quer im Kanal —, die
+  // weich gezeichnet als Blitzmuster erscheinen, wo eine leichte Schräge
+  // genügt. Liegen die Spalten auf der Luftlinie, sind die Punkte kollinear
+  // und die Kante wird eine einzige gerade Diagonale.
+  const dptsSoft = ds => ds.map(d => ptAt(d.c, mainOf[d.lay]));
+  const bendsOf = info => info.ds.length
+    ? (ortho ? dpts(info.ds, info.rev) : dptsSoft(info.ds))
+    : null;
 
   /* 7 — Kantenzüge und Anschlusspunkte */
   const nodeOf = new Map(nodes.map(n=>[n.id, n]));
@@ -1589,7 +1598,7 @@ function layered(nodes, edges, dir, ortho){
     const info = chain.get(e);
     if(!info) return;
     e.ortho = ortho;
-    e.bends = info.ds.length ? dpts(info.ds, info.rev) : null;
+    e.bends = bendsOf(info);
     const a = idx.get(e.from), b = idx.get(e.to);
     if(a === undefined || b === undefined || a === b) return;
     if(layer[a] === layer[b]) return;                 // gleiche Ebene: freie Führung
@@ -1682,10 +1691,10 @@ function layered(nodes, edges, dir, ortho){
       });
       if(!blocked) d.c = target;
     });
-    e.bends = dpts(info.ds, info.rev);
+    e.bends = bendsOf(info);
     if(kreuzungen(e) > vorher){                  // gerade, aber neu kreuzend: zurücknehmen
       info.ds.forEach((d,k)=>{ d.c = alt[k]; });
-      e.bends = dpts(info.ds, info.rev);
+      e.bends = bendsOf(info);
     }
   });
 
@@ -1729,10 +1738,10 @@ function layered(nodes, edges, dir, ortho){
       for(const c of [ziel, ca, cb])
         if(frei(d.lay, c)){ d.c = c; break; }
     });
-    e.bends = dpts(info.ds, info.rev);
+    e.bends = bendsOf(info);
     if(!hatteKringel && kreuzungen(e) > vorher){
       info.ds.forEach((d,k)=>{ d.c = alt[k]; });
-      e.bends = dpts(info.ds, info.rev);
+      e.bends = bendsOf(info);
     }
   });
 
