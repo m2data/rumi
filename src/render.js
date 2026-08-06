@@ -260,6 +260,14 @@ function edgeMarkup(e, g, cls){
   s += `<path class="e-path" d="${path}"/>`;
   s += markerMarkup(p1, a1, e.fromCard);
   s += markerMarkup(p2, a2, e.toCard);
+  s += `</g>`;
+
+  /* Die Beschriftung als EIGENE Gruppe, die der Aufrufer hinter alle
+     Kantengruppen legt. Läge sie in der Kantengruppe, zeichneten später
+     gerenderte Kanten über den hellen Hintergrund — in dichten Bündeln
+     (viele Beziehungen an einer schmalen Kastenseite, typisch bei
+     waagrechtem Fluss) wird der Text sonst durchgestrichen. */
+  let lbl = '';
   if(e.label && S.layout.labels !== false){
     // An die Kante gebunden: Standardmäßig in der Mitte des Verlaufs, per
     // e.labelT (Bogenlängen-Anteil) frei entlang der Beziehung verschiebbar.
@@ -271,10 +279,12 @@ function edgeMarkup(e, g, cls){
       lp = loopPoint(loopGeom(A, e), e.labelT);   // Selbstbezug: frei auf der Schleife
     }
     const w = measure(e.label, '500 10px "IBM Plex Mono", monospace') + 8;
-    if(!S.exporting) s += `<rect class="e-lbl-hit" data-lbl="${e.id}" x="${fx(lp.x-w/2)}" y="${fx(lp.y-8)}" width="${w.toFixed(1)}" height="16"/>`;
-    s += `<rect class="e-lbl-bg" x="${fx(lp.x-w/2)}" y="${fx(lp.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
-    s += `<text class="e-lbl" x="${fx(lp.x)}" y="${fx(lp.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
+    lbl = `<g class="elbl ${e.kind} ${cls}" data-id="${e.id}">`;
+    if(!S.exporting) lbl += `<rect class="e-lbl-hit" data-lbl="${e.id}" x="${fx(lp.x-w/2)}" y="${fx(lp.y-8)}" width="${w.toFixed(1)}" height="16"/>`;
+    lbl += `<rect class="e-lbl-bg" x="${fx(lp.x-w/2)}" y="${fx(lp.y-7)}" width="${w.toFixed(1)}" height="14" rx="2"/>`;
+    lbl += `<text class="e-lbl" x="${fx(lp.x)}" y="${fx(lp.y+3.5)}" text-anchor="middle">${esc(e.label)}</text>`;
+    lbl += `</g>`;
   }
-  return s + `</g>`;
+  return {edge:s, label:lbl};
 }
 

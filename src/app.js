@@ -119,12 +119,16 @@ function draw(){
 
 function drawEdges(){
   const nb = neighbourhood();
-  gEdges.innerHTML = visEdges().map(e=>{
+  const parts = visEdges().map(e=>{
     let c = '';
     if(nb) c = nb.eids.has(e.id) ? 'active' : 'faded';
     if(e.id === S.selEdge) c += ' picked';
     return edgeMarkup(e, S.graph, c);
-  }).join('');
+  });
+  // Beschriftungen als eigene Schicht HINTER allen Kantengruppen: ihr heller
+  // Hintergrund deckt so jede Linie ab, statt von später gezeichneten Kanten
+  // durchgestrichen zu werden (dichte Bündel bei waagrechtem Fluss).
+  gEdges.innerHTML = parts.map(p=>p.edge).join('') + parts.map(p=>p.label).join('');
   drawHandles();
 }
 

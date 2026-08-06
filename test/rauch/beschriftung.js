@@ -62,15 +62,57 @@ console.log('== Selbstbezug-Label ist auf der Schleife verschiebbar ==');
         'labelT=' + e.labelT);
       t('Label wandert zum Schleifenanfang', e.labelT < 0.25, 'labelT=' + e.labelT);
       t('gilt als von Hand platziert', e.labelManual === true);
-      // gezeichnete Position liegt auf der Kurve bei labelT
+      // gezeichnete Position liegt auf der Kurve bei labelT (das Label liegt
+      // als eigene .elbl-Gruppe hinter allen Kanten, nicht mehr in der .eg)
       const lp = api.loopPoint(api.loopGeom(A, e), e.labelT);
-      const txt = [...document.getElementById('edges').querySelectorAll('.eg')]
+      const txt = [...document.getElementById('edges').querySelectorAll('.elbl')]
         .find(g => g.dataset.id === e.id).querySelector('.e-lbl');
       t('gezeichnetes Label sitzt am Kurvenpunkt', txt && Math.abs(+txt.getAttribute('x') - lp.x) < 1,
         txt ? txt.getAttribute('x') + ' vs ' + lp.x.toFixed(1) : 'kein Text');
       e.labelT = null; e.labelManual = false; api.persist();   // aufräumen
     }
   }
+}
+
+console.log('== Beschriftungen liegen über allen Kantenlinien ==');
+{
+  api.setView(1);
+  // Alle Beschriftungsgruppen müssen im DOM NACH allen Kantengruppen stehen —
+  // sonst streicht eine später gezeichnete Kante durch den hellen Hintergrund
+  // eines früheren Labels (dichte Bündel bei waagrechtem Fluss).
+  const kinder = [...document.getElementById('edges').children];
+  const letzteKante = kinder.map(c => c.getAttribute('class') || '').reduce((m, cls, i) => cls.split(' ')[0] === 'eg' ? i : m, -1);
+  const erstesLabel = kinder.findIndex(c => (c.getAttribute('class') || '').split(' ')[0] === 'elbl');
+  t('Beschriftungsgruppen vorhanden', erstesLabel >= 0, erstesLabel + '');
+  t('jede Beschriftung liegt hinter der letzten Kantengruppe', erstesLabel > letzteKante,
+    `letzte Kante bei ${letzteKante}, erstes Label bei ${erstesLabel}`);
+  // Zustand (abgeblendet) färbt auch die Labelgruppe
+  const irgendeine = S.graph.edges.find(e => e.label && e.from !== e.to);
+  api.setSelection([S.graph.nodes.find(n => !n.hidden).id]);
+  const lblFaded = [...document.getElementById('edges').querySelectorAll('.elbl')]
+    .some(g => (g.getAttribute('class') || '').includes('faded'));
+  t('abgeblendete Kanten blenden ihre Beschriftung mit ab', lblFaded);
+  api.setSelection([]);
+}
+
+console.log('== Beschriftung weicht Kästen aus ==');
+{
+  api.setView(1);
+  // Kante von A nach B, deren Mitte genau unter dem Kasten C liegt: das Label
+  // darf nicht auf C sitzen bleiben, die Kante bietet links und rechts Platz.
+  const e = S.graph.edges.find(x => x.label && x.from !== x.to);
+  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+  const C = S.graph.nodes.find(n => !n.hidden && n.id !== e.from && n.id !== e.to);
+  A.x = 0;    A.y = 0;
+  B.x = 1200; B.y = 0;
+  e.bends = null; e.portFrom = null; e.portTo = null; e.labelT = null; e.labelManual = false; e.ortho = false;
+  C.x = 600 - C.w/2; C.y = A.y + A.h/2 - C.h/2;      // mittig AUF der Kantenmitte
+  api.spreadLabels([e]);
+  const p = api.polyPoint(api.routePoints(e, A, B), e.labelT != null ? e.labelT : 0.5);
+  const aufC = p.x > C.x && p.x < C.x + C.w && p.y > C.y && p.y < C.y + C.h;
+  t('Label rutscht von einem Kasten herunter', !aufC,
+    `labelT=${e.labelT}, Punkt (${Math.round(p.x)},${Math.round(p.y)}), C x=${Math.round(C.x)}..${Math.round(C.x + C.w)}`);
+  e.labelT = null; e.labelManual = false;
 }
 
 console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');

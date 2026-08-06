@@ -88,7 +88,10 @@ function spreadLabels(scope){
   };
   const hit = (r, s)=> r && s && r.x < s.x+s.w && s.x < r.x+r.w && r.y < s.y+s.h && s.y < r.y+r.h;
   const cand = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2, 0.8];
-  const placed = [], movable = [];
+  // Sichtbare Kästen sind Hindernisse wie fremde Beschriftungen: ein Label auf
+  // einem Objekt ist unleserlich, also weicht es aus, wenn die Kante Platz bietet.
+  const placed = visNodes().map(n => ({x:n.x, y:n.y, w:n.w, h:n.h}));
+  const movable = [];
   edges.forEach(e=>{
     if(e.labelManual || (scopeSet && !scopeSet.has(e))){
       const r = rectAt(e, e.labelT != null ? e.labelT : 0.5);

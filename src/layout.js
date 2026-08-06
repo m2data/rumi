@@ -513,7 +513,11 @@ function layered(nodes, edges, dir, ortho){
   for(const list of ports.values()){
     if(list.length < 2) continue;
     list.sort((p,q)=> crossOf(p) - crossOf(q));
-    const spread = 0.36 / (list.length - 1);
+    // Die Spanne wächst mit der Zahl der Anschlüsse bis fast zur ganzen Seite:
+    // 15 Beziehungen auf festen 36 % einer schmalen Kastenseite (waagrechter
+    // Fluss) wären ein Strichbündel, an dem kein Name mehr zuzuordnen ist.
+    const span = Math.min(0.84, Math.max(0.36, (list.length - 1) * 0.1));
+    const spread = span / (list.length - 1);
     list.forEach((ref,i)=>{
       ref.e[ref.which].t = 0.5 + (i - (list.length-1)/2) * spread;
     });
