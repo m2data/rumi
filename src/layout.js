@@ -580,6 +580,53 @@ function layered(nodes, edges, dir, ortho){
     }
   });
 
+  /* Weiche Führung (hierarchisch): lange Kanten wirken natürlicher, wenn ihre
+     Stützspalten der Luftlinie zwischen den Anschlüssen folgen, statt im
+     Median-Kanal zu pendeln. Der Pendelzug — quer zum Kanal, senkrecht
+     hindurch, wieder quer — liest sich rechtwinklig als Führung; weich
+     verschliffen holt die Kurve aber weit aus und wirkt wie ein Kreis um die
+     Kästen. Je Ebene wird die Spalte auf die Interpolation zwischen den
+     Anschlüssen gezogen, mit denselben Prüfungen wie beim Geraderücken:
+     nur wenn die Ebene dort frei ist und keine neuen Kreuzungen entstehen. */
+  if(!ortho) edges.forEach(e=>{
+    const info = chain.get(e);
+    if(!info || !info.ds.length) return;
+    const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
+    if(!A || !B) return;
+    const cOf = (n, port)=> vertical
+      ? n.x + n.w * (port ? port.t : 0.5)
+      : n.y + n.h * (port ? port.t : 0.5);
+    const mOf = n => vertical ? n.y + n.h/2 : n.x + n.w/2;
+    const ca = cOf(A, e.portFrom), cb = cOf(B, e.portTo);
+    const ma = mOf(A), mb = mOf(B);
+    if(Math.abs(mb - ma) < 1) return;
+    const vorher = kreuzungen(e);
+    const alt = info.ds.map(d => d.c);
+    // Ausreißer: eine Spalte AUSSERHALB des Anschluss-Intervalls — die Kante
+    // fährt erst von ihrem Ziel weg und wieder zurück. Genau das ist der
+    // sichtbare Kringel; ihn loszuwerden wiegt schwerer als eine Kreuzung mehr.
+    const lo = Math.min(ca, cb) - 10, hi = Math.max(ca, cb) + 10;
+    const hatteKringel = info.ds.some(d => d.c < lo || d.c > hi);
+    const frei = (lay, c)=> !rows[lay].some(it=>{
+      if(it.dummy) return false;
+      const half = cs(it)/2 + SIB * 0.3;
+      return c > it.c - half && c < it.c + half;
+    });
+    info.ds.forEach(d=>{
+      // Wunschlage auf der Luftlinie; ist sie durch einen Kasten belegt, dann
+      // wenigstens auf eine der Anschlusslagen — Hauptsache, die Spalte liegt
+      // zwischen den Anschlüssen.
+      const ziel = ca + (cb - ca) * ((mainOf[d.lay] - ma) / (mb - ma));
+      for(const c of [ziel, ca, cb])
+        if(frei(d.lay, c)){ d.c = c; break; }
+    });
+    e.bends = dpts(info.ds, info.rev);
+    if(!hatteKringel && kreuzungen(e) > vorher){
+      info.ds.forEach((d,k)=>{ d.c = alt[k]; });
+      e.bends = dpts(info.ds, info.rev);
+    }
+  });
+
   // Reihenfolge zählt: erst endgültige Lagen, dann die Kantenführung darauf rechnen.
   // Das Ebenenverfahren erzeugt keine Überlappungen, separate() würde nur stören.
   placeSatellites();

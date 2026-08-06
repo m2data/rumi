@@ -269,6 +269,43 @@ console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig =='
   S.selEdge = null; S.layout.algo = 'hier';
 }
 
+console.log('== Weiche Führung: lange Traversen bleiben Geraden (keine Kringel) ==');
+{
+  api.setView(1);
+  // Zug mit langer Quertraverse zwischen zwei kurzen Stichen — der Muster-Fall
+  // aus dem kombinierten Modell (willibald + crm + sap-finanz), in dem weich
+  // verschliffene Kanten wie Kreise um fremde Kästen wirkten. Der Bogen von
+  // Segmentmitte zu Segmentmitte holte dabei hunderte Pixel aus; jetzt wird
+  // mit begrenztem Eckradius gerundet, Geraden bleiben Geraden.
+  const e = S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+  A.x = 0; A.y = 0; B.x = 900; B.y = 300;
+  e.bends = [{x:-200, y:150}, {x:1100, y:150}];   // Traverse von 1300 px
+  e.ortho = false; e.portFrom = null; e.portTo = null; e.manual = true;
+  api.drawEdges();
+  const g = [...document.getElementById('edges').querySelectorAll('.eg')].find(x => x.dataset.id === e.id);
+  const d = g.querySelector('.e-path').getAttribute('d');
+  // Jede Kurvensehne (Abstand vom Punkt vor dem Q zu seinem Endpunkt) muss
+  // klein bleiben — smoothPath spannte sie über die halbe Traverse (~650 px).
+  const toks = [...d.matchAll(/([MLQ])([-\d. ]+)/g)];
+  let cur = null, maxSehne = 0, geraden = 0;
+  toks.forEach(([,cmd,args])=>{
+    const n = args.trim().split(/\s+/).map(Number);
+    const ende = {x:n[n.length-2], y:n[n.length-1]};
+    if(cmd === 'Q' && cur) maxSehne = Math.max(maxSehne, Math.hypot(ende.x-cur.x, ende.y-cur.y));
+    if(cmd === 'L' && cur) geraden = Math.max(geraden, Math.hypot(ende.x-cur.x, ende.y-cur.y));
+    cur = ende;
+  });
+  t('Rundungen bleiben eng am Knick (Sehne < 100 px)', maxSehne > 0 && maxSehne < 100,
+    'größte Sehne=' + Math.round(maxSehne));
+  t('die lange Traverse liegt als gerade Strecke im Pfad', geraden > 900,
+    'längste Gerade=' + Math.round(geraden));
+  e.bends = null; e.manual = false; api.persist();
+}
+
 console.log('== Zweiter Weg: Kante aus dem Detailbereich ==');
 {
   S.selEdge = null;

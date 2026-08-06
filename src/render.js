@@ -119,17 +119,6 @@ function loopPoint(g, t){
 
 const fx = v => v.toFixed(1);
 
-/* Weicher Zug durch die Stützpunkte */
-function smoothPath(pts){
-  let d = `M${fx(pts[0].x)} ${fx(pts[0].y)}`;
-  for(let i=1; i<pts.length-1; i++){
-    const m = {x:(pts[i].x + pts[i+1].x)/2, y:(pts[i].y + pts[i+1].y)/2};
-    d += `Q${fx(pts[i].x)} ${fx(pts[i].y)} ${fx(m.x)} ${fx(m.y)}`;
-  }
-  const l = pts[pts.length-1];
-  return d + `L${fx(l.x)} ${fx(l.y)}`;
-}
-
 /* Doppelte, kollineare und rücklaufende Zwischenpunkte entfernen. Ohne das
    zeichnet die Eckenrundung aus einem kurzen Rücklauf einen „Haken". */
 function dropCollinear(pts){
@@ -218,7 +207,11 @@ function edgeMarkup(e, g, cls){
     p1 = edgeEnd(A, e.portFrom, e.bends[0]);
     p2 = edgeEnd(B, e.portTo, e.bends[e.bends.length-1]);
     const pts = [p1, ...e.bends, p2];
-    path = e.ortho ? orthoPath(pts) : smoothPath(pts);
+    // Weiche Führung mit BEGRENZTEM Eckradius statt Bogen von Segmentmitte zu
+    // Segmentmitte: bei einer langen Quertraverse zwischen zwei kurzen
+    // Stichen holt der Mittenbogen sonst so weit aus, dass die Kante wie ein
+    // Kreis um die Kästen wirkt. Große Rundung bleibt, Geraden bleiben Geraden.
+    path = e.ortho ? orthoPath(pts) : orthoPath(pts, 30);
     a1 = Math.atan2(pts[1].y - p1.y, pts[1].x - p1.x);
     a2 = Math.atan2(pts[pts.length-2].y - p2.y, pts[pts.length-2].x - p2.x);
     mid = e.bends[Math.floor((e.bends.length-1)/2)];
