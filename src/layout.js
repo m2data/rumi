@@ -654,9 +654,16 @@ function layered(nodes, edges, dir, ortho){
       if(!seite) seite = (wunsch - zLo <= zHi - wunsch) ? -1 : 1;
       return seite < 0 ? zLo : zHi;
     };
+    // Sequenziell interpolieren: die Bezugslinie läuft vom zuletzt gesetzten
+    // Punkt zum Ziel, nicht stur von Anschluss zu Anschluss. Nach einem
+    // Ausweichen (Kasten im Weg) zielt der Rest damit direkt aufs Ziel —
+    // sonst knickt die Kante an der nächsten Ebene zurück zur alten
+    // Luftlinie, obwohl sie gerade weiterlaufen könnte.
+    let refC = ca, refM = ma;
     info.ds.forEach(d=>{
-      const ziel = ca + (cb - ca) * ((mainOf[d.lay] - ma) / (mb - ma));
+      const ziel = refC + (cb - refC) * ((mainOf[d.lay] - refM) / (mb - refM));
       d.c = ausweich(d.lay, ziel);
+      refC = d.c; refM = mainOf[d.lay];
     });
     e.bends = bendsOf(info);
     if(!warSchlecht && kreuzungen(e) > vorher){

@@ -12,6 +12,32 @@ const {S, api, document} = await bootApp();
 const {t, finish} = makeT();
 
 const lies = f => fs.readFileSync(path.join(__dirname, '..', '..', 'models', f), 'utf8').replace(/\r\n?/g, '\n');
+
+console.log('== Nach einem Ausweichen läuft der Rest gerade aufs Ziel ==');
+{
+  // Willibald pur (Kastenmaße wie im Browser): VereinsPartner → Bestellung
+  // muss um Kunde herum (Ausweichpunkt), knickte danach aber auf Höhe der
+  // WohnHistorie zurück zur alten Luftlinie (298→359→364→396, 15 px neben der
+  // Geraden) — die Bezugslinie interpolierte stur von Anschluss zu Anschluss
+  // statt vom zuletzt gesetzten Punkt zum Ziel.
+  S.layout.dir = 'TB';
+  S.graph.nodes.forEach(n=>{ n.w = 152; n.h = 38; });
+  [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
+    .find(b => b.dataset.algo === 'hier').onclick();
+  const e = S.graph.edges.find(x => x.from === 'o:VereinsPartner' && x.to === 'o:Bestellung');
+  const B = S.graph.byId.get(e.to);
+  t('VereinsPartner→Bestellung weicht mit zwei Stützpunkten aus',
+    e.bends && e.bends.length === 2, 'bends=' + (e.bends ? e.bends.length : 0));
+  if(e.bends && e.bends.length === 2){
+    const p0 = e.bends[0], p2 = api.routePoints(e, S.graph.byId.get(e.from), B).pop();
+    const t01 = (e.bends[1].y - p0.y) / (p2.y - p0.y);
+    const soll = p0.x + (p2.x - p0.x) * t01;
+    t('nach dem Ausweichpunkt läuft der Zug gerade aufs Ziel',
+      Math.abs(e.bends[1].x - soll) <= 4,
+      `Abweichung ${Math.abs(e.bends[1].x - soll).toFixed(1)} px`);
+  }
+}
+
 api.loadDelta(lies('crm.yaml'));
 api.loadDelta(lies('sap-finanz.yaml'));
 
