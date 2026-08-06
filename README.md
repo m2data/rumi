@@ -144,7 +144,7 @@ Projektstruktur:
 
     src/        Quellen: index.html (Gerüst), style.css/svg.css und die
                 JS-Module (yaml, model, layout, render, app, route, edit,
-                hierarchie, ui)
+                interaktion, hierarchie, ui)
     build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
     dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
     models/     Beispiel-YAML (Geschäftsobjekte + Hierarchie)

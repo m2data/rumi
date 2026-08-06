@@ -126,6 +126,7 @@ function drawHandles(){
   let extra = '';
   const box = selectionBox();
   if(box) extra += `<rect class="selbox" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="5"/>`;
+  const band = bandRect();     // Auswahlrahmen, falls gerade einer aufgezogen wird
   if(band) extra += `<rect class="band" x="${Math.min(band.x0,band.x1)}" y="${Math.min(band.y0,band.y1)}" width="${Math.abs(band.x1-band.x0)}" height="${Math.abs(band.y1-band.y0)}"/>`;
   const e = S.selEdge && S.graph.edges.find(x => x.id === S.selEdge);
   const A = e && S.graph.byId.get(e.from), B = e && S.graph.byId.get(e.to);
