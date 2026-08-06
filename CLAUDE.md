@@ -91,6 +91,18 @@ dem *alten* Stand fehlschlägt, ein Feature einen Test des Bedienwegs.
 der alte Stand gemessen. Das war bisher die häufigste Quelle widersprüchlicher
 Messungen.
 
+**Layout beurteilt man in Zahlen, nicht am Bild:** vor und nach jeder Änderung
+dieselben Kennzahlen messen — geroutete Kreuzungen, X direkt am Kasten (zwei
+Kanten mit gemeinsamem Endknoten kreuzen sich davor), Pendeln und Kehren im
+Zug, Schnitte durch fremde Kästen. Ein Bildschirmfoto zeigt nur, was zufällig
+im Ausschnitt liegt; jede echte Verbesserung dieser Art war zuvor eine Zahl.
+
+**Erst die Struktur, dann die Zeichnung:** sieht eine Kante falsch aus, zuerst
+ihre Stützpunkte prüfen ([layout.js](src/layout.js)) — ein Eingriff in
+[render.js](src/render.js) kaschiert sonst nur das Symptom. Und jeder
+Ausweich- oder Rückfallzweig muss dieselbe Prüfung durchlaufen wie der
+Hauptweg, sonst erzeugt er genau das Muster, das er verhindern soll.
+
 **Commits:** deutsche Betreffzeile ohne Schlusspunkt, der Körper erklärt in
 Fließtext das Warum. Das Build-Ergebnis `dist/geschaeftsobjekt-explorer.html`
 gehört mit in den Commit, andere `dist/*.html` nicht. Nach jedem Commit nach

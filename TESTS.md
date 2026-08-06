@@ -94,6 +94,14 @@ Jede Änderung gilt erst als fertig, wenn sie einen Test hat:
 - **Reines Refactoring** darf ohne neuen Test auskommen, wenn die
   Verhaltensgleichheit anders belegt ist (z. B. byte-/zeichengleiche Ausgabe).
 
+**Layout-Geometrie prüfen:** über den Bedienweg (Klick auf das Verfahren im
+Anordnen-Menü), nicht per direktem `ALGOS.…fn(...)`. Der direkte Aufruf umgeht
+`runByComponent`, dessen Tiefensuche die Knotenreihenfolge und damit die
+Ebenenzuteilung bestimmt — der Test misst sonst eine andere Anordnung als die
+App und behauptet Geometrie, die es im Browser nicht gibt. Dazu die Kastenmaße
+vereinheitlichen (`n.w = 152; n.h = 38`), sonst hängt das Ergebnis an der
+Schriftmessung des Mini-DOM. Beispiele in [`rauch/fuehrung.js`](test/rauch/fuehrung.js).
+
 ## Absicherung im Hook
 
 Der Pre-Commit-Hook liegt versioniert unter `hooks/` und wird pro Klon einmalig
