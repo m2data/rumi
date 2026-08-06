@@ -174,18 +174,18 @@ svg.addEventListener('pointerdown', ev=>{
         const down = (A.y + A.h/2) <= (B.y + B.h/2);
         e.portFrom = {side: down ? 'B' : 'T', t:0.5};
         e.portTo   = {side: down ? 'T' : 'B', t:0.5};
-        const fx = Math.round(A.x + A.w/2), tx = Math.round(B.x + B.w/2), yMid = Math.round(m.y);
-        e.bends = [{x:fx, y:yMid}, {x:tx, y:yMid}];
-        zeiger = {art:'segment', e, axis:'y', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:yMid};
       } else {
         const right = (A.x + A.w/2) <= (B.x + B.w/2);
         e.portFrom = {side: right ? 'R' : 'L', t:0.5};
         e.portTo   = {side: right ? 'L' : 'R', t:0.5};
-        const fy = Math.round(A.y + A.h/2), ty = Math.round(B.y + B.h/2), xMid = Math.round(m.x);
-        e.bends = [{x:xMid, y:fy}, {x:xMid, y:ty}];
-        zeiger = {art:'segment', e, axis:'x', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:xMid};
       }
+      // Dieselbe Stufe wie überall (orthoCorners), nur liegt das Mittelstück
+      // unter dem Zeiger statt mittig — daran wird ja sofort gezogen.
+      e.bends = orthoCorners(portPoint(A, e.portFrom), portPoint(B, e.portTo),
+                             e.portFrom.side, flowVert ? m.y : m.x);
       drawEdges();
+      zeiger = {art:'segment', e, axis: flowVert ? 'y' : 'x', ends:[{bend:0}, {bend:1}],
+                sx:ev.clientX, sy:ev.clientY, base: flowVert ? e.bends[0].y : e.bends[0].x};
     } else if(e.ortho){
       // Mittelsegment eines bestehenden Zuges versetzen: vier Punkte halten die
       // beiden Stub-Enden achsparallel (paarweise deckungsgleich bis zum Ziehen).

@@ -125,7 +125,10 @@ console.log('== Ortho: diagonal gezogener Anschlusspunkt bleibt bearbeitbar ==')
     && !S.graph.byId.get(x.from).hidden && !S.graph.byId.get(x.to).hidden);
   t('Ortho-Kante vorhanden', !!e);
   if(e){
-    e.bends = null; e.portFrom = {side:'R', t:0.5}; e.portTo = {side:'T', t:0.5}; e.manual = true;
+    // t bewusst schief (nicht 0.5): so liegen die Anschlusspunkte auf
+    // gebrochenen Koordinaten — der Fall, in dem sich Zeichnung und Ablage
+    // früher um bis zu einen halben Punkt unterschieden.
+    e.bends = null; e.portFrom = {side:'R', t:0.37}; e.portTo = {side:'T', t:0.63}; e.manual = true;
     S.selEdge = e.id; api.draw();
     const H = () => document.getElementById('handles');
     const ghVor = H().querySelectorAll('.gh').length, segVor = H().querySelectorAll('.seg').length;
@@ -134,10 +137,19 @@ console.log('== Ortho: diagonal gezogener Anschlusspunkt bleibt bearbeitbar ==')
     t('schräge Ortho-Direktverbindung bietet einen Zusatzpunkt-Griff', ghVor >= 1,
       `gh=${ghVor}, seg=${segVor}`);
 
+    // Gezeichnete Stufe und die spätere Ablage stammen aus derselben Quelle
+    // (orthoCorners): das Materialisieren darf die Linie nicht verrücken.
+    const pfad = ()=>{
+      const g = [...document.getElementById('edges').querySelectorAll('.eg')].find(x => x.dataset.id === e.id);
+      return g && g.querySelector('.e-path').getAttribute('d');
+    };
+    const vorMat = pfad();
     const gesetzt = api.materializeOrtho(e);
     api.draw();
     t('schräge Ortho-Kante bekommt echte Knicke', gesetzt && e.bends && e.bends.length >= 2,
       'bends=' + (e.bends ? e.bends.length : 0));
+    t('die gezeichnete Linie bleibt dabei unverändert', pfad() === vorMat,
+      vorMat + '  →  ' + pfad());
     const ghNach = H().querySelectorAll('.gh').length, segNach = H().querySelectorAll('.seg').length;
     t('Segment- und Stützpunktgriffe erscheinen', ghNach > 0 && segNach > 0,
       `gh=${ghNach}, seg=${segNach}`);

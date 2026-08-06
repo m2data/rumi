@@ -27,19 +27,27 @@ function nearestOnPoly(pts, x, y){
   return best;
 }
 
-/* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
-   edgeMarkup zeichnet daraus die Stufe; als echte Knicke abgelegt, bekommt die
-   Kante die üblichen Segment- und Stützpunktgriffe (sonst bliebe eine diagonal
-   gezogene Ortho-Kante unbearbeitbar). Bei bereits achsparalleler Lage: keine. */
-function orthoCorners(p1, p2, side){
+/* Die zwei rechtwinkligen Ecken eines Stufenzugs zwischen p1 und p2. `side` ist
+   die Anschlussseite und bestimmt damit die Achse (T/B = senkrecht hinaus).
+   Die EINE Stelle, an der die Stufe entsteht: edgeMarkup zeichnet daraus die
+   Kante, materializeOrtho und das Einfügen eines Stützpunkts legen sie als
+   echte Knicke ab, und die Wegsuche greift darauf zurück, wenn A* keinen Weg
+   findet. Vorher baute jede dieser vier Stellen dieselbe Stufe für sich.
+
+   `mitte` verschiebt das Mittelstück (Wert auf der Querachse); ohne Angabe
+   liegt es mittig zwischen beiden Punkten — dann gilt eine bereits
+   achsparallele Lage als stufenlos und liefert keine Ecken. Mit ausdrücklicher
+   Mitte kommen immer zwei Ecken, denn der Aufrufer will daran ziehen.
+   Die Ecken sind ganzzahlig: sie werden als Stützpunkte abgelegt. */
+function orthoCorners(p1, p2, side, mitte){
   const vert = side === 'T' || side === 'B';
   if(vert){
-    if(Math.abs(p1.x - p2.x) < 1) return [];
-    const my = Math.round((p1.y + p2.y) / 2);
+    if(mitte == null && Math.abs(p1.x - p2.x) < 1) return [];
+    const my = Math.round(mitte == null ? (p1.y + p2.y) / 2 : mitte);
     return [{x:Math.round(p1.x), y:my}, {x:Math.round(p2.x), y:my}];
   }
-  if(Math.abs(p1.y - p2.y) < 1) return [];
-  const mx = Math.round((p1.x + p2.x) / 2);
+  if(mitte == null && Math.abs(p1.y - p2.y) < 1) return [];
+  const mx = Math.round(mitte == null ? (p1.x + p2.x) / 2 : mitte);
   return [{x:mx, y:Math.round(p1.y)}, {x:mx, y:Math.round(p2.y)}];
 }
 

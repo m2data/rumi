@@ -2198,13 +2198,12 @@ function edgeMarkup(e, g, cls){
     p1 = edgeEnd(A, e.portFrom, {x:B.x+B.w/2, y:B.y+B.h/2});
     p2 = edgeEnd(B, e.portTo, {x:A.x+A.w/2, y:A.y+A.h/2});
     if(e.ortho){
-      const vert = (e.portFrom || e.portTo).side === 'T' || (e.portFrom || e.portTo).side === 'B';
-      const pts = vert
-        ? [p1, {x:p1.x, y:(p1.y+p2.y)/2}, {x:p2.x, y:(p1.y+p2.y)/2}, p2]
-        : [p1, {x:(p1.x+p2.x)/2, y:p1.y}, {x:(p1.x+p2.x)/2, y:p2.y}, p2];
+      // Dieselbe Stufe wie materializeOrtho sie ablegen würde (orthoCorners) —
+      // so liegen gezeichnete Linie und die Griffe danach aufeinander.
+      const pts = [p1, ...orthoCorners(p1, p2, (e.portFrom || e.portTo).side), p2];
       path = orthoPath(pts);
       a1 = Math.atan2(pts[1].y-p1.y, pts[1].x-p1.x);
-      a2 = Math.atan2(pts[2].y-p2.y, pts[2].x-p2.x);
+      a2 = Math.atan2(pts[pts.length-2].y-p2.y, pts[pts.length-2].x-p2.x);
       mid = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
     } else {
       path = `M${fx(p1.x)} ${fx(p1.y)}L${fx(p2.x)} ${fx(p2.y)}`;
@@ -3070,9 +3069,8 @@ function rerouteEdges(list){
     if(!mid) mid = astar(grid, rects, s1, s2, usage, 1);   // enger, aber immer noch außen herum
     e.ortho = ortho;
     if(!mid){                                   // wirklich kein Weg: einfache Z-Führung
-      const vert = e.portFrom.side === 'T' || e.portFrom.side === 'B';
-      const m = vert ? (p1.y + p2.y)/2 : (p1.x + p2.x)/2;
-      e.bends = vert ? [{x:p1.x, y:m}, {x:p2.x, y:m}] : [{x:m, y:p1.y}, {x:m, y:p2.y}];
+      const c = orthoCorners(p1, p2, e.portFrom.side);
+      e.bends = c.length ? c : null;            // achsparallel: gerade Linie genügt
       return;
     }
     const full = tidyPath([p1, s1, ...mid, s2, p2]);
@@ -3114,19 +3112,27 @@ function nearestOnPoly(pts, x, y){
   return best;
 }
 
-/* Die rechtwinkligen Ecken, die eine ortho-Kante ohne Stützpunkte aufspannt.
-   edgeMarkup zeichnet daraus die Stufe; als echte Knicke abgelegt, bekommt die
-   Kante die üblichen Segment- und Stützpunktgriffe (sonst bliebe eine diagonal
-   gezogene Ortho-Kante unbearbeitbar). Bei bereits achsparalleler Lage: keine. */
-function orthoCorners(p1, p2, side){
+/* Die zwei rechtwinkligen Ecken eines Stufenzugs zwischen p1 und p2. `side` ist
+   die Anschlussseite und bestimmt damit die Achse (T/B = senkrecht hinaus).
+   Die EINE Stelle, an der die Stufe entsteht: edgeMarkup zeichnet daraus die
+   Kante, materializeOrtho und das Einfügen eines Stützpunkts legen sie als
+   echte Knicke ab, und die Wegsuche greift darauf zurück, wenn A* keinen Weg
+   findet. Vorher baute jede dieser vier Stellen dieselbe Stufe für sich.
+
+   `mitte` verschiebt das Mittelstück (Wert auf der Querachse); ohne Angabe
+   liegt es mittig zwischen beiden Punkten — dann gilt eine bereits
+   achsparallele Lage als stufenlos und liefert keine Ecken. Mit ausdrücklicher
+   Mitte kommen immer zwei Ecken, denn der Aufrufer will daran ziehen.
+   Die Ecken sind ganzzahlig: sie werden als Stützpunkte abgelegt. */
+function orthoCorners(p1, p2, side, mitte){
   const vert = side === 'T' || side === 'B';
   if(vert){
-    if(Math.abs(p1.x - p2.x) < 1) return [];
-    const my = Math.round((p1.y + p2.y) / 2);
+    if(mitte == null && Math.abs(p1.x - p2.x) < 1) return [];
+    const my = Math.round(mitte == null ? (p1.y + p2.y) / 2 : mitte);
     return [{x:Math.round(p1.x), y:my}, {x:Math.round(p2.x), y:my}];
   }
-  if(Math.abs(p1.y - p2.y) < 1) return [];
-  const mx = Math.round((p1.x + p2.x) / 2);
+  if(mitte == null && Math.abs(p1.y - p2.y) < 1) return [];
+  const mx = Math.round(mitte == null ? (p1.x + p2.x) / 2 : mitte);
   return [{x:mx, y:Math.round(p1.y)}, {x:mx, y:Math.round(p2.y)}];
 }
 
@@ -3509,18 +3515,18 @@ svg.addEventListener('pointerdown', ev=>{
         const down = (A.y + A.h/2) <= (B.y + B.h/2);
         e.portFrom = {side: down ? 'B' : 'T', t:0.5};
         e.portTo   = {side: down ? 'T' : 'B', t:0.5};
-        const fx = Math.round(A.x + A.w/2), tx = Math.round(B.x + B.w/2), yMid = Math.round(m.y);
-        e.bends = [{x:fx, y:yMid}, {x:tx, y:yMid}];
-        zeiger = {art:'segment', e, axis:'y', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:yMid};
       } else {
         const right = (A.x + A.w/2) <= (B.x + B.w/2);
         e.portFrom = {side: right ? 'R' : 'L', t:0.5};
         e.portTo   = {side: right ? 'L' : 'R', t:0.5};
-        const fy = Math.round(A.y + A.h/2), ty = Math.round(B.y + B.h/2), xMid = Math.round(m.x);
-        e.bends = [{x:xMid, y:fy}, {x:xMid, y:ty}];
-        zeiger = {art:'segment', e, axis:'x', ends:[{bend:0}, {bend:1}], sx:ev.clientX, sy:ev.clientY, base:xMid};
       }
+      // Dieselbe Stufe wie überall (orthoCorners), nur liegt das Mittelstück
+      // unter dem Zeiger statt mittig — daran wird ja sofort gezogen.
+      e.bends = orthoCorners(portPoint(A, e.portFrom), portPoint(B, e.portTo),
+                             e.portFrom.side, flowVert ? m.y : m.x);
       drawEdges();
+      zeiger = {art:'segment', e, axis: flowVert ? 'y' : 'x', ends:[{bend:0}, {bend:1}],
+                sx:ev.clientX, sy:ev.clientY, base: flowVert ? e.bends[0].y : e.bends[0].x};
     } else if(e.ortho){
       // Mittelsegment eines bestehenden Zuges versetzen: vier Punkte halten die
       // beiden Stub-Enden achsparallel (paarweise deckungsgleich bis zum Ziehen).

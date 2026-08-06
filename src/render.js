@@ -227,13 +227,12 @@ function edgeMarkup(e, g, cls){
     p1 = edgeEnd(A, e.portFrom, {x:B.x+B.w/2, y:B.y+B.h/2});
     p2 = edgeEnd(B, e.portTo, {x:A.x+A.w/2, y:A.y+A.h/2});
     if(e.ortho){
-      const vert = (e.portFrom || e.portTo).side === 'T' || (e.portFrom || e.portTo).side === 'B';
-      const pts = vert
-        ? [p1, {x:p1.x, y:(p1.y+p2.y)/2}, {x:p2.x, y:(p1.y+p2.y)/2}, p2]
-        : [p1, {x:(p1.x+p2.x)/2, y:p1.y}, {x:(p1.x+p2.x)/2, y:p2.y}, p2];
+      // Dieselbe Stufe wie materializeOrtho sie ablegen würde (orthoCorners) —
+      // so liegen gezeichnete Linie und die Griffe danach aufeinander.
+      const pts = [p1, ...orthoCorners(p1, p2, (e.portFrom || e.portTo).side), p2];
       path = orthoPath(pts);
       a1 = Math.atan2(pts[1].y-p1.y, pts[1].x-p1.x);
-      a2 = Math.atan2(pts[2].y-p2.y, pts[2].x-p2.x);
+      a2 = Math.atan2(pts[pts.length-2].y-p2.y, pts[pts.length-2].x-p2.x);
       mid = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
     } else {
       path = `M${fx(p1.x)} ${fx(p1.y)}L${fx(p2.x)} ${fx(p2.y)}`;

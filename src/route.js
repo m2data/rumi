@@ -193,9 +193,8 @@ function rerouteEdges(list){
     if(!mid) mid = astar(grid, rects, s1, s2, usage, 1);   // enger, aber immer noch außen herum
     e.ortho = ortho;
     if(!mid){                                   // wirklich kein Weg: einfache Z-Führung
-      const vert = e.portFrom.side === 'T' || e.portFrom.side === 'B';
-      const m = vert ? (p1.y + p2.y)/2 : (p1.x + p2.x)/2;
-      e.bends = vert ? [{x:p1.x, y:m}, {x:p2.x, y:m}] : [{x:m, y:p1.y}, {x:m, y:p2.y}];
+      const c = orthoCorners(p1, p2, e.portFrom.side);
+      e.bends = c.length ? c : null;            // achsparallel: gerade Linie genügt
       return;
     }
     const full = tidyPath([p1, s1, ...mid, s2, p2]);
