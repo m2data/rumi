@@ -44,7 +44,12 @@ gespeichert:
 
 1. **Geschäftsobjekte** – YAML (`models/willibald-attr.yaml`). Über „Delta
    Geschäftsobjekte" lässt sich eine weitere YAML einspielen, die die Objekte
-   *ergänzt*; gleichnamige Objekte werden durch die neue Fassung ersetzt.
+   *ergänzt*. Trägt ein Objekt denselben Namen, entsteht ein **Superset** aus
+   beiden Fassungen: Quellen, Business Keys, Attribute und Beziehungen werden
+   vereinigt (gleiches Attribut bzw. gleiches Beziehungsziel nur einmal, dabei
+   gilt die Fassung des Deltas). Einzelwerte wie Domain und Beschreibung nimmt
+   das Delta. So lassen sich zwei Modelle, die dieselben Objekte aus
+   verschiedenen Blickwinkeln beschreiben, zusammenführen.
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
    Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)

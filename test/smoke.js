@@ -959,21 +959,72 @@ console.log('== Export: Markdown in der Diagramm-Beschreibung wird formatiert ==
   api.setMode('komplett'); api.setView(1);
 }
 
-console.log('== Delta-Geschäftsobjekte: ergänzen und ersetzen ==');
+console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen ==');
 {
   const base  = 'BusinessObjects:\n  A:\n    Domain: D\n  B:\n    Domain: D\n';
   const delta = 'BusinessObjects:\n  B:\n    Domain: NEU\n  C:\n    Domain: D\n';
   const r = api.mergeGoText(base, delta);
-  t('mergeGoText zählt neu und ersetzt', r && r.added === 1 && r.replaced === 1, r ? `neu ${r.added}, ersetzt ${r.replaced}` : 'null');
-  t('ersetztes Objekt trägt die neue Info', /B:\s*\n\s*Domain: NEU/.test(r.text), r && r.text);
+  t('mergeGoText zählt neu und zusammengeführt', r && r.added === 1 && r.merged === 1,
+    r ? `neu ${r.added}, zusammengeführt ${r.merged}` : 'null');
+  t('Einzelwert: das Delta gewinnt', /B:\s*\n\s*Domain: NEU/.test(r.text), r && r.text);
   t('neues Objekt ist ergänzt', /\n\s*C:\s*\n\s*Domain: D/.test(r.text));
 
+  // Superset: Quellen, Attribute und Beziehungen beider Fassungen bleiben —
+  // genau der Fall zweier Modelle mit gleichnamigen Objekten. Die Einrückung
+  // der Listen unterscheidet sich absichtlich (2 gegen 6 Leerzeichen).
+  const b2 = [
+    'BusinessObjects:',
+    '  Kunde:',
+    '    Domain: CRM',
+    '    sources:',
+    '    - Customer',
+    '    attributes:',
+    '    - name: KundeID',
+    '      type: char(10)',
+    '    relationships:',
+    '    - to: Kontaktpunkt',
+    '      name: besitzt',
+    '    - to: Bestellung',
+    '      name: tätigt'
+  ].join('\n');
+  const d2 = [
+    'BusinessObjects:',
+    '  Kunde:',
+    '    Domain: SAP',
+    '    sources:',
+    '      - KNA1',
+    '    attributes:',
+    '      - name: Mandant',
+    '        type: char(3)',
+    '    relationships:',
+    '      - to: Auftrag',
+    '        name: erteilt',
+    '      - to: Bestellung',
+    '        name: erteilt1'
+  ].join('\n');
+  const s = api.mergeGoText(b2, d2);
+  const yml = s.text;
+  t('Superset: beide Quellen bleiben', /- Customer/.test(yml) && /- KNA1/.test(yml), yml);
+  t('Superset: beide Attribute bleiben', /name: KundeID/.test(yml) && /name: Mandant/.test(yml));
+  t('Superset: Beziehungen nur der Basis bleiben', /to: Kontaktpunkt/.test(yml));
+  t('Superset: Beziehungen nur des Deltas kommen dazu', /to: Auftrag/.test(yml));
+  t('Superset: gleiches Ziel wird nicht verdoppelt',
+    (yml.match(/to: Bestellung/g) || []).length === 1, yml);
+  t('Superset: beim gleichen Ziel gewinnt das Delta', /erteilt1/.test(yml) && !/tätigt/.test(yml));
   // end-to-end auf dem geladenen Modell (zuletzt, da es S.model verändert)
   const before = Object.keys(S.model.objects).length;
   const first = Object.keys(S.model.objects)[0];
-  api.loadDelta(`BusinessObjects:\n  ${first}:\n    Domain: DeltaDom\n    business_keys:\n    - K\n  NeuObjekt:\n    Domain: DeltaDom\n    business_keys:\n    - K`);
+  const altQuellen = S.model.objects[first].sources.slice();
+  const altRels = S.model.objects[first].rels.length;
+  api.loadDelta(`BusinessObjects:\n  ${first}:\n    Domain: DeltaDom\n    sources:\n    - DeltaQuelle\n  NeuObjekt:\n    Domain: DeltaDom\n    business_keys:\n    - K`);
   t('loadDelta fügt ein neues Objekt hinzu', !!S.model.objects.NeuObjekt);
-  t('loadDelta ersetzt ein vorhandenes Objekt', S.model.objects[first].domain === 'DeltaDom');
+  t('loadDelta übernimmt den neuen Einzelwert', S.model.objects[first].domain === 'DeltaDom');
+  t('loadDelta behält die bisherigen Quellen und ergänzt die neue',
+    altQuellen.every(q => S.model.objects[first].sources.includes(q))
+    && S.model.objects[first].sources.includes('DeltaQuelle'),
+    S.model.objects[first].sources.join(','));
+  t('loadDelta behält die bisherigen Beziehungen', S.model.objects[first].rels.length === altRels,
+    altRels + ' → ' + S.model.objects[first].rels.length);
   t('Objektzahl wächst genau um die neuen', Object.keys(S.model.objects).length === before + 1, before + ' → ' + Object.keys(S.model.objects).length);
 }
 

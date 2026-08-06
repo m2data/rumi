@@ -5142,7 +5142,9 @@ $('deltaInput').addEventListener('change', e=>{
 });
 
 /* ---------- Delta-Geschäftsobjekte einspielen ----------
-   Die neuen Objekte ergänzen die vorhandenen; gleichnamige werden ersetzt.
+   Neue Objekte kommen hinzu; bei Namensgleichheit entsteht ein Superset aus
+   beiden Fassungen: Listen (Quellen, Business Keys, Attribute, Beziehungen)
+   werden vereinigt, einzelne Werte (Domain, Beschreibung) nimmt das Delta.
    Zusammenführung auf Textebene (Objektblöcke), damit Attribute, Beschreibungen
    und Kommentare erhalten bleiben; danach wird das Ganze neu geprüft. */
 const BO_HEAD = /^\s*(BusinessObjects|businessObjects|business_objects|Geschaeftsobjekte)\s*:\s*(#.*)?$/;
@@ -5176,26 +5178,120 @@ function splitBusinessObjects(text){
   const preEnd = firstIdx < 0 ? hi + 1 : firstIdx;
   return {childCol, blocks, pre: lines.slice(0, preEnd), post: lines.slice(endIdx)};
 }
+const yCol = s => s.replace(/\t/g, '    ').match(/^ */)[0].length;
+const yBlank = s => s.trim() === '' || /^\s*#/.test(s);
+const shiftLines = (lines, d)=> d === 0 ? lines.slice() : lines.map(l => l.trim() === '' ? l
+  : (d > 0 ? ' '.repeat(d) + l.replace(/\t/g, '    ') : l.replace(/\t/g, '    ').slice(-d)));
+
 function reindentBlock(block, from, to){
   if(from === to || from == null || to == null) return block;
-  const d = to - from;
-  const shift = l => l.trim() === '' ? l
-    : (d > 0 ? ' '.repeat(d) + l.replace(/\t/g, '    ') : l.replace(/\t/g, '    ').slice(-d));
-  return {name: block.name, lines: block.lines.map(shift)};
+  return {name: block.name, lines: shiftLines(block.lines, to - from)};
 }
+
+/* Einen Objektblock in Kopfzeile und Felder zerlegen. Ein Feld ist entweder ein
+   Einzelwert („Domain: X", auch mehrzeilig bei „desc: >") oder eine Liste
+   („sources:" mit eingerückten Einträgen darunter). */
+function splitObjectFields(lines){
+  let fieldCol = null;
+  for(let i = 1; i < lines.length; i++) if(!yBlank(lines[i])){ fieldCol = yCol(lines[i]); break; }
+  const fields = [];
+  let cur = null;
+  for(let i = 1; i < lines.length; i++){
+    const l = lines[i];
+    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w-]*)"?\s*:/) : null;
+    if(m){ cur = {key: m[1], lines: [l]}; fields.push(cur); }
+    else if(cur) cur.lines.push(l);
+  }
+  return {head: lines[0], fieldCol, fields};
+}
+
+/* Die Listeneinträge eines Feldes. Ein Eintrag beginnt mit „- " und reicht bis
+   zum nächsten Eintrag derselben Einrückung. */
+function splitListItems(field){
+  const items = [];
+  let cur = null, itemCol = null;
+  for(let i = 1; i < field.lines.length; i++){
+    const l = field.lines[i];
+    if(yBlank(l)){ if(cur) cur.lines.push(l); continue; }
+    const c = yCol(l);
+    if(/^\s*-\s/.test(l) && (itemCol === null || c === itemCol)){
+      itemCol = c; cur = {lines: [l]}; items.push(cur);
+    } else if(cur) cur.lines.push(l);
+  }
+  return {items, itemCol};
+}
+
+/* Wodurch ein Listeneintrag identifiziert wird: eine Beziehung über ihr Ziel,
+   ein Attribut über seinen Namen, ein einfacher Wert über sich selbst. */
+function listItemKey(item){
+  const text = item.lines.map(l => l.trim()).filter(Boolean);
+  for(const l of text){
+    const to = l.replace(/^-\s*/, '').match(/^to\s*:\s*"?([^"#]+?)"?\s*$/);
+    if(to) return 'to:' + to[1].trim();
+  }
+  for(const l of text){
+    const nm = l.replace(/^-\s*/, '').match(/^name\s*:\s*"?([^"#]+?)"?\s*$/);
+    if(nm) return 'name:' + nm[1].trim();
+  }
+  return 'wert:' + text[0].replace(/^-\s*/, '').trim();
+}
+
+/* Zwei gleichnamige Objektblöcke zu einem Superset verschmelzen: Listenfelder
+   werden vereinigt (Einträge des Deltas ersetzen gleiche der Basis, neue kommen
+   dazu), Einzelwerte nimmt das Delta, Felder nur einer Seite bleiben erhalten. */
+function mergeObjectBlocks(baseLines, deltaLines){
+  const B = splitObjectFields(baseLines), D = splitObjectFields(deltaLines);
+  if(B.fieldCol == null) return deltaLines.slice();
+  if(D.fieldCol == null) return baseLines.slice();
+  const dByKey = new Map();
+  D.fields.forEach(f=>{ if(!dByKey.has(f.key)) dByKey.set(f.key, f); });
+  const out = [B.head], benutzt = new Set();
+
+  B.fields.forEach(bf=>{
+    benutzt.add(bf.key);
+    const df = dByKey.get(bf.key);
+    if(!df){ out.push(...bf.lines); return; }
+    const bl = splitListItems(bf), dl = splitListItems(df);
+    if(!bl.items.length || !dl.items.length){ out.push(...df.lines); return; }  // Einzelwert: Delta gewinnt
+    const dShift = bl.itemCol - dl.itemCol;                                     // Einrückung angleichen
+    const dRest = new Map();
+    dl.items.forEach(it=>{ const k = listItemKey(it); if(!dRest.has(k)) dRest.set(k, it); });
+    out.push(bf.lines[0]);
+    bl.items.forEach(bi=>{
+      const k = listItemKey(bi);
+      const di = dRest.get(k);
+      if(di){ out.push(...shiftLines(di.lines, dShift)); dRest.delete(k); }     // Delta ist die neuere Fassung
+      else out.push(...bi.lines);
+    });
+    dRest.forEach(di => out.push(...shiftLines(di.lines, dShift)));             // was das Delta zusätzlich hat
+  });
+  D.fields.forEach(df=>{                                                        // Felder, die nur das Delta hat
+    if(!benutzt.has(df.key)) out.push(...shiftLines(df.lines, B.fieldCol - D.fieldCol));
+  });
+  return out;
+}
+
 function mergeGoText(baseText, deltaText){
   const B = splitBusinessObjects(baseText), D = splitBusinessObjects(deltaText);
   if(!B || !D) return null;
   const order = [], map = new Map();
   B.blocks.forEach(b=>{ if(!map.has(b.name)) order.push(b.name); map.set(b.name, b); });
-  let added = 0, replaced = 0;
+  let added = 0, merged = 0;
+  const ziel = B.childCol != null ? B.childCol : D.childCol;
   D.blocks.forEach(d=>{
-    if(map.has(d.name)) replaced++; else { added++; order.push(d.name); }
-    map.set(d.name, reindentBlock(d, D.childCol, B.childCol != null ? B.childCol : D.childCol));
+    const dd = reindentBlock(d, D.childCol, ziel);
+    const vorhanden = map.get(d.name);
+    if(vorhanden){
+      merged++;
+      map.set(d.name, {name: d.name, lines: mergeObjectBlocks(vorhanden.lines, dd.lines)});
+    } else {
+      added++; order.push(d.name);
+      map.set(d.name, dd);
+    }
   });
   const body = [];
   order.forEach(nm => body.push(...map.get(nm).lines));
-  return {text: [...B.pre, ...body, ...B.post].join('\n'), added, replaced};
+  return {text: [...B.pre, ...body, ...B.post].join('\n'), added, merged};
 }
 function loadDelta(text){
   const merged = mergeGoText(S.yamlText, text);
@@ -5206,7 +5302,7 @@ function loadDelta(text){
   setView(S.view);                       // vorhandene bleiben, neue werden platziert
   if(S.mode === 'hierarchie') setMode('hierarchie');
   resetHistory();                        // Modell hat sich geändert -> Verlauf neu beginnen
-  toast(`Delta: ${merged.added} neu, ${merged.replaced} ersetzt`);
+  toast(`Delta: ${merged.added} neu, ${merged.merged} zusammengeführt`);
 }
 $('layoutInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
