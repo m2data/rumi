@@ -1633,18 +1633,21 @@ function layered(nodes, edges, dir, ortho){
     }
     return vertical ? p.x : p.y;
   };
-  for(const list of ports.values()){
-    if(list.length < 2) continue;
-    list.sort((p,q)=> crossOf(p) - crossOf(q));
-    // Die Spanne wächst mit der Zahl der Anschlüsse bis fast zur ganzen Seite:
-    // 15 Beziehungen auf festen 36 % einer schmalen Kastenseite (waagrechter
-    // Fluss) wären ein Strichbündel, an dem kein Name mehr zuzuordnen ist.
-    const span = Math.min(0.84, Math.max(0.36, (list.length - 1) * 0.1));
-    const spread = span / (list.length - 1);
-    list.forEach((ref,i)=>{
-      ref.e[ref.which].t = 0.5 + (i - (list.length-1)/2) * spread;
-    });
-  }
+  const verteilePorts = ()=>{
+    for(const list of ports.values()){
+      if(list.length < 2) continue;
+      list.sort((p,q)=> crossOf(p) - crossOf(q));
+      // Die Spanne wächst mit der Zahl der Anschlüsse bis fast zur ganzen Seite:
+      // 15 Beziehungen auf festen 36 % einer schmalen Kastenseite (waagrechter
+      // Fluss) wären ein Strichbündel, an dem kein Name mehr zuzuordnen ist.
+      const span = Math.min(0.84, Math.max(0.36, (list.length - 1) * 0.1));
+      const spread = span / (list.length - 1);
+      list.forEach((ref,i)=>{
+        ref.e[ref.which].t = 0.5 + (i - (list.length-1)/2) * spread;
+      });
+    }
+  };
+  verteilePorts();
 
   /* Lange Kanten möglichst gerade in den Zielanschluss fallen lassen: die
      Stützspalten auf die Querlage des Zielports ziehen, soweit die Ebene dort
@@ -1711,80 +1714,91 @@ function layered(nodes, edges, dir, ortho){
      Kästen. Je Ebene wird die Spalte auf die Interpolation zwischen den
      Anschlüssen gezogen, mit denselben Prüfungen wie beim Geraderücken:
      nur wenn die Ebene dort frei ist und keine neuen Kreuzungen entstehen. */
-  if(!ortho) edges.forEach(e=>{
-    const info = chain.get(e);
-    if(!info || !info.ds.length) return;
-    const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
-    if(!A || !B) return;
-    const cOf = (n, port)=> vertical
-      ? n.x + n.w * (port ? port.t : 0.5)
-      : n.y + n.h * (port ? port.t : 0.5);
-    const mOf = n => vertical ? n.y + n.h/2 : n.x + n.w/2;
-    const ca = cOf(A, e.portFrom), cb = cOf(B, e.portTo);
-    const ma = mOf(A), mb = mOf(B);
-    if(Math.abs(mb - ma) < 1) return;
-    const vorher = kreuzungen(e);
-    const alt = info.ds.map(d => d.c);
-    // Zwei Zugformen wiegen schwerer als eine Kreuzung mehr und werden darum
-    // nie aus Kreuzungsgründen behalten: der Kringel (eine Spalte AUSSERHALB
-    // des Anschluss-Intervalls — die Kante fährt erst vom Ziel weg) und das
-    // Zickzack (die Querrichtung wechselt unterwegs — die Kante pendelt hin
-    // und zurück, nur weil daneben Platz ist).
-    const lo = Math.min(ca, cb) - 10, hi = Math.max(ca, cb) + 10;
-    const zickzack = list=>{
-      const f = [ca, ...list, cb];
-      let dir = 0;
-      for(let i=1;i<f.length;i++){
-        const d = f[i] - f[i-1];
-        if(Math.abs(d) < 24) continue;               // kleine Versätze zählen nicht
-        const s = Math.sign(d);
-        if(dir && s !== dir) return true;
-        dir = s;
-      }
-      return false;
-    };
-    const warSchlecht = zickzack(alt) || info.ds.some(d => d.c < lo || d.c > hi);
-    // Wunschlage auf der Luftlinie; ist sie durch Kästen belegt, wird sie an
-    // den Rand der (zusammengelegten) Verbotszone geschoben — nicht zurück auf
-    // eine Anschlusslage, das baute selbst ein Zickzack. Und: einmal gewählte
-    // Ausweichseite beibehalten, sonst pendelt die Kante bei mehreren vollen
-    // Ebenen zwischen links und rechts.
-    let seite = 0;
-    const ausweich = (lay, wunsch)=>{
-      let zLo = wunsch, zHi = wunsch, drin = true, guard = 0;
-      while(drin && guard++ < 6){
-        drin = false;
-        for(const it of rows[lay]){
-          if(it.dummy) continue;
-          const half = cs(it)/2 + SIB * 0.3;
-          if(zHi > it.c - half && zLo < it.c + half && (it.c - half < zLo || it.c + half > zHi)){
-            zLo = Math.min(zLo, it.c - half);
-            zHi = Math.max(zHi, it.c + half);
-            drin = true;
+  let interpoliereWeich = null;
+  if(!ortho){
+    /* Eine Kante auf die Luftlinie führen. Gibt {alt, warSchlecht, vorher}
+       für die Rücknahme-Heuristik des Erstlaufs zurück (der Anschluss-Tausch
+       weiter unten führt ohne sie — dort wacht die Gesamtbewertung). */
+    const interpoliere = e=>{
+      const info = chain.get(e);
+      if(!info || !info.ds.length) return null;
+      const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
+      if(!A || !B) return null;
+      const cOf = (n, port)=> vertical
+        ? n.x + n.w * (port ? port.t : 0.5)
+        : n.y + n.h * (port ? port.t : 0.5);
+      const mOf = n => vertical ? n.y + n.h/2 : n.x + n.w/2;
+      const ca = cOf(A, e.portFrom), cb = cOf(B, e.portTo);
+      const ma = mOf(A), mb = mOf(B);
+      if(Math.abs(mb - ma) < 1) return null;
+      const vorher = kreuzungen(e);
+      const alt = info.ds.map(d => d.c);
+      // Zwei Zugformen wiegen schwerer als eine Kreuzung mehr und werden darum
+      // nie aus Kreuzungsgründen behalten: der Kringel (eine Spalte AUSSERHALB
+      // des Anschluss-Intervalls — die Kante fährt erst vom Ziel weg) und das
+      // Zickzack (die Querrichtung wechselt unterwegs — die Kante pendelt hin
+      // und zurück, nur weil daneben Platz ist).
+      const lo = Math.min(ca, cb) - 10, hi = Math.max(ca, cb) + 10;
+      const zickzack = list=>{
+        const f = [ca, ...list, cb];
+        let dir = 0;
+        for(let i=1;i<f.length;i++){
+          const d = f[i] - f[i-1];
+          if(Math.abs(d) < 24) continue;             // kleine Versätze zählen nicht
+          const s = Math.sign(d);
+          if(dir && s !== dir) return true;
+          dir = s;
+        }
+        return false;
+      };
+      const warSchlecht = zickzack(alt) || info.ds.some(d => d.c < lo || d.c > hi);
+      // Wunschlage auf der Luftlinie; ist sie durch Kästen belegt, wird sie an
+      // den Rand der (zusammengelegten) Verbotszone geschoben — nicht zurück auf
+      // eine Anschlusslage, das baute selbst ein Zickzack. Und: einmal gewählte
+      // Ausweichseite beibehalten, sonst pendelt die Kante bei mehreren vollen
+      // Ebenen zwischen links und rechts.
+      let seite = 0;
+      const ausweich = (lay, wunsch)=>{
+        let zLo = wunsch, zHi = wunsch, drin = true, guard = 0;
+        while(drin && guard++ < 6){
+          drin = false;
+          for(const it of rows[lay]){
+            if(it.dummy) continue;
+            const half = cs(it)/2 + SIB * 0.3;
+            if(zHi > it.c - half && zLo < it.c + half && (it.c - half < zLo || it.c + half > zHi)){
+              zLo = Math.min(zLo, it.c - half);
+              zHi = Math.max(zHi, it.c + half);
+              drin = true;
+            }
           }
         }
-      }
-      if(zLo === wunsch && zHi === wunsch) return wunsch;   // frei
-      if(!seite) seite = (wunsch - zLo <= zHi - wunsch) ? -1 : 1;
-      return seite < 0 ? zLo : zHi;
-    };
-    // Sequenziell interpolieren: die Bezugslinie läuft vom zuletzt gesetzten
-    // Punkt zum Ziel, nicht stur von Anschluss zu Anschluss. Nach einem
-    // Ausweichen (Kasten im Weg) zielt der Rest damit direkt aufs Ziel —
-    // sonst knickt die Kante an der nächsten Ebene zurück zur alten
-    // Luftlinie, obwohl sie gerade weiterlaufen könnte.
-    let refC = ca, refM = ma;
-    info.ds.forEach(d=>{
-      const ziel = refC + (cb - refC) * ((mainOf[d.lay] - refM) / (mb - refM));
-      d.c = ausweich(d.lay, ziel);
-      refC = d.c; refM = mainOf[d.lay];
-    });
-    e.bends = bendsOf(info);
-    if(!warSchlecht && kreuzungen(e) > vorher){
-      info.ds.forEach((d,k)=>{ d.c = alt[k]; });
+        if(zLo === wunsch && zHi === wunsch) return wunsch;   // frei
+        if(!seite) seite = (wunsch - zLo <= zHi - wunsch) ? -1 : 1;
+        return seite < 0 ? zLo : zHi;
+      };
+      // Sequenziell interpolieren: die Bezugslinie läuft vom zuletzt gesetzten
+      // Punkt zum Ziel, nicht stur von Anschluss zu Anschluss. Nach einem
+      // Ausweichen (Kasten im Weg) zielt der Rest damit direkt aufs Ziel —
+      // sonst knickt die Kante an der nächsten Ebene zurück zur alten
+      // Luftlinie, obwohl sie gerade weiterlaufen könnte.
+      let refC = ca, refM = ma;
+      info.ds.forEach(d=>{
+        const ziel = refC + (cb - refC) * ((mainOf[d.lay] - refM) / (mb - refM));
+        d.c = ausweich(d.lay, ziel);
+        refC = d.c; refM = mainOf[d.lay];
+      });
       e.bends = bendsOf(info);
-    }
-  });
+      return {info, alt, warSchlecht, vorher};
+    };
+    edges.forEach(e=>{
+      const r = interpoliere(e);
+      if(r && !r.warSchlecht && kreuzungen(e) > r.vorher){
+        r.info.ds.forEach((d,k)=>{ d.c = r.alt[k]; });
+        e.bends = bendsOf(r.info);
+      }
+    });
+    interpoliereWeich = interpoliere;      // für Härtung und Anschluss-Tausch darunter
+  }
 
   /* Weiche Diagonalen dürfen fremde Kästen nicht schneiden: die Spalte d.c ist
      zwar frei, aber die Schräge erreicht sie erst in Bandmitte und kann am
@@ -1811,7 +1825,7 @@ function layered(nodes, edges, dir, ortho){
       ? ((info.rev !== flip) ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
                              : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))])
       : [ptAt(d.c, mainOf[d.lay])]);
-    edges.forEach(e=>{
+    const haerte = e=>{
       const info = chain.get(e);
       if(!info || !info.ds.length || !e.portFrom) return;
       const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
@@ -1831,7 +1845,75 @@ function layered(nodes, edges, dir, ortho){
         if(!neu) break;
       }
       if(hart.size) e.bends = bendsMix(info, hart);
-    });
+    };
+    edges.forEach(haerte);
+
+    /* Anschluss-Reihenfolge an die endgültige Führung anpassen: die erste
+       Verteilung lief, BEVOR Luftlinie, Ausweichen und Härtung die
+       Stützspalten verschoben haben. Kanten derselben Kastenseite kreuzten
+       sich danach direkt am Kasten, nur weil ihre Reihung noch dem alten
+       Stand entsprach — mit den finalen Zügen neu sortiert verschwindet das. */
+    verteilePorts();
+
+    /* Kreuzungsbewusster Anschluss-Tausch, wie ihn orthogonalize für die
+       rechtwinklige Führung fährt: Nachbarn derselben Kastenseite probeweise
+       tauschen — und die beiden Kanten dabei NEU FÜHREN (Luftlinie + Härtung
+       zu den getauschten Anschlüssen), sonst zeigt der alte Zug weiter auf
+       die alte Portlage und der Tausch verlagert die Kreuzung nur. Behalten
+       wird, was die gezeichneten Züge seltener kreuzen lässt, ohne neu durch
+       Kästen zu laufen (Schnitte zählen dreifach). */
+    if(edges.length <= 200){
+      const score = ()=>{
+        const segsL = [];
+        edges.forEach(e2=>{
+          const P = polyOf(e2); if(!P) return;
+          for(let i=0;i<P.length-1;i++) segsL.push({e:e2, a:P[i], b:P[i+1]});
+        });
+        let s = 0;
+        for(let i=0;i<segsL.length;i++) for(let j=i+1;j<segsL.length;j++){
+          if(segsL[i].e === segsL[j].e) continue;
+          if(segCross(segsL[i].a, segsL[i].b, segsL[j].a, segsL[j].b)) s++;
+        }
+        edges.forEach(e2=>{
+          const P = polyOf(e2); if(!P) return;
+          for(const n of nodes){
+            if(n.id === e2.from || n.id === e2.to) continue;
+            for(let i=0;i<P.length-1;i++)
+              if(schneidet(P[i], P[i+1], n)){ s += 3; break; }
+          }
+        });
+        return s;
+      };
+      const swapT = (a, b)=>{
+        const tt = a.e[a.which].t; a.e[a.which].t = b.e[b.which].t; b.e[b.which].t = tt;
+      };
+      const merken = list => list.map(e2=>{
+        const info = chain.get(e2);
+        return {e:e2, bends: e2.bends ? e2.bends.map(p=>({x:p.x, y:p.y})) : null,
+                cs: info ? info.ds.map(d=>d.c) : []};
+      });
+      const zurueck = snap => snap.forEach(s2=>{
+        s2.e.bends = s2.bends;
+        const info = chain.get(s2.e);
+        if(info) info.ds.forEach((d,k)=>{ d.c = s2.cs[k]; });
+      });
+      let best = score();
+      for(let pass=0; pass<4 && best>0; pass++){
+        let besser = false;
+        for(const grp of ports.values()){
+          for(let p=0; p<grp.length-1; p++) for(let q=p+1; q<grp.length; q++){
+            const beide = grp[p].e === grp[q].e ? [grp[p].e] : [grp[p].e, grp[q].e];
+            const snap = merken(beide);
+            swapT(grp[p], grp[q]);
+            beide.forEach(e2=>{ interpoliereWeich(e2); haerte(e2); });
+            const s = score();
+            if(s < best){ best = s; besser = true; }
+            else { swapT(grp[p], grp[q]); zurueck(snap); }
+          }
+        }
+        if(!besser) break;
+      }
+    }
   }
 
   // Reihenfolge zählt: erst endgültige Lagen, dann die Kantenführung darauf rechnen.

@@ -128,6 +128,32 @@ console.log('== Kanten laufen an fremden Kästen vorbei, nicht hindurch ==');
   }
 }
 
+console.log('== Kreuzungszahl bleibt im Rahmen ==');
+{
+  // Geschwisterkanten (gleiche Quelle oder gleiches Ziel) kreuzten sich, weil
+  // die Anschluss-Reihenfolge vor der endgültigen Führung verteilt wurde und
+  // es — anders als bei orthogonal — keine kreuzungsbewusste Nachbesserung
+  // gab. Mit Neuverteilung und Anschluss-Tausch (samt Neuführung der
+  // getauschten Kanten): 66 → 50. Die Grenze lässt etwas Luft.
+  layoutMit('hier', 'TB');
+  const ccw=(p,q,r)=>(r.y-p.y)*(q.x-p.x)-(q.y-p.y)*(r.x-p.x);
+  const cross=(a,b,c,d)=>{const d1=ccw(c,d,a),d2=ccw(c,d,b),d3=ccw(a,b,c),d4=ccw(a,b,d);
+    return ((d1>0)!==(d2>0))&&((d3>0)!==(d4>0));};
+  const segs=[];
+  S.graph.edges.forEach(e=>{
+    const A=S.graph.byId.get(e.from),B=S.graph.byId.get(e.to);
+    if(!A||!B||A===B)return;
+    const pts=api.routePoints(e,A,B);
+    for(let i=0;i<pts.length-1;i++)segs.push({e,a:pts[i],b:pts[i+1]});
+  });
+  let n=0;
+  for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){
+    if(segs[i].e===segs[j].e)continue;
+    if(cross(segs[i].a,segs[i].b,segs[j].a,segs[j].b))n++;
+  }
+  t('TB: höchstens 55 geroutete Kreuzungen im dichten Modell', n <= 55, n + ' Kreuzungen');
+}
+
 console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==');
 {
   layoutMit('hier', 'TB');
