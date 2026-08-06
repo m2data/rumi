@@ -367,6 +367,118 @@ console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) =='
   }
 }
 
+console.log('== Alle vier Flussrichtungen sind gleichwertig ==');
+{
+  // Kette: der Fluss läuft in die gewählte Richtung
+  const kette = buildModel(`BusinessObjects:
+  A:
+    relationships:
+    - to: B
+  B:
+    relationships:
+    - to: C
+  C:
+    Domain: x
+`);
+  const posIn = (dir, g, id)=>{ const n = g.byId.get(id); return (dir === 'TB' || dir === 'BT') ? n.y : n.x; };
+  const erwartet = {TB:(a,b)=>a<b, BT:(a,b)=>a>b, LR:(a,b)=>a<b, RL:(a,b)=>a>b};
+  for(const dir of ['BT','LR','RL']){
+    const g = makeGraph(kette, 1);
+    ALGOS.hier.fn(g.nodes, g.edges, dir);
+    const p = id => posIn(dir, g, id);
+    t(`${dir}: Kette läuft in Flussrichtung`,
+      erwartet[dir](p('o:A'), p('o:B')) && erwartet[dir](p('o:B'), p('o:C')),
+      [p('o:A'), p('o:B'), p('o:C')].join(' → '));
+  }
+
+  // LR: die 1-Seite steht am Flussanfang (links), auch bei verkehrter Notation
+  {
+    const m = buildModel(`BusinessObjects:
+  Kind:
+    relationships:
+    - to: Eltern
+      cardinality:
+        from: zero_or_many
+        to: exactly_one
+  Eltern:
+    Domain: x
+`);
+    const g = makeGraph(m, 1);
+    ALGOS.hier.fn(g.nodes, g.edges, 'LR');
+    const E = g.byId.get('o:Eltern'), K = g.byId.get('o:Kind');
+    t('LR: 1-Seite links, n-Seite rechts', E.x + E.w <= K.x, `Eltern x=${E.x}, Kind x=${K.x}`);
+  }
+
+  // LR: Trabant (1:1) hängt unten, und die Einzelkind-Kette bleibt trotz des
+  // aufgeblähten Elternteils waagrecht in einer Linie — die parentC-Korrektur
+  // rechnete die Aufblähung bisher nur bei senkrechtem Fluss heraus.
+  {
+    const m = buildModel(`BusinessObjects:
+  Haupt:
+    relationships:
+    - to: Detail
+      cardinality:
+        from: exactly_one
+        to: exactly_one
+    - to: Kind
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Detail:
+    Domain: x
+  Kind:
+    relationships:
+    - to: Enkel
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Enkel:
+    Domain: x
+`);
+    const g = makeGraph(m, 1);
+    ALGOS.hier.fn(g.nodes, g.edges, 'LR');
+    const n = id => g.byId.get(id);
+    const cy = id => n(id).y + n(id).h/2;
+    const H = n('o:Haupt'), D = n('o:Detail');
+    t('LR: 1:1-Detail hängt unter dem Hauptobjekt',
+      D.y >= H.y + H.h - 1 && D.x < H.x + H.w && D.x + D.w > H.x,
+      `Haupt(${H.x},${H.y},h=${H.h}), Detail(${D.x},${D.y})`);
+    t('LR: Einzelkind-Kette waagrecht in einer Linie (trotz Trabant am Elternteil)',
+      Math.abs(cy('o:Haupt') - cy('o:Kind')) <= 1 && Math.abs(cy('o:Kind') - cy('o:Enkel')) <= 1,
+      [cy('o:Haupt'), cy('o:Kind'), cy('o:Enkel')].map(Math.round).join(' , '));
+  }
+
+  // Willibald orthogonal: in JEDER Richtung kreuzungsfrei geroutet. Das
+  // Langkanten-Geraderücken erzeugte bei LR 5 und bei RL 3 Kreuzungen, weil das
+  // Geradstück keinem Kanal gehört und die Spurvergabe es nicht ausweichen
+  // lassen kann — seitdem wird es zurückgenommen, wenn es neu kreuzt.
+  for(const dir of ['TB','BT','LR','RL']){
+    const g = makeGraph(model, 1);
+    ALGOS.ortho.fn(g.nodes, g.edges, dir);
+    t(`${dir}: Willibald orthogonal kreuzungsfrei geroutet`,
+      routedCrossings(g, portPoint) === 0, routedCrossings(g, portPoint) + ' Kreuzungen');
+    let bad = 0;
+    for(let i = 0; i < g.nodes.length; i++) for(let j = i + 1; j < g.nodes.length; j++)
+      if(overlaps(g.nodes[i], g.nodes[j])) bad++;
+    t(`${dir}: keine Überlappungen`, bad === 0, bad + ' Überlappungen');
+  }
+
+  // Korridor-Kompaktierung wirkt auch quer zum waagrechten Fluss (leere Zeilen)
+  {
+    const fixture = path.join(__dirname, '..', 'models', 'crm.yaml');
+    if(fs.existsSync(fixture)){
+      const g = makeGraph(buildModel(fs.readFileSync(fixture, 'utf8')), 1);
+      ALGOS.ortho.fn(g.nodes, g.edges, 'LR');
+      const iv = g.nodes.map(n => [n.y, n.y + n.h]).sort((a,b)=> a[0]-b[0]);
+      let maxGap = 0, end = iv[0][1];
+      for(const [lo, hi] of iv){ if(lo - end > maxGap) maxGap = lo - end; end = Math.max(end, hi); }
+      t('crm LR: keine leere Zeile höher als 150px', maxGap <= 150, 'größte Lücke=' + Math.round(maxGap));
+      t('crm LR: höchstens 4 geroutete Kreuzungen',
+        routedCrossings(g, portPoint) <= 4, routedCrossings(g, portPoint) + ' Kreuzungen');
+    } else console.log('  (crm-Teil übersprungen: models/crm.yaml fehlt)');
+  }
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

@@ -397,11 +397,13 @@ function layered(nodes, edges, dir, ortho){
           und hängt das Kind nur an diesem einen Elternteil, stehen beide in einer
           senkrechten Linie. tidy() rückt sie danach nur auseinander, wenn die Reihe
           es sonst überfüllt — „solange nichts dagegen spricht". */
-  // Trabanten hängen bei senkrechtem Fluss rechts am Elternteil, das dabei
-  // linksbündig bleibt — die reale Mitte des Elternteils liegt dann links von c.
+  // Trabanten hängen quer am Elternteil (senkrechter Fluss: rechts, waagrechter:
+  // unten), das dabei am Querrand bündig bleibt — die reale Mitte des Elternteils
+  // liegt dann um die halbe Aufblähung vor c.
   const parentC = p=>{
     const s = shrunk.get(p.n.id);
-    return (vertical && s) ? p.c - (cs(p)/2 - s.w/2) : p.c;
+    if(!s) return p.c;
+    return p.c - (cs(p)/2 - (vertical ? s.w : s.h)/2);
   };
   for(let pass=0; pass<6; pass++)
     for(let i=1;i<L;i++)
@@ -520,13 +522,45 @@ function layered(nodes, edges, dir, ortho){
   /* Lange Kanten möglichst gerade in den Zielanschluss fallen lassen: die
      Stützspalten auf die Querlage des Zielports ziehen, soweit die Ebene dort
      frei ist. Sonst läuft die Kante bis zur Knotenmitte und versetzt am Ende
-     zurück zum seitlichen Port (unnötiger Haken). */
+     zurück zum seitlichen Port (unnötiger Haken).
+
+     Aber nur, wenn das Geradstück keine neuen Kreuzungen einhandelt: es
+     durchquert fremde Ebenenbänder und gehört keinem Kanal — die spätere
+     Spurvergabe kann es also nicht mehr ausweichen lassen. Bei waagrechtem
+     Fluss (schmale Querachse, enge Anschlüsse) entstanden so bis zu fünf
+     Kreuzungen, die vorher nicht da waren; kreuzt der gerade Zug mehr als der
+     alte, wird er zurückgenommen. */
+  const polyOf = e=>{
+    const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
+    if(!A || !B || A === B) return null;
+    const p1 = e.portFrom ? portPoint(A, e.portFrom) : {x:A.x + A.w/2, y:A.y + A.h/2};
+    const p2 = e.portTo   ? portPoint(B, e.portTo)   : {x:B.x + B.w/2, y:B.y + B.h/2};
+    return [p1, ...(e.bends || []), p2];
+  };
+  const segCross = (a,b,c,d)=>{
+    const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+    const d1 = ccw(c,d,a), d2 = ccw(c,d,b), d3 = ccw(a,b,c), d4 = ccw(a,b,d);
+    return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
+  };
+  const kreuzungen = e=>{
+    const P = polyOf(e); if(!P) return 0;
+    let n = 0;
+    for(const o of edges){
+      if(o === e) continue;
+      const Q = polyOf(o); if(!Q) continue;
+      for(let i=0;i<P.length-1;i++) for(let j=0;j<Q.length-1;j++)
+        if(segCross(P[i], P[i+1], Q[j], Q[j+1])) n++;
+    }
+    return n;
+  };
   edges.forEach(e=>{
     const info = chain.get(e);
     if(!info || !info.ds.length || !e.portTo) return;
     const B = nodeOf.get(e.to);
     if(!B) return;
     const target = vertical ? B.x + B.w * e.portTo.t : B.y + B.h * e.portTo.t;
+    const vorher = kreuzungen(e);
+    const alt = info.ds.map(d => d.c);
     info.ds.forEach(d=>{
       const blocked = rows[d.lay].some(it=>{
         if(it.dummy) return false;
@@ -536,6 +570,10 @@ function layered(nodes, edges, dir, ortho){
       if(!blocked) d.c = target;
     });
     e.bends = dpts(info.ds, info.rev);
+    if(kreuzungen(e) > vorher){                  // gerade, aber neu kreuzend: zurücknehmen
+      info.ds.forEach((d,k)=>{ d.c = alt[k]; });
+      e.bends = dpts(info.ds, info.rev);
+    }
   });
 
   // Reihenfolge zählt: erst endgültige Lagen, dann die Kantenführung darauf rechnen.
