@@ -134,36 +134,41 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
   // kreuzen sich DIREKT vor diesem Kasten (fast immer durch die
   // Anschluss-Reihung vermeidbar; die Tauschsuche gewichtet den Ort der
   // Kreuzung) — und die Gesamtzahl als Deckel gegen Wildwuchs.
-  layoutMit('hier', 'TB');
+  // Der Deckel liegt bei 30: mit den drei geordneten Startordnungen allein
+  // kam dieses Modell auf 44 (TB) bzw. 42 (LR) Kreuzungen, mit den gemischten
+  // Zusatzstarts auf 25 bzw. 21. Der Deckel hält den Gewinn fest.
   const ccw=(p,q,r)=>(r.y-p.y)*(q.x-p.x)-(q.y-p.y)*(r.x-p.x);
   const cross=(a,b,c,d)=>{const d1=ccw(c,d,a),d2=ccw(c,d,b),d3=ccw(a,b,c),d4=ccw(a,b,d);
     return ((d1>0)!==(d2>0))&&((d3>0)!==(d4>0));};
   const sp=(a,b,c,d)=>{const rx=b.x-a.x,ry=b.y-a.y,sx=d.x-c.x,sy=d.y-c.y;
     const den=rx*sy-ry*sx; if(!den)return null;
     const tt=((c.x-a.x)*sy-(c.y-a.y)*sx)/den; return {x:a.x+rx*tt,y:a.y+ry*tt};};
-  const segs=[];
-  S.graph.edges.forEach(e=>{
-    const A=S.graph.byId.get(e.from),B=S.graph.byId.get(e.to);
-    if(!A||!B||A===B)return;
-    const pts=api.routePoints(e,A,B);
-    for(let i=0;i<pts.length-1;i++)segs.push({e,a:pts[i],b:pts[i+1]});
-  });
-  let n=0, nah=[];
-  for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){
-    const e1=segs[i].e,e2=segs[j].e;
-    if(e1===e2)continue;
-    if(cross(segs[i].a,segs[i].b,segs[j].a,segs[j].b)){
-      n++;
-      const gem=e1.from===e2.from||e1.from===e2.to?e1.from:e1.to===e2.from||e1.to===e2.to?e1.to:null;
-      if(gem){
-        const n0=S.graph.byId.get(gem), pt=sp(segs[i].a,segs[i].b,segs[j].a,segs[j].b);
-        if(n0&&pt&&Math.hypot(pt.x-(n0.x+n0.w/2),pt.y-(n0.y+n0.h/2))<140)
-          nah.push(gem.replace('o:',''));
+  for(const dir of ['TB','LR']){
+    layoutMit('hier', dir);
+    const segs=[];
+    S.graph.edges.forEach(e=>{
+      const A=S.graph.byId.get(e.from),B=S.graph.byId.get(e.to);
+      if(!A||!B||A===B)return;
+      const pts=api.routePoints(e,A,B);
+      for(let i=0;i<pts.length-1;i++)segs.push({e,a:pts[i],b:pts[i+1]});
+    });
+    let n=0, nah=[];
+    for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){
+      const e1=segs[i].e,e2=segs[j].e;
+      if(e1===e2)continue;
+      if(cross(segs[i].a,segs[i].b,segs[j].a,segs[j].b)){
+        n++;
+        const gem=e1.from===e2.from||e1.from===e2.to?e1.from:e1.to===e2.from||e1.to===e2.to?e1.to:null;
+        if(gem){
+          const n0=S.graph.byId.get(gem), pt=sp(segs[i].a,segs[i].b,segs[j].a,segs[j].b);
+          if(n0&&pt&&Math.hypot(pt.x-(n0.x+n0.w/2),pt.y-(n0.y+n0.h/2))<140)
+            nah.push(gem.replace('o:',''));
+        }
       }
     }
+    t(`${dir}: höchstens 2 auffällige X direkt am Kasten`, nah.length <= 2, nah.length + ': ' + nah.join(', '));
+    t(`${dir}: höchstens 30 geroutete Kreuzungen insgesamt`, n <= 30, n + ' Kreuzungen');
   }
-  t('TB: höchstens 2 auffällige X direkt am Kasten', nah.length <= 2, nah.length + ': ' + nah.join(', '));
-  t('TB: höchstens 50 geroutete Kreuzungen insgesamt', n <= 50, n + ' Kreuzungen');
 }
 
 console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==');
@@ -180,7 +185,11 @@ console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==
       raus.push(e.from.replace('o:','') + '>' + e.to.replace('o:',''));
   });
   // Wo alle Ebenen belegt sind, bleibt ein Umweg erlaubt — aber nicht viele.
-  t('höchstens 2 Züge müssen ihr Intervall verlassen', raus.length <= 2, raus.length + ': ' + raus.join(', '));
+  // Drei statt zwei, seit die gemischten Startordnungen eine kreuzungsärmere
+  // Ebenenreihenfolge wählen: dieselbe Anordnung, die hier 44 auf 25
+  // Kreuzungen drückt, schickt einen Zug mehr auf einen Umweg. Der Handel ist
+  // gemessen und bewusst so herum entschieden.
+  t('höchstens 3 Züge müssen ihr Intervall verlassen', raus.length <= 3, raus.length + ': ' + raus.join(', '));
 }
 
 finish();

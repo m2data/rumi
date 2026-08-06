@@ -354,11 +354,12 @@ console.log('== Orthogonal: Mehrfachstart hält die Kreuzungen niedrig (crm) =='
     const g = makeGraph(buildModel(fs.readFileSync(fixture, 'utf8')), 1);
     ALGOS.ortho.fn(g.nodes, g.edges, 'TB');
     const c = crossings(g.nodes, g.edges);
-    // Vor dem deterministischen Mehrfachstart waren es 7; jetzt 4.
-    t('crm orthogonal: höchstens 5 Kreuzungen (Zentrum-zu-Zentrum)', c <= 5, c + ' Kreuzungen');
-    // Kreuzungsbewusste Spur- und Anschlussvergabe: geroutet 9 -> 3.
-    t('crm orthogonal: höchstens 4 geroutete Kreuzungen',
-      routedCrossings(g, portPoint) <= 4, routedCrossings(g, portPoint) + ' Kreuzungen');
+    // Vor dem deterministischen Mehrfachstart waren es 7, mit den drei
+    // geordneten Starts 4; mit den gemischten Zusatzstarts 2.
+    t('crm orthogonal: höchstens 2 Kreuzungen (Zentrum-zu-Zentrum)', c <= 2, c + ' Kreuzungen');
+    // Kreuzungsbewusste Spur- und Anschlussvergabe: geroutet 9 -> 3 -> 1.
+    t('crm orthogonal: höchstens 1 geroutete Kreuzung',
+      routedCrossings(g, portPoint) <= 1, routedCrossings(g, portPoint) + ' Kreuzungen');
     // Überbreite leere Korridore werden geschlossen (vorher ~664 px Lücke).
     const iv = g.nodes.map(n => [n.x, n.x + n.w]).sort((a,b)=> a[0]-b[0]);
     let maxGap = 0, end = iv[0][1];
@@ -545,8 +546,8 @@ console.log('== Alle vier Flussrichtungen sind gleichwertig ==');
       let maxGap = 0, end = iv[0][1];
       for(const [lo, hi] of iv){ if(lo - end > maxGap) maxGap = lo - end; end = Math.max(end, hi); }
       t('crm LR: keine leere Zeile höher als 150px', maxGap <= 150, 'größte Lücke=' + Math.round(maxGap));
-      t('crm LR: höchstens 4 geroutete Kreuzungen',
-        routedCrossings(g, portPoint) <= 4, routedCrossings(g, portPoint) + ' Kreuzungen');
+      t('crm LR: höchstens 1 geroutete Kreuzung',
+        routedCrossings(g, portPoint) <= 1, routedCrossings(g, portPoint) + ' Kreuzungen');
     } else console.log('  (crm-Teil übersprungen: models/crm.yaml fehlt)');
   }
 }

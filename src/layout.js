@@ -323,6 +323,25 @@ function layered(nodes, edges, dir, ortho){
     const c = runFrom(init);
     if(c < bestC){ bestC = c; bestRows = rows.map(r=>r.slice()); }
   });
+  // Die drei geordneten Starts liegen dicht beieinander und laufen oft in
+  // dasselbe lokale Minimum. Gemischte Startordnungen aus einem FESTEN Keim
+  // brechen daraus aus, ohne das Bild unvorhersehbar zu machen: dasselbe
+  // Modell ergibt dieselbe Anordnung. Bei crm blieben die geordneten Starts
+  // bei 3 Kreuzungen stehen, wo 1 erreichbar ist — mehr als 1 fand auch eine
+  // Suche über tausende Startordnungen nicht.
+  let keim = 20250806;
+  const wuerfel = ()=> (keim = (keim * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for(let s = 0; s < 16 && bestC > 0; s++){
+    const c = runFrom(start0.map(r=>{
+      const a = r.slice();
+      for(let k=a.length-1; k>0; k--){                  // Fisher-Yates
+        const j = Math.floor(wuerfel() * (k+1));
+        const t = a[k]; a[k] = a[j]; a[j] = t;
+      }
+      return a;
+    }));
+    if(c < bestC){ bestC = c; bestRows = rows.map(r=>r.slice()); }
+  }
   for(let i=0;i<L;i++) rows[i] = bestRows[i];
 
   /* 5 — Querkoordinaten: dicht packen, dann per Median geraderücken */
