@@ -61,6 +61,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
 - **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
   -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen.
+- **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
+  (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
+  (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel).
 
 Ein neuer Rauchtest gehört in die passende Themendatei; wächst ein Thema aus
 dem Rahmen, bekommt es eine eigene Datei — der Läufer nimmt jede `*.js` unter

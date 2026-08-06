@@ -411,6 +411,32 @@ console.log('== Weiche Führung: leichte Schräge statt Treppe (Blitzmuster) =='
   const eo = lang(go);
   t('orthogonal: weiterhin das Punktepaar an den Bandgrenzen',
     eo.bends && eo.bends.length === 2, 'bends=' + (eo.bends ? eo.bends.length : 0));
+
+  // Kein Zickzack: die Querlage eines weichen Zugs wechselt unterwegs nicht
+  // die Richtung. Produkt→Position pendelte früher 494→429→494→298 — die
+  // Ausweichlage sprang auf die Anschlusslage zurück, statt an den Rand der
+  // belegten Zone; die Kante machte eine Kurve zum Modell hin, nur weil dort
+  // Platz war.
+  {
+    const g = makeGraph(model, 1);
+    ALGOS.hier.fn(g.nodes, g.edges, 'TB');
+    const zack = [];
+    g.edges.forEach(e=>{
+      const A = g.byId.get(e.from), B = g.byId.get(e.to);
+      if(!A || !B || A === B || !e.bends || !e.portFrom) return;
+      const pts = [portPoint(A, e.portFrom), ...e.bends, portPoint(B, e.portTo)];
+      let dir = 0;
+      for(let i=1;i<pts.length;i++){
+        const d = pts[i].x - pts[i-1].x;
+        if(Math.abs(d) < 24) continue;
+        const s = Math.sign(d);
+        if(dir && s !== dir){ zack.push(e.from.replace('o:','') + '>' + e.to.replace('o:','')); break; }
+        dir = s;
+      }
+    });
+    t('Willibald hierarchisch: kein weicher Zug wechselt die Querrichtung',
+      zack.length === 0, zack.join(', '));
+  }
 }
 
 console.log('== Alle vier Flussrichtungen sind gleichwertig ==');

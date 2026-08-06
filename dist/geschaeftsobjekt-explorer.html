@@ -1720,26 +1720,55 @@ function layered(nodes, edges, dir, ortho){
     if(Math.abs(mb - ma) < 1) return;
     const vorher = kreuzungen(e);
     const alt = info.ds.map(d => d.c);
-    // Ausreißer: eine Spalte AUSSERHALB des Anschluss-Intervalls — die Kante
-    // fährt erst von ihrem Ziel weg und wieder zurück. Genau das ist der
-    // sichtbare Kringel; ihn loszuwerden wiegt schwerer als eine Kreuzung mehr.
+    // Zwei Zugformen wiegen schwerer als eine Kreuzung mehr und werden darum
+    // nie aus Kreuzungsgründen behalten: der Kringel (eine Spalte AUSSERHALB
+    // des Anschluss-Intervalls — die Kante fährt erst vom Ziel weg) und das
+    // Zickzack (die Querrichtung wechselt unterwegs — die Kante pendelt hin
+    // und zurück, nur weil daneben Platz ist).
     const lo = Math.min(ca, cb) - 10, hi = Math.max(ca, cb) + 10;
-    const hatteKringel = info.ds.some(d => d.c < lo || d.c > hi);
-    const frei = (lay, c)=> !rows[lay].some(it=>{
-      if(it.dummy) return false;
-      const half = cs(it)/2 + SIB * 0.3;
-      return c > it.c - half && c < it.c + half;
-    });
+    const zickzack = list=>{
+      const f = [ca, ...list, cb];
+      let dir = 0;
+      for(let i=1;i<f.length;i++){
+        const d = f[i] - f[i-1];
+        if(Math.abs(d) < 24) continue;               // kleine Versätze zählen nicht
+        const s = Math.sign(d);
+        if(dir && s !== dir) return true;
+        dir = s;
+      }
+      return false;
+    };
+    const warSchlecht = zickzack(alt) || info.ds.some(d => d.c < lo || d.c > hi);
+    // Wunschlage auf der Luftlinie; ist sie durch Kästen belegt, wird sie an
+    // den Rand der (zusammengelegten) Verbotszone geschoben — nicht zurück auf
+    // eine Anschlusslage, das baute selbst ein Zickzack. Und: einmal gewählte
+    // Ausweichseite beibehalten, sonst pendelt die Kante bei mehreren vollen
+    // Ebenen zwischen links und rechts.
+    let seite = 0;
+    const ausweich = (lay, wunsch)=>{
+      let zLo = wunsch, zHi = wunsch, drin = true, guard = 0;
+      while(drin && guard++ < 6){
+        drin = false;
+        for(const it of rows[lay]){
+          if(it.dummy) continue;
+          const half = cs(it)/2 + SIB * 0.3;
+          if(zHi > it.c - half && zLo < it.c + half && (it.c - half < zLo || it.c + half > zHi)){
+            zLo = Math.min(zLo, it.c - half);
+            zHi = Math.max(zHi, it.c + half);
+            drin = true;
+          }
+        }
+      }
+      if(zLo === wunsch && zHi === wunsch) return wunsch;   // frei
+      if(!seite) seite = (wunsch - zLo <= zHi - wunsch) ? -1 : 1;
+      return seite < 0 ? zLo : zHi;
+    };
     info.ds.forEach(d=>{
-      // Wunschlage auf der Luftlinie; ist sie durch einen Kasten belegt, dann
-      // wenigstens auf eine der Anschlusslagen — Hauptsache, die Spalte liegt
-      // zwischen den Anschlüssen.
       const ziel = ca + (cb - ca) * ((mainOf[d.lay] - ma) / (mb - ma));
-      for(const c of [ziel, ca, cb])
-        if(frei(d.lay, c)){ d.c = c; break; }
+      d.c = ausweich(d.lay, ziel);
     });
     e.bends = bendsOf(info);
-    if(!hatteKringel && kreuzungen(e) > vorher){
+    if(!warSchlecht && kreuzungen(e) > vorher){
       info.ds.forEach((d,k)=>{ d.c = alt[k]; });
       e.bends = bendsOf(info);
     }
