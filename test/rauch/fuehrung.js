@@ -134,9 +134,10 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
   // kreuzen sich DIREKT vor diesem Kasten (fast immer durch die
   // Anschluss-Reihung vermeidbar; die Tauschsuche gewichtet den Ort der
   // Kreuzung) — und die Gesamtzahl als Deckel gegen Wildwuchs.
-  // Der Deckel liegt bei 30: mit den drei geordneten Startordnungen allein
-  // kam dieses Modell auf 44 (TB) bzw. 42 (LR) Kreuzungen, mit den gemischten
-  // Zusatzstarts auf 25 bzw. 21. Der Deckel hält den Gewinn fest.
+  // Der Deckel liegt bei 22 und hält zwei Gewinne fest: mit den drei
+  // geordneten Startordnungen allein kam dieses Modell auf 44 (TB) bzw. 42
+  // (LR) Kreuzungen, mit den gemischten Zusatzstarts auf 25 bzw. 21, und mit
+  // dem Spaltenversatz der Stützpunkte auf 21 bzw. 21.
   const ccw=(p,q,r)=>(r.y-p.y)*(q.x-p.x)-(q.y-p.y)*(r.x-p.x);
   const cross=(a,b,c,d)=>{const d1=ccw(c,d,a),d2=ccw(c,d,b),d3=ccw(a,b,c),d4=ccw(a,b,d);
     return ((d1>0)!==(d2>0))&&((d3>0)!==(d4>0));};
@@ -167,7 +168,7 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
       }
     }
     t(`${dir}: höchstens 2 auffällige X direkt am Kasten`, nah.length <= 2, nah.length + ': ' + nah.join(', '));
-    t(`${dir}: höchstens 30 geroutete Kreuzungen insgesamt`, n <= 30, n + ' Kreuzungen');
+    t(`${dir}: höchstens 22 geroutete Kreuzungen insgesamt`, n <= 22, n + ' Kreuzungen');
   }
 }
 

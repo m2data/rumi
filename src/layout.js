@@ -841,6 +841,10 @@ function layered(nodes, edges, dir, ortho){
         return {e:e2, bends: e2.bends ? e2.bends.map(p=>({x:p.x, y:p.y})) : null,
                 cs: info ? info.ds.map(d=>d.c) : []};
       });
+      // Zu welcher Kante ein Stützpunkt gehört — für den Spaltenversatz unten.
+      const kanteVon = new Map();
+      for(const [e2, info] of chain) info.ds.forEach(d => kanteVon.set(d, e2));
+
       const zurueck = snap => snap.forEach(s2=>{
         s2.e.bends = s2.bends;
         const info = chain.get(s2.e);
@@ -868,6 +872,54 @@ function layered(nodes, edges, dir, ortho){
               best = sNeu; besser = true;          // Tausch samt Neuführung bleibt
             } else {
               swapT(grp[p], grp[q]); zurueck(snap);
+            }
+          }
+        }
+        /* Spaltenversatz — das Gegenstück zum Spur-Versatz der rechtwinkligen
+           Führung. Dort bekommt jeder Querlauf eines Kanals ein eigenes `off`
+           und die Vergabe wird gegen die GEZEICHNETEN Züge optimiert. Die
+           weiche Führung hatte dafür kein Gegenstück: sie stellte ihre
+           Anschlüsse zur Wahl, aber nie ihre Stützspalten. Die standen starr
+           auf der Luftlinie — und die weiß nichts von den kurzen Kanten, über
+           die eine lange Diagonale streicht, während sie ein Band durchquert.
+           Genau dort lagen die Kreuzungen: fast jede paarte eine lange Kante
+           gegen eine kurze.
+
+           Nicht die Reihenfolge der Spalten ist der Hebel, sondern ihre Lage.
+           Beide Tauschformen — eine Spalte mit ihrer Nachbarin, und zwei
+           Kanten über alle gemeinsamen Ebenen — wurden gemessen und von der
+           Note in 117 von 117 Fällen abgelehnt: die Ordnungssuche hatte die
+           Reihung bereits gut gewählt. Der Versatz innerhalb des freien
+           Spielraums dagegen nimmt an. */
+        for(let li=0; li<L; li++){
+          const reihe = rows[li].slice().sort((x,y)=> x.c - y.c);
+          for(let p=0; p<reihe.length; p++){
+            const d = reihe[p];
+            if(!d.dummy) continue;
+            const e2 = kanteVon.get(d);
+            if(!e2) continue;
+            // Freier Spielraum bis zu den Nachbarn der Ebene — Kästen wie
+            // Stützpunkte. Innerhalb davon darf die Spalte wandern.
+            const links = p > 0 ? reihe[p-1] : null, rechts = p < reihe.length-1 ? reihe[p+1] : null;
+            const lo = links  ? links.c  + cs(links)/2  + gap(links, d)  + cs(d)/2 : d.c - LAY;
+            const hi = rechts ? rechts.c - cs(rechts)/2 - gap(d, rechts) - cs(d)/2 : d.c + LAY;
+            if(hi - lo < 2) continue;
+            const snap = merken([e2]);
+            let besteC = d.c, besteS = best;
+            for(const c of [lo, hi, (lo + hi) / 2]){
+              if(Math.abs(c - d.c) < 1) continue;
+              d.c = c;
+              e2.bends = bendsOf(chain.get(e2));
+              haerte(e2);
+              const s2 = score();
+              if(s2 < besteS){ besteS = s2; besteC = c; }
+              zurueck(snap);
+            }
+            if(besteS < best){
+              d.c = besteC;
+              e2.bends = bendsOf(chain.get(e2));
+              haerte(e2);
+              best = besteS; besser = true;
             }
           }
         }
