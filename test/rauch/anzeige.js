@@ -120,6 +120,57 @@ console.log('== Domänen zusammenklappen ==');
   }
 }
 
+console.log('== Suche greift über den Objektnamen hinaus ==');
+{
+  api.setView(1);
+  api.setSelection([]);                       // sonst blendet die Nachbarschaft aus
+  const suche = q =>{
+    const el = document.getElementById('search');
+    el.value = q;
+    dispatch(el, 'input', {});
+    return [...document.getElementById('nodes').querySelectorAll('.node')]
+      .filter(g => !(g.getAttribute('class') || '').includes('faded'))
+      .map(g => S.graph.byId.get(g.dataset.id).name).sort();
+  };
+  const alle = S.graph.nodes.filter(n => !n.hidden).length;
+
+  t('leere Suche blendet nichts aus', suche('').length === alle);
+  // „kunde" trifft das Objekt selbst UND alles, was auf es verweist (KundeID) —
+  // genau die gewollte Erweiterung. Unbeteiligte Objekte bleiben blass.
+  const k = suche('kunde');
+  t('Objektname trifft weiterhin', k.includes('Kunde'), k.join(','));
+  t('und zusätzlich die Objekte mit KundeID-Verweis', k.includes('Bestellung'), k.join(','));
+  t('unbeteiligte Objekte bleiben blass', !k.includes('Kategorie') && !k.includes('Produkt'), k.join(','));
+  // Attributname: Pflanzabstand steht nur bei Produkt
+  t('Attributname trifft sein Objekt', JSON.stringify(suche('pflanzabstand')) === JSON.stringify(['Produkt']),
+    suche('pflanzabstand').join(','));
+  // Verweis: references: Produkt.ProduktID -> Position trifft über den Verweis
+  const ref = suche('produktid');
+  t('Verweis (references) trifft das verweisende Objekt', ref.includes('Position') && ref.includes('Produkt'),
+    ref.join(','));
+  // Quelle: Bestellung_VRS ist nur bei Bestellung hinterlegt
+  t('Quellenname trifft sein Objekt', JSON.stringify(suche('bestellung_vrs')) === JSON.stringify(['Bestellung']),
+    suche('bestellung_vrs').join(','));
+  // Beziehungsname: „ist Vorsitzender von" steht bei Kunde
+  t('Beziehungsname trifft sein Objekt', JSON.stringify(suche('vorsitzender')) === JSON.stringify(['Kunde']),
+    suche('vorsitzender').join(','));
+  // Business Key und Domain
+  t('Business Key trifft', suche('posid').includes('Position'), suche('posid').join(','));
+  t('Domain trifft alle Objekte der Domäne', suche('willibald').length === alle, suche('willibald').length + '');
+  // Datentypen bleiben bewusst außen vor
+  t('Datentypen werden nicht durchsucht', suche('bigint').length === 0, suche('bigint').join(','));
+  t('ohne Treffer bleibt alles blass', suche('gibtesnicht').length === 0);
+
+  // Ansicht 3: ein Quellenkasten trifft über die Objekte, die ihn nutzen
+  api.setView(3);
+  const q3 = suche('kunde');
+  t('Quellenkasten trifft über die nutzenden Objekte', q3.length > 0 && q3.some(n => n !== 'Kunde'),
+    q3.join(','));
+
+  suche('');                                   // Filter zurücksetzen
+  api.setView(1);
+}
+
 console.log('== Kein Text klebt am Kastenrand ==');
 {
   // Misst den untersten gezeichneten Inhalt gegen die Kastenhöhe, in jeder

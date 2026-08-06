@@ -34,6 +34,11 @@ läuft offline und lädt nichts nach.
   Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z).
 - **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
+- **Suchen**: das Feld über der Objektliste hebt passende Objekte im Diagramm
+  hervor und blendet den Rest ab. Gesucht wird in allem, was ein Objekt
+  beschreibt: Name, Domain, Business Keys, Quellen, Attributnamen samt
+  Verweisziel und Beziehungsnamen — „KundeID" zeigt also auch, wer darauf
+  verweist. Datentypen bleiben außen vor, „int" träfe sonst fast jedes Objekt.
 - **Laden/Speichern** der drei Dateien (siehe unten) und **Export** als
   eigenständige HTML, SVG oder PNG (Maßstab 1×, 2× oder 4×, etwa für Druck).
 - Alles offline, ohne externe Abhängigkeiten. Schriften optional lokal

@@ -529,7 +529,9 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <div class="pane" id="pane-beschreibung"><div class="hier-desc" id="hierDesc"></div></div>
 
     <div class="pane active" id="pane-objects">
-      <input class="search" id="search" type="search" placeholder="Objekt suchen …" aria-label="Objekt suchen">
+      <input class="search" id="search" type="search" placeholder="Objekt, Attribut, Quelle suchen …"
+             title="Sucht in Objektname, Domain, Business Keys, Quellen, Attributnamen samt Verweis und Beziehungsnamen"
+             aria-label="Objekt, Attribut, Quelle oder Beziehung suchen">
       <div class="listtools">
         <span>Anzeigen:</span>
         <button id="showAll">alle</button>
@@ -2781,6 +2783,25 @@ const isVisible = id => { const n = S.graph.byId.get(id); return n && !n.hidden;
 const visNodes = ()=> S.graph.nodes.filter(n => !n.hidden);
 const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e.to));
 
+/* Suchtreffer. Gesucht wird nicht nur im Objektnamen, sondern in allem, was
+   das Objekt beschreibt: Domain, Business Keys, Quellen, Attributnamen samt
+   Verweisziel (references) und Beziehungsnamen. Fragen wie „wo ist KundeID
+   referenziert?" oder „welche Objekte hängen an Position_VRS?" beantwortet die
+   Suche sonst nicht. Bewusst NICHT durchsucht: Datentypen — „int" oder „uuid"
+   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellenkasten
+   (Ansicht 3) trifft zusätzlich über die Objekte, die ihn nutzen. */
+function matchesFilter(n, q){
+  if(!q) return true;
+  const hat = v => !!v && String(v).toLowerCase().includes(q);
+  if(hat(n.name)) return true;
+  const r = n.ref || {};
+  if(n.kind === 'source') return (r.users || []).some(hat);
+  if(hat(r.domain)) return true;
+  if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
+  if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
+  return (r.rels || []).some(x => hat(x.name));
+}
+
 function neighbourhood(){
   if(S.selEdge){
     const e = S.graph.edges.find(x => x.id === S.selEdge);
@@ -2805,7 +2826,7 @@ function draw(){
     let c = '';
     if(S.sel.has(n.id)) c = 'selected';
     else if(nb && !nb.keep.has(n.id)) c = 'faded';
-    else if(S.filter && !n.name.toLowerCase().includes(S.filter)) c = 'faded';
+    else if(!matchesFilter(n, S.filter)) c = 'faded';
     return nodeMarkup(n, c);
   }).join('');
   drawEdges();
