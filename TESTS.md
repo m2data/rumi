@@ -1,6 +1,6 @@
 # Regressionstest für den Geschäftsobjekt-Explorer
 
-Zwei Dateien in `test/`, keine Abhängigkeiten, nur Node.
+Alles in `test/`, keine Abhängigkeiten, nur Node.
 
     node test/smoke.js [pfad/zur/geschaeftsobjekt-explorer.html]
 
@@ -43,9 +43,28 @@ Kennungen und meldet Objekte, die es im Modell nicht gibt. Dazu der kleine
 Markdown-Renderer (`renderMarkdown`): Überschriften, fett/kursiv, Listen, Links
 und HTML-Maskierung gegen Einschleusen.
 
-**`smoke.js`** lädt die HTML-Datei, führt ihr Skript aus und **klickt die App
-durch**: Kante anklicken, Stützpunkt einsetzen, ziehen, Anschlusspunkt versetzen,
-Teilstück verschieben, Ansicht wechseln, Knoten ziehen, Inhalt umschalten.
+**`smoke.js`** ist der Läufer des Rauchtests: er startet die Themendateien
+unter **`rauch/`** nacheinander, jede in einem eigenen Node-Prozess mit einer
+frischen App-Instanz — die Themen teilen also keinen Zustand und lassen sich
+auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
+(HTML laden, App im Mini-DOM booten) liegt in `rauch/start.js`. Die Themen:
+
+- **`kanten.js`** — Kanten bearbeiten: auswählen, Stützpunkte, Anschlusspunkte,
+  Segmente, Doppelklick, Ortho-Formen, Selbstbezug.
+- **`beschriftung.js`** — Beziehungsbeschriftungen: frei verschiebbar auf Kante
+  und Schleife, automatisches Entzerren.
+- **`auswahl.js`** — Auswahl und Tastatur: Klick-Verhalten, Bereichs-Layout,
+  Pfeiltasten/Entf, Rückgängig/Wiederherstellen.
+- **`anzeige.js`** — Seitenleiste und Kästen: Inhaltsauswahl, Prüfliste
+  (Gruppen, Sprung zum Objekt), Objektliste, Kastengeometrie.
+- **`hierarchie.js`** — Hierarchie-Modus: Baum, Ausschnitte, Beschreibung,
+  Strukturänderungen, verknüpfte Objekte, Markdown im Export.
+- **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
+  -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen.
+
+Ein neuer Rauchtest gehört in die passende Themendatei; wächst ein Thema aus
+dem Rahmen, bekommt es eine eigene Datei — der Läufer nimmt jede `*.js` unter
+`rauch/` automatisch mit.
 
 ## Warum das nötig ist
 
