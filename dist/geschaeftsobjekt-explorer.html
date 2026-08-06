@@ -308,6 +308,22 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .relbtn.edit{border-color:var(--hot);background:var(--panel);color:var(--hot)}
 .relbtn.edit:hover{background:var(--hot);color:#fff}
 
+/* ---------- Einstellungen: Dialog über der Zeichenfläche ---------- */
+.modal{
+  position:fixed;inset:0;background:rgba(18,32,41,.34);z-index:100;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.modal[hidden]{display:none}
+.modal-box{
+  background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+  padding:18px 20px;width:min(460px,100%);box-shadow:0 18px 48px rgba(18,32,41,.28);
+}
+.modal-box h2{font-size:15px;font-weight:600;margin:0 0 14px}
+.modal-tools{display:flex;justify-content:flex-end;margin-top:18px}
+.einst{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--muted);cursor:pointer}
+.einst input{width:15px;height:15px;margin:1px 0 0;accent-color:var(--obj);flex:0 0 auto;cursor:pointer}
+.einst strong{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}
+
 /* ---------- Pflege: Formular im Reiter „Details" ---------- */
 .listtools .newobj{color:var(--hot);white-space:nowrap}
 .listtools .newobj:hover{background:#FBE9F1}
@@ -528,6 +544,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
       </div>
     </div>
     <button class="btn" id="btnFit">Einpassen</button>
+    <button class="btn" id="btnEinst" aria-haspopup="dialog" aria-expanded="false">Einstellungen</button>
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
@@ -637,6 +654,21 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <div class="toast" id="toast"></div>
   </div>
 </main>
+
+<div class="modal" id="einstDlg" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="einstTitel">
+    <h2 id="einstTitel">Einstellungen</h2>
+    <label class="einst">
+      <input type="checkbox" id="einstPflege">
+      <span><strong>Geschäftsobjekte bearbeiten</strong>
+        Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet
+        bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie
+        gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen
+        mitgegeben.</span>
+    </label>
+    <div class="modal-tools"><button class="hd-btn ok" id="einstZu">Schließen</button></div>
+  </div>
+</div>
 
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
@@ -3121,6 +3153,7 @@ const S = {
   sel:new Set(),
   layout:{algo:'hier', dir:'TB', labels:true},
   selected:null, filter:'',
+  pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',
@@ -4940,7 +4973,7 @@ let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus 
 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
-  if(!n || n.kind !== 'object') return;
+  if(!S.pflegeAn || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
     name: o.name, domain: o.domain || '', desc: o.desc || '',
@@ -5108,7 +5141,7 @@ function pflegeNeu(){
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!pfNamePruefen(name)) return;
+  if(!S.pflegeAn || !pfNamePruefen(name)) return;
   if(S.model.objects[name]){ toast(`„${name}" gibt es schon`); return; }
   const text = goObjektAnlegen(S.yamlText, name);
   if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return; }
@@ -5126,7 +5159,7 @@ const pfEingehend = name => Object.values(S.model.objects)
   .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
 function pflegeObjektWeg(name){
-  if(!S.model.objects[name]) return;
+  if(!S.pflegeAn || !S.model.objects[name]) return;
   const text = goObjektLoeschen(S.yamlText, name);
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
@@ -5135,6 +5168,34 @@ function pflegeObjektWeg(name){
 }
 
 $('objNew').addEventListener('click', pflegeNeu);
+
+/* ---------- Einstellungen ----------
+   Bisher genau eine: ob sich Geschäftsobjekte bearbeiten lassen. Aus ist die
+   Vorgabe — das Werkzeug ist zuerst ein Betrachter, und ein weitergegebener
+   Stand (HTML-Export, Positionsinformationen) trägt die Einstellung mit,
+   statt jedem Leser das Bearbeiten anzubieten. Ausgeschaltet betrifft das nur
+   die Fachdaten: anordnen, Kanten umlenken und die Hierarchie bleiben. */
+function einstellungenAuf(){
+  $('einstPflege').checked = S.pflegeAn;
+  $('einstDlg').hidden = false;
+  $('btnEinst').setAttribute('aria-expanded', 'true');
+}
+function einstellungenZu(){
+  $('einstDlg').hidden = true;
+  $('btnEinst').setAttribute('aria-expanded', 'false');
+}
+function pflegeSchalten(an){
+  S.pflegeAn = !!an;
+  if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
+  renderObjectList(); renderDetails();
+  writeStore();
+  toast(S.pflegeAn ? 'Bearbeiten eingeschaltet' : 'Bearbeiten ausgeschaltet');
+}
+
+$('btnEinst').addEventListener('click', e=>{ e.stopPropagation(); einstellungenAuf(); });
+$('einstZu').addEventListener('click', einstellungenZu);
+$('einstDlg').addEventListener('click', e=>{ if(e.target === $('einstDlg')) einstellungenZu(); });
+$('einstPflege').addEventListener('change', e=> pflegeSchalten(e.target.checked));
 /* =====================================================================
    7 — Ansicht wechseln, Anordnung merken
    ===================================================================== */
@@ -5217,6 +5278,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
+  pflegeAn: S.pflegeAn,
   uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
@@ -5233,6 +5295,7 @@ function adoptLayoutFile(obj){
   if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
+  if(typeof obj.pflegeAn === 'boolean') S.pflegeAn = obj.pflegeAn;
   if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
@@ -5260,7 +5323,16 @@ function writeStore(){
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:blob}));
+  recordHistory(JSON.stringify({yaml:S.yamlText, stand:histStand()}));
+}
+
+/* Der Verlaufsstand ist der gespeicherte ohne die Einstellungen: eine
+   Einstellung ist keine Aktion am Modell. Stünde sie im Schnappschuss, würde
+   Strg+Z nach ein paar Schritten das Bearbeiten wieder abschalten. */
+function histStand(){
+  const b = layoutFile();
+  delete b.pflegeAn;
+  return b;
 }
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
@@ -5271,7 +5343,7 @@ function writeStore(){
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
+function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:histStand()})]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -5346,6 +5418,7 @@ function listedNodes(){ return S.graph.nodes; }
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
 function renderObjectList(){
+  $('objNew').hidden = !S.pflegeAn;          // Einstellung „Geschäftsobjekte bearbeiten"
   const ul = $('objectList');
   const groups = new Map();
   listedNodes().forEach(n=>{
@@ -5544,7 +5617,7 @@ function renderDetails(){
     box.innerHTML =
       `<div class="grouphead">GESCHÄFTSOBJEKT</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
-       <button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>
+       ${S.pflegeAn ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
@@ -5883,6 +5956,7 @@ document.addEventListener('keydown', ev=>{
     ev.preventDefault(); redo(); return;
   }
   if(ev.key === 'Escape'){
+    if(!$('einstDlg').hidden){ einstellungenZu(); return; }
     if(S.selEdge){ S.selEdge = null; draw(); }
     else if(S.sel.size) setSelection([]);
     closeMenus();

@@ -14,6 +14,7 @@ const S = {
   sel:new Set(),
   layout:{algo:'hier', dir:'TB', labels:true},
   selected:null, filter:'',
+  pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',

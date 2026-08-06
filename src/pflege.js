@@ -302,7 +302,7 @@ let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus 
 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
-  if(!n || n.kind !== 'object') return;
+  if(!S.pflegeAn || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
     name: o.name, domain: o.domain || '', desc: o.desc || '',
@@ -470,7 +470,7 @@ function pflegeNeu(){
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!pfNamePruefen(name)) return;
+  if(!S.pflegeAn || !pfNamePruefen(name)) return;
   if(S.model.objects[name]){ toast(`„${name}" gibt es schon`); return; }
   const text = goObjektAnlegen(S.yamlText, name);
   if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return; }
@@ -488,7 +488,7 @@ const pfEingehend = name => Object.values(S.model.objects)
   .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
 function pflegeObjektWeg(name){
-  if(!S.model.objects[name]) return;
+  if(!S.pflegeAn || !S.model.objects[name]) return;
   const text = goObjektLoeschen(S.yamlText, name);
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
@@ -497,3 +497,31 @@ function pflegeObjektWeg(name){
 }
 
 $('objNew').addEventListener('click', pflegeNeu);
+
+/* ---------- Einstellungen ----------
+   Bisher genau eine: ob sich Geschäftsobjekte bearbeiten lassen. Aus ist die
+   Vorgabe — das Werkzeug ist zuerst ein Betrachter, und ein weitergegebener
+   Stand (HTML-Export, Positionsinformationen) trägt die Einstellung mit,
+   statt jedem Leser das Bearbeiten anzubieten. Ausgeschaltet betrifft das nur
+   die Fachdaten: anordnen, Kanten umlenken und die Hierarchie bleiben. */
+function einstellungenAuf(){
+  $('einstPflege').checked = S.pflegeAn;
+  $('einstDlg').hidden = false;
+  $('btnEinst').setAttribute('aria-expanded', 'true');
+}
+function einstellungenZu(){
+  $('einstDlg').hidden = true;
+  $('btnEinst').setAttribute('aria-expanded', 'false');
+}
+function pflegeSchalten(an){
+  S.pflegeAn = !!an;
+  if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
+  renderObjectList(); renderDetails();
+  writeStore();
+  toast(S.pflegeAn ? 'Bearbeiten eingeschaltet' : 'Bearbeiten ausgeschaltet');
+}
+
+$('btnEinst').addEventListener('click', e=>{ e.stopPropagation(); einstellungenAuf(); });
+$('einstZu').addEventListener('click', einstellungenZu);
+$('einstDlg').addEventListener('click', e=>{ if(e.target === $('einstDlg')) einstellungenZu(); });
+$('einstPflege').addEventListener('change', e=> pflegeSchalten(e.target.checked));

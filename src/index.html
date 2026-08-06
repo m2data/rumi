@@ -81,6 +81,7 @@
       </div>
     </div>
     <button class="btn" id="btnFit">Einpassen</button>
+    <button class="btn" id="btnEinst" aria-haspopup="dialog" aria-expanded="false">Einstellungen</button>
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
@@ -190,6 +191,21 @@
     <div class="toast" id="toast"></div>
   </div>
 </main>
+
+<div class="modal" id="einstDlg" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="einstTitel">
+    <h2 id="einstTitel">Einstellungen</h2>
+    <label class="einst">
+      <input type="checkbox" id="einstPflege">
+      <span><strong>Geschäftsobjekte bearbeiten</strong>
+        Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet
+        bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie
+        gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen
+        mitgegeben.</span>
+    </label>
+    <div class="modal-tools"><button class="hd-btn ok" id="einstZu">Schließen</button></div>
+  </div>
+</div>
 
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>

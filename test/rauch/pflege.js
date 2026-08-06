@@ -151,6 +151,45 @@ console.log('== Namen wirken auch in der Hierarchiebeschreibung ==');
   t('Löschen nimmt die Einträge aus den Diagrammen', !/- Kunde/.test(weg) && /- Bestellung/.test(weg), weg);
 }
 
+console.log('== Einstellung: Bearbeiten ist zunächst aus ==');
+{
+  t('die Vorgabe ist „aus"', S.pflegeAn === false);
+  api.setSelection(['o:Bestellung']);
+  t('die Details zeigen keinen „Bearbeiten"-Knopf', !detail().querySelector('[data-edit]'));
+  t('„＋ Objekt" ist ausgeblendet', $('objNew').hidden === true);
+  t('auch über die Schnittstelle geht nichts', (api.pflegeObjektNeu('Heimlich'), !S.model.objects.Heimlich));
+
+  dispatch($('btnEinst'), 'click', {});
+  t('der Knopf in der Kopfzeile öffnet den Dialog', $('einstDlg').hidden === false);
+  t('der Schalter steht auf dem gemerkten Stand', $('einstPflege').checked === false);
+  $('einstPflege').checked = true;
+  dispatch($('einstPflege'), 'change', {});
+  t('Umlegen schaltet die Pflege ein', S.pflegeAn === true);
+  t('„＋ Objekt" ist jetzt da', $('objNew').hidden === false);
+  t('die Details zeigen „Bearbeiten"', !!detail().querySelector('[data-edit]'));
+  dispatch($('einstZu'), 'click', {});
+  t('„Schließen" schließt den Dialog', $('einstDlg').hidden === true);
+
+  // Die Einstellung ist keine Aktion am Modell: Strg+Z darf sie nicht mitnehmen.
+  api.undo(); api.undo();
+  t('Rückgängig schaltet die Pflege nicht wieder ab', S.pflegeAn === true);
+  api.redo(); api.redo();
+}
+
+console.log('== Ausschalten schließt ein offenes Formular ==');
+{
+  formularOeffnen('o:Bestellung');
+  dispatch($('btnEinst'), 'click', {});
+  $('einstPflege').checked = false;
+  dispatch($('einstPflege'), 'change', {});
+  t('das Formular ist zu', !$('pfName'));
+  t('und der „Bearbeiten"-Knopf verschwunden', !detail().querySelector('[data-edit]'));
+  $('einstPflege').checked = true;
+  dispatch($('einstPflege'), 'change', {});
+  dispatch($('einstZu'), 'click', {});
+  t('wieder eingeschaltet steht die Pflege bereit', !!detail().querySelector('[data-edit]'));
+}
+
 console.log('== Bedienweg: wählen, „Bearbeiten", ändern, speichern ==');
 {
   t('die Details bieten „Bearbeiten" an', formularOeffnen('o:Bestellung'));

@@ -17,7 +17,9 @@ läuft offline und lädt nichts nach.
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen. Im Baum
   lassen sich Diagramme per Ziehen umsortieren und umhängen (obere/untere Kante =
   davor/danach, Mitte = als Unterdiagramm).
-- **Pflegen** – Geschäftsobjekte und ihre Beziehungen im Reiter „Details"
+- **Pflegen** – zunächst **ausgeschaltet**: über „Einstellungen" in der
+  Kopfzeile einschalten. Dann lassen sich Geschäftsobjekte und ihre Beziehungen
+  im Reiter „Details"
   bearbeiten: Name, Domain, Beschreibung, Business Keys, Quellen, Attribute
   (Typ, nullable, PK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
   Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
@@ -27,6 +29,10 @@ läuft offline und lädt nichts nach.
   **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —
   Kommentare, Reihenfolge, Einrückung und Schreibvarianten des Übrigen bleiben
   stehen. Jede Bearbeitung ist eine Aktion im Verlauf, Strg+Z nimmt sie zurück.
+  Der Schalter selbst ist keine: er wird gemerkt und wandert in Export und
+  Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
+  dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und
+  die Hierarchie bleiben davon unberührt.
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
   eine Kante löscht alle ihre Stützpunkte und wählt die kürzeste Verbindung).

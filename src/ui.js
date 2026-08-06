@@ -80,6 +80,7 @@ const layoutFile = ()=> ({
   kantenzuege: S.routes,
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
+  pflegeAn: S.pflegeAn,
   uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
@@ -96,6 +97,7 @@ function adoptLayoutFile(obj){
   if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
+  if(typeof obj.pflegeAn === 'boolean') S.pflegeAn = obj.pflegeAn;
   if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
@@ -123,7 +125,16 @@ function writeStore(){
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:blob}));
+  recordHistory(JSON.stringify({yaml:S.yamlText, stand:histStand()}));
+}
+
+/* Der Verlaufsstand ist der gespeicherte ohne die Einstellungen: eine
+   Einstellung ist keine Aktion am Modell. Stünde sie im Schnappschuss, würde
+   Strg+Z nach ein paar Schritten das Bearbeiten wieder abschalten. */
+function histStand(){
+  const b = layoutFile();
+  delete b.pflegeAn;
+  return b;
 }
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
@@ -134,7 +145,7 @@ function writeStore(){
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
+function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:histStand()})]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -209,6 +220,7 @@ function listedNodes(){ return S.graph.nodes; }
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
 function renderObjectList(){
+  $('objNew').hidden = !S.pflegeAn;          // Einstellung „Geschäftsobjekte bearbeiten"
   const ul = $('objectList');
   const groups = new Map();
   listedNodes().forEach(n=>{
@@ -407,7 +419,7 @@ function renderDetails(){
     box.innerHTML =
       `<div class="grouphead">GESCHÄFTSOBJEKT</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
-       <button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>
+       ${S.pflegeAn ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
@@ -746,6 +758,7 @@ document.addEventListener('keydown', ev=>{
     ev.preventDefault(); redo(); return;
   }
   if(ev.key === 'Escape'){
+    if(!$('einstDlg').hidden){ einstellungenZu(); return; }
     if(S.selEdge){ S.selEdge = null; draw(); }
     else if(S.sel.size) setSelection([]);
     closeMenus();

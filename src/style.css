@@ -289,6 +289,22 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .relbtn.edit{border-color:var(--hot);background:var(--panel);color:var(--hot)}
 .relbtn.edit:hover{background:var(--hot);color:#fff}
 
+/* ---------- Einstellungen: Dialog über der Zeichenfläche ---------- */
+.modal{
+  position:fixed;inset:0;background:rgba(18,32,41,.34);z-index:100;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.modal[hidden]{display:none}
+.modal-box{
+  background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+  padding:18px 20px;width:min(460px,100%);box-shadow:0 18px 48px rgba(18,32,41,.28);
+}
+.modal-box h2{font-size:15px;font-weight:600;margin:0 0 14px}
+.modal-tools{display:flex;justify-content:flex-end;margin-top:18px}
+.einst{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--muted);cursor:pointer}
+.einst input{width:15px;height:15px;margin:1px 0 0;accent-color:var(--obj);flex:0 0 auto;cursor:pointer}
+.einst strong{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}
+
 /* ---------- Pflege: Formular im Reiter „Details" ---------- */
 .listtools .newobj{color:var(--hot);white-space:nowrap}
 .listtools .newobj:hover{background:#FBE9F1}
