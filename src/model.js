@@ -125,9 +125,14 @@ function buildModel(text){
       }
       targeted.add(r.to);
       if(r.to === o.name) messages.push({level:'info', group:'Selbstbezug', title:`${o.name}: Selbstbezug`, body:'Das Objekt verweist auf sich selbst — als Hierarchie meist gewollt, hier als Schleife gezeichnet.'});
-      const pair = [o.name, r.to].sort().join('\u0000');
+      // Zwei Beziehungen zwischen denselben Objekten sind nur dann dieselbe,
+      // wenn sie auch gleich heissen. Verschiedene Namen — und ebenso benannt
+      // gegen unbenannt — beschreiben verschiedene Sachverhalte.
+      const pair = [o.name, r.to].sort().join('\u0000') + '\u0000' + (r.name || '');
       if(seenPair.has(pair) && r.to !== o.name)
-        messages.push({level:'warn', group:'Beziehung doppelt', title:`${o.name} ↔ ${r.to}: Beziehung doppelt`, body:'Zwischen diesen beiden Objekten ist die Beziehung in beide Richtungen definiert. Prüfen, welche Richtung fachlich führt.'});
+        messages.push({level:'warn', group:'Beziehung doppelt', title:`${o.name} ↔ ${r.to}: Beziehung doppelt`,
+          body: (r.name ? `Die Beziehung „${r.name}" ist` : 'Eine unbenannte Beziehung ist')
+            + ' zwischen diesen beiden Objekten mehrfach definiert, gegebenenfalls in beide Richtungen. Prüfen, welche fachlich führt. Unterschiedlich benannte Beziehungen gelten als verschieden und werden hier nicht gemeldet.'});
       seenPair.add(pair);
     }
   }

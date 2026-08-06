@@ -104,6 +104,77 @@ t('fehlender Business Key gemeldet', has(dm.messages, 'warn', 'kein Business Key
 t('doppelte Beziehung (beide Richtungen)', has(dm.messages, 'warn', 'doppelt'));
 t('Selbstbezug als Hinweis', has(dm.messages, 'info', 'Selbstbezug'));
 
+console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
+{
+  // Zwei Beziehungen zum selben Ziel, verschieden benannt: zwei Sachverhalte.
+  const m = buildModel(`BusinessObjects:
+  Kunde:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    relationships:
+    - to: Bestellung
+      name: tätigt
+    - to: Bestellung
+      name: erteilt
+  Bestellung:
+    Domain: D
+    business_keys:
+    - B
+    sources:
+    - Q
+`);
+  t('verschieden benannt: kein Hinweis', !has(m.messages, 'warn', 'doppelt'),
+    m.messages.filter(x => x.level === 'warn').map(x => x.title).join(' | '));
+  t('beide Beziehungen bleiben im Modell', m.objects.Kunde.rels.length === 2);
+
+  // Eine benannt, eine unbenannt: ebenfalls zwei Sachverhalte.
+  const m2 = buildModel(`BusinessObjects:
+  Kunde:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    relationships:
+    - to: Bestellung
+      name: tätigt
+    - to: Bestellung
+  Bestellung:
+    Domain: D
+    business_keys:
+    - B
+    sources:
+    - Q
+`);
+  t('benannt gegen unbenannt: kein Hinweis', !has(m2.messages, 'warn', 'doppelt'));
+
+  // Zweimal derselbe Name bleibt ein Duplikat.
+  const m3 = buildModel(`BusinessObjects:
+  Kunde:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    relationships:
+    - to: Bestellung
+      name: tätigt
+    - to: Bestellung
+      name: tätigt
+  Bestellung:
+    Domain: D
+    business_keys:
+    - B
+    sources:
+    - Q
+`);
+  t('gleicher Name zweimal: Hinweis bleibt', has(m3.messages, 'warn', 'doppelt'));
+  t('der Hinweis nennt den Beziehungsnamen', has(m3.messages, 'warn', 'tätigt'));
+}
+
 console.log('== Rundlauf am ausgelieferten Modell ==');
 const real = fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-attr.yaml'), 'utf8');
 const rm = buildModel(real);

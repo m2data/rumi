@@ -92,7 +92,7 @@ BusinessObjects:
           to: zero_or_many
 
       - to: Bestellung
-        name: erteilt1
+        name: erteilt
         cardinality: 
           from: exactly_one
           to: zero_or_many

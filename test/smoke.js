@@ -1008,9 +1008,18 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
   t('Superset: beide Attribute bleiben', /name: KundeID/.test(yml) && /name: Mandant/.test(yml));
   t('Superset: Beziehungen nur der Basis bleiben', /to: Kontaktpunkt/.test(yml));
   t('Superset: Beziehungen nur des Deltas kommen dazu', /to: Auftrag/.test(yml));
-  t('Superset: gleiches Ziel wird nicht verdoppelt',
-    (yml.match(/to: Bestellung/g) || []).length === 1, yml);
-  t('Superset: beim gleichen Ziel gewinnt das Delta', /erteilt1/.test(yml) && !/tätigt/.test(yml));
+  // Gleiches Ziel, aber verschiedene Namen -> zwei eigenständige Beziehungen
+  t('Superset: gleiches Ziel mit anderem Namen bleibt erhalten',
+    /tätigt/.test(yml) && /erteilt1/.test(yml)
+    && (yml.match(/to: Bestellung/g) || []).length === 2, yml);
+  // Gleiches Ziel und gleicher Name -> eine Beziehung, das Delta gewinnt
+  const gleich = api.mergeGoText(
+    'BusinessObjects:\n  A:\n    relationships:\n    - to: B\n      name: hat\n      cardinality:\n        to: many\n  B:\n    Domain: D\n',
+    'BusinessObjects:\n  A:\n    relationships:\n    - to: B\n      name: hat\n      cardinality:\n        to: zero_or_many\n');
+  t('Superset: gleiches Ziel mit gleichem Namen wird nicht verdoppelt',
+    (gleich.text.match(/to: B\b/g) || []).length === 1, gleich.text);
+  t('Superset: dort gewinnt die Fassung des Deltas',
+    /zero_or_many/.test(gleich.text) && !/to: many/.test(gleich.text), gleich.text);
   // end-to-end auf dem geladenen Modell (zuletzt, da es S.model verändert)
   const before = Object.keys(S.model.objects).length;
   const first = Object.keys(S.model.objects)[0];

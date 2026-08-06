@@ -46,10 +46,12 @@ gespeichert:
    Geschäftsobjekte" lässt sich eine weitere YAML einspielen, die die Objekte
    *ergänzt*. Trägt ein Objekt denselben Namen, entsteht ein **Superset** aus
    beiden Fassungen: Quellen, Business Keys, Attribute und Beziehungen werden
-   vereinigt (gleiches Attribut bzw. gleiches Beziehungsziel nur einmal, dabei
-   gilt die Fassung des Deltas). Einzelwerte wie Domain und Beschreibung nimmt
-   das Delta. So lassen sich zwei Modelle, die dieselben Objekte aus
-   verschiedenen Blickwinkeln beschreiben, zusammenführen.
+   vereinigt. Dieselbe Sache ist dabei ein Attribut mit gleichem Namen bzw. eine
+   Beziehung mit gleichem Ziel *und* gleichem Namen — dort gilt die Fassung des
+   Deltas. Unterschiedlich benannte Beziehungen zum selben Ziel bleiben als zwei
+   Beziehungen erhalten. Einzelwerte wie Domain und Beschreibung nimmt das
+   Delta. So lassen sich zwei Modelle, die dieselben Objekte aus verschiedenen
+   Blickwinkeln beschreiben, zusammenführen.
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
    Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)
@@ -100,6 +102,9 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
   `one_or_many`, `many`.
 - Die App prüft das Modell und meldet Auffälligkeiten (unbekanntes Ziel,
   fehlende Domain, doppelte Beziehung, Selbstbezug …) im Reiter „Prüfung".
+  Als doppelt gilt eine Beziehung nur, wenn zwischen denselben Objekten eine
+  **gleichnamige** noch einmal steht; zwei verschieden benannte Beziehungen
+  (auch benannt gegen unbenannt) sind zwei Sachverhalte und in Ordnung.
 
 ### 2. Hierarchiebeschreibung (YAML)
 

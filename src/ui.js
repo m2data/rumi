@@ -1059,19 +1059,26 @@ function splitListItems(field){
   return {items, itemCol};
 }
 
-/* Wodurch ein Listeneintrag identifiziert wird: eine Beziehung über ihr Ziel,
-   ein Attribut über seinen Namen, ein einfacher Wert über sich selbst. */
+/* Wodurch ein Listeneintrag identifiziert wird: eine Beziehung über Ziel UND
+   Name (unterschiedlich benannte Beziehungen zum selben Objekt sind zwei
+   verschiedene), ein Attribut über seinen Namen, ein einfacher Wert über sich
+   selbst. Nur die direkten Felder des Eintrags zählen — „to:" unter
+   „cardinality:" ist die Kardinalität, nicht das Ziel. */
 function listItemKey(item){
-  const text = item.lines.map(l => l.trim()).filter(Boolean);
-  for(const l of text){
-    const to = l.replace(/^-\s*/, '').match(/^to\s*:\s*"?([^"#]+?)"?\s*$/);
-    if(to) return 'to:' + to[1].trim();
+  const itemCol = yCol(item.lines[0]);
+  const direkt = item.lines
+    .filter(l => !yBlank(l) && yCol(l) <= itemCol + 2)
+    .map(l => l.replace(/^\s*-\s*/, '').trim());
+  let ziel = null, name = null;
+  for(const l of direkt){
+    const to = l.match(/^to\s*:\s*"?([^"#]+?)"?\s*$/);
+    if(to && ziel === null) ziel = to[1].trim();
+    const nm = l.match(/^name\s*:\s*"?([^"#]+?)"?\s*$/);
+    if(nm && name === null) name = nm[1].trim();
   }
-  for(const l of text){
-    const nm = l.replace(/^-\s*/, '').match(/^name\s*:\s*"?([^"#]+?)"?\s*$/);
-    if(nm) return 'name:' + nm[1].trim();
-  }
-  return 'wert:' + text[0].replace(/^-\s*/, '').trim();
+  if(ziel !== null) return 'bez:' + ziel + ' ' + (name || '');
+  if(name !== null) return 'attr:' + name;
+  return 'wert:' + (direkt[0] || '');
 }
 
 /* Zwei gleichnamige Objektblöcke zu einem Superset verschmelzen: Listenfelder
