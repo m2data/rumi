@@ -53,34 +53,43 @@ const layoutMit = (algo, dir)=>{
   [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
     .find(b => b.dataset.algo === algo).onclick();
 };
-// Pendeln: die Querlage eines Zugs wechselt unterwegs MEHRFACH die Richtung.
-// EIN Wechsel ist legitim (ein Bogen um eine belegte Spur); ab zwei pendelt
-// die Kante zwischen den Seiten — das Blitzmuster.
+// Pendeln, in beiden Achsen: QUER darf ein Zug EINMAL die Richtung wechseln
+// (ein Bogen um eine belegte Spur), ab zwei pendelt er — das Blitzmuster.
+// LÄNGS (in Flussrichtung) ist schon EIN Wechsel eine Kehre: die Kante fährt
+// zurück und wieder vor. Genau das passierte bei den gespiegelten Richtungen
+// (BT/RL), wo die Kanalpunkt-Paare in Ebenen-Reihenfolge statt gezeichneter
+// Reihenfolge durchlaufen wurden.
 const pendelt = dir=>{
   const zack = [];
+  const vert = dir === 'TB' || dir === 'BT';
   S.graph.edges.forEach(e=>{
     const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
     if(!A || !B || A === B || !e.bends || !e.portFrom) return;
     const pts = api.routePoints(e, A, B);
-    const q = p => (dir === 'TB' || dir === 'BT') ? p.x : p.y;
-    let d0 = 0, wechsel = 0;
-    for(let i=1;i<pts.length;i++){
-      const d = q(pts[i]) - q(pts[i-1]);
-      if(Math.abs(d) < 24) continue;
-      const s = Math.sign(d);
-      if(d0 && s !== d0) wechsel++;
-      d0 = s;
-    }
-    if(wechsel >= 2) zack.push(e.from.replace('o:','') + '>' + e.to.replace('o:',''));
+    const wechselIn = wert=>{
+      let d0 = 0, w = 0;
+      for(let i=1;i<pts.length;i++){
+        const d = wert(pts[i]) - wert(pts[i-1]);
+        if(Math.abs(d) < 24) continue;
+        const s = Math.sign(d);
+        if(d0 && s !== d0) w++;
+        d0 = s;
+      }
+      return w;
+    };
+    const quer   = wechselIn(p => vert ? p.x : p.y);
+    const laengs = wechselIn(p => vert ? p.y : p.x);
+    if(quer >= 2 || laengs >= 1)
+      zack.push(e.from.replace('o:','') + '>' + e.to.replace('o:','') + ` (quer ${quer}, längs ${laengs})`);
   });
   return zack;
 };
 
-console.log('== Weiche Züge pendeln nicht (Blitzmuster) ==');
-for(const dir of ['TB','LR']){
+console.log('== Weiche Züge pendeln nicht (Blitzmuster, Kehren) ==');
+for(const dir of ['TB','BT','LR','RL']){
   layoutMit('hier', dir);
   const zack = pendelt(dir);
-  t(`${dir}: kein weicher Zug pendelt zwischen den Seiten`, zack.length === 0, zack.join(', '));
+  t(`${dir}: kein weicher Zug pendelt oder kehrt um`, zack.length === 0, zack.join(', '));
 }
 
 console.log('== Kanten laufen an fremden Kästen vorbei, nicht hindurch ==');

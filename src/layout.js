@@ -463,8 +463,13 @@ function layered(nodes, edges, dir, ortho){
   });
   // Ein Stützpunkt wird zu zwei Punkten an den Bandgrenzen. Dadurch läuft die
   // Kante senkrecht durch das Band und versetzt nur im freien Kanal seitlich.
+  // Die Paar-Reihenfolge folgt der GEZEICHNETEN Richtung (rev XOR flip):
+  // chanBefore/chanAfter sind über die Ebenen-Indizes definiert, bei
+  // gespiegelten Richtungen (BT/RL) liegen sie geometrisch vertauscht — mit
+  // rev allein durchquerte die Kante das Band dort rückwärts und legte eine
+  // Kehre (hoch–runter–hoch) in den Zug.
   const ptAt = (c, mv) => vertical ? {x:c, y:mv} : {x:mv, y:c};
-  const dpts = (ds, rev) => ds.flatMap(d => rev
+  const dpts = (ds, rev) => ds.flatMap(d => (rev !== flip)
     ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
     : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))]);
   // Weiche Führung: EIN Punkt in Bandmitte je Zwischenebene statt des Paars.
@@ -694,8 +699,8 @@ function layered(nodes, edges, dir, ortho){
       return false;
     };
     const bendsMix = (info, hart)=> info.ds.flatMap((d,i)=> hart.has(i)
-      ? (info.rev ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
-                  : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))])
+      ? ((info.rev !== flip) ? [ptAt(d.c, chanAfter(d.lay)), ptAt(d.c, chanBefore(d.lay))]
+                             : [ptAt(d.c, chanBefore(d.lay)), ptAt(d.c, chanAfter(d.lay))])
       : [ptAt(d.c, mainOf[d.lay])]);
     edges.forEach(e=>{
       const info = chain.get(e);
