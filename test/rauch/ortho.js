@@ -105,6 +105,31 @@ console.log('== Gesamtzahl der Kreuzungen gedeckelt ==');
   }
 }
 
+console.log('== Weiche Führung: kein grober Bogen um einen ganzen Kasten ==');
+{
+  // Muss ein Zug einem Kasten ausweichen, rechnet fuehreBeste() beide Seiten
+  // durch. Verglichen wurden sie nur nach Kreuzungen — und dabei gewann
+  // regelmäßig die weit ausholende Seite: gemeldet wurde ein Zug, der eine
+  // Sperrzone um neun Pixel streifte und dann 145 px außen um den Kasten
+  // herumlief, weil das EINE Kreuzung sparte. Jetzt hat der Umweg ein Veto.
+  // Hier gemessen: vorher 12 Züge außerhalb ihres Intervalls, größter 136 px.
+  layoutMit('hier', 'TB');
+  let raus = 0, weitester = 0;
+  S.graph.edges.forEach(e=>{
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    if(!A || !B || A === B || !e.bends || !e.portFrom) return;
+    const pts = api.routePoints(e, A, B);
+    const lo = Math.min(pts[0].x, pts[pts.length-1].x) - 30;
+    const hi = Math.max(pts[0].x, pts[pts.length-1].x) + 30;
+    let weit = 0;
+    pts.forEach(p=>{ if(p.x < lo) weit = Math.max(weit, lo - p.x);
+                     if(p.x > hi) weit = Math.max(weit, p.x - hi); });
+    if(weit > 0){ raus++; weitester = Math.max(weitester, weit); }
+  });
+  t('TB: höchstens 11 Züge verlassen ihr Intervall', raus <= 11, raus + ' Züge');
+  t('TB: kein Zug holt weiter als 110 px aus', weitester <= 110, Math.round(weitester) + ' px');
+}
+
 console.log('== Weiche Führung: die Luftlinie schneidet keine Kästen an ==');
 {
   // In diesem dichten Modell verdoppelte die Interpolation auf die Luftlinie
@@ -113,7 +138,7 @@ console.log('== Weiche Führung: die Luftlinie schneidet keine Kästen an ==');
   // Kästen schneidet, immer zurückgenommen wird — auch bei einer Kante, deren
   // alter Zug schlecht aussah —, bleiben die Schnitte auf 9 und die Endzahl
   // fällt von 89 auf 70 (TB), 91 auf 75 (BT), 76 auf 69 (LR), 77 auf 68 (RL).
-  for(const [dir, grenze] of [['TB', 70], ['BT', 75], ['LR', 69], ['RL', 68]]){
+  for(const [dir, grenze] of [['TB', 67], ['BT', 75], ['LR', 69], ['RL', 68]]){
     layoutMit('hier', dir);
     const segs = segmente();
     let n = 0;
