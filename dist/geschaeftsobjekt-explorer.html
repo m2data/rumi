@@ -1858,22 +1858,8 @@ function layered(nodes, edges, dir, ortho){
               }
             }
           }
-          /* Genommen wird der Rand, aus dessen Richtung die Spalte kommt — mit
-             einer Ausnahme: liegt der ANDERE Rand im Anschluss-Intervall und
-             dieser weit außerhalb, gewinnt der andere. Gemeldeter Fall: eine
-             Kante zwischen x=-386 und x=-314 traf auf eine Sperrzone von
-             -531 bis -353. Der rechte Rand (-353) liegt mitten im Intervall,
-             der linke 145 px daneben — genommen wurde der linke, und der Zug
-             holte außen um einen ganzen Kasten aus.
-
-             Die Ausnahme ist bewusst eng. Als Regel formuliert (immer der
-             nähere Rand) kostete sie im kombinierten Modell vier Kreuzungen,
-             mit einer Pixel-Schwelle ebenfalls; nur so — der andere Rand muss
-             die Spalte GANZ ins Intervall bringen — zahlt sie nichts. */
-          const raus = c => c < lo ? lo - c : c > hi ? c - hi : 0;
-          const nah = d.c < ziel ? zLo : zHi, fern = d.c < ziel ? zHi : zLo;
           const neu = (zLo === ziel && zHi === ziel) ? ziel
-                    : (raus(fern) === 0 && raus(nah) > 120 ? fern : nah);
+                    : (d.c < ziel ? zLo : zHi);      // von der Seite, aus der die Spalte kommt
           if(Math.abs(neu - d.c) < 1) return;
           // Nur nach INNEN: das Ausweichen darf den Haken nicht vergrößern.
           if(Math.abs(neu - (lo + hi)/2) > Math.abs(d.c - (lo + hi)/2)) return;
