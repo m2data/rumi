@@ -616,6 +616,86 @@ function layered(nodes, edges, dir, ortho){
     }
   });
 
+  /* Kringel kappen: eine Stützspalte weit AUSSERHALB des Intervalls zwischen
+     den beiden Anschlüssen schickt den Zug erst von seinem Ziel weg und dann
+     zurück. Rechtwinklig gezeichnet wird daraus ein Haken quer durch fremde
+     Spalten — und was er dort quert, kreuzt er zweimal, einmal hin und einmal
+     zurück. Die Spalten kommen aus der dichten Packung der Ebene; angefasst
+     hat sie bisher nur das Geraderücken darüber, und das ist Alles-oder-
+     nichts: es setzt jede Spalte auf die Ziellage oder gar keine.
+
+     Zwei Dinge entscheiden hier über Erfolg oder Schaden:
+
+     Gekappt wird je PARALLELGRUPPE, nicht je Kante. Mehrere Beziehungen
+     zwischen denselben zwei Objekten sind für das Verfahren getrennte Kanten
+     mit getrennten Stützspalten. Einzeln geprüft wurde davon eine
+     zurückgenommen und die übrigen gekappt — und dann kreuzten sich die
+     parallelen Züge gegenseitig, was vorher keine tat.
+
+     Und nur rechtwinklig: die weiche Führung zieht ihre Spalten gleich darauf
+     auf die Luftlinie und braucht die Schranke nicht — vorgeschaltet
+     verschiebt sie ihr bloß den Ausgangsstand (im kombinierten Modell von 21
+     auf 22 Kreuzungen). */
+  if(ortho){
+    const gruppen = new Map();
+    edges.forEach(e=>{
+      const info = chain.get(e);
+      if(!info || !info.ds.length || !e.portFrom || !e.portTo) return;
+      if(!nodeOf.get(e.from) || !nodeOf.get(e.to)) return;
+      const k = e.from + ' ' + e.to;
+      if(!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(e);
+    });
+    const cOf = (n, port)=> vertical ? n.x + n.w * port.t : n.y + n.h * port.t;
+    for(const grp of gruppen.values()){
+      const noten = () => grp.reduce((s,e)=> s + kreuzungen(e), 0);
+      const merk = grp.map(e => chain.get(e).ds.map(d => d.c));
+      let bewegt = false;
+      const vorher = noten();
+      grp.forEach(e=>{
+        const info = chain.get(e);
+        const A = nodeOf.get(e.from), B = nodeOf.get(e.to);
+        const ca = cOf(A, e.portFrom), cb = cOf(B, e.portTo);
+        const lo = Math.min(ca, cb), hi = Math.max(ca, cb);
+        info.ds.forEach(d=>{
+          const ziel = Math.min(hi, Math.max(lo, d.c));
+          if(Math.abs(ziel - d.c) < 1) return;
+          // Ist die Wunschlage von einem Kasten belegt, wird sie an den Rand
+          // der (zusammengelegten) Sperrzone geschoben — und zwar an den, der
+          // dem Intervall zugewandt ist. Nur „belegt, also gar nicht bewegen"
+          // ließ die Spalte sonst zweihundert Pixel daneben stehen; genau das
+          // ist der Haken, den das Kappen beseitigen soll.
+          let zLo = ziel, zHi = ziel, drin = true, guard = 0;
+          while(drin && guard++ < 6){
+            drin = false;
+            for(const it of rows[d.lay]){
+              if(it.dummy) continue;
+              const half = cs(it)/2 + SIB * 0.3;
+              if(zHi > it.c - half && zLo < it.c + half && (it.c - half < zLo || it.c + half > zHi)){
+                zLo = Math.min(zLo, it.c - half);
+                zHi = Math.max(zHi, it.c + half);
+                drin = true;
+              }
+            }
+          }
+          const neu = (zLo === ziel && zHi === ziel) ? ziel
+                    : (d.c < ziel ? zLo : zHi);      // von der Seite, aus der die Spalte kommt
+          if(Math.abs(neu - d.c) < 1) return;
+          // Nur nach INNEN: das Ausweichen darf den Haken nicht vergrößern.
+          if(Math.abs(neu - (lo + hi)/2) > Math.abs(d.c - (lo + hi)/2)) return;
+          d.c = neu; bewegt = true;
+        });
+        e.bends = bendsOf(info);
+      });
+      if(!bewegt) continue;
+      if(noten() > vorher) grp.forEach((e,i)=>{
+        const info = chain.get(e);
+        info.ds.forEach((d,k)=>{ d.c = merk[i][k]; });
+        e.bends = bendsOf(info);
+      });
+    }
+  }
+
   /* Weiche Führung (hierarchisch): lange Kanten wirken natürlicher, wenn ihre
      Stützspalten der Luftlinie zwischen den Anschlüssen folgen, statt im
      Median-Kanal zu pendeln. Der Pendelzug — quer zum Kanal, senkrecht

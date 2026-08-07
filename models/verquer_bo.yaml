@@ -1,0 +1,462 @@
+BusinessObjects:
+  Käsereibe:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - KorkenzieherQuelle
+    - MessbecherQuelle
+    relationships:
+    - name: ''
+      to: Käsereibe
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Wasserkocher
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Mixer
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Küchenwaage
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Salzstreuer
+      to: Topflappen
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Toaster:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - KorkenzieherQuelle
+    - MessbecherQuelle
+    relationships:
+    - name: ''
+      to: Toaster
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Spülbürste
+      to: Topflappen
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Küchenwaage
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Vorratsdose
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Mixer
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Schneebesen:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - PfanneQuelle
+    relationships:
+    - name: ''
+      to: Toaster
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Käsereibe
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Kochtopf:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SchneebesenQuelle
+    relationships:
+    - name: ''
+      to: Pfanne
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Pfanne:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SiebQuelle
+    relationships: []
+  Sieb:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - ToasterQuelle
+    relationships:
+    - name: Besteckkasten
+      to: Pfanne
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Schüssel:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources: []
+    relationships: []
+  Wasserkocher:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources: []
+    relationships: []
+  Mixer:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - ReibeQuelle
+    relationships:
+    - name: ''
+      to: Mixer
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Küchenwaage
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Gemüseschäler
+      to: Besteckkasten
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Schöpfkelle
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Vorratsdose
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Pfeffermühle
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Korkenzieher
+      to: Küchenwaage
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Nudelholz:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - BrotkastenQuelle
+    relationships:
+    - name: ''
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Dosenöffner:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - KochtopfQuelle
+    relationships: []
+  Schöpfkelle:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SuppenkelleQuelle
+    relationships:
+    - name: Auflaufform
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Topflappen
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Dosenöffner
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Reibe
+      to: Besteckkasten
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Teesieb
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Pfeffermühle
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Backblech
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Brotkasten
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Messbecher:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - EierbecherQuelle
+    - BackpinselQuelle
+    relationships:
+    - name: ''
+      to: Backblech
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Brotkasten
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Backblech:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - BackblechQuelle
+    relationships: []
+  Brotkasten:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SchneidebrettQuelle
+    relationships: []
+  Salzstreuer:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - WasserkocherQuelle
+    relationships:
+    - name: Teller
+      to: Salzstreuer
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Wasserkocher
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Küchenwaage
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Schüssel
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Pfeffermühle:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources: []
+    relationships: []
+  Tasse:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - KäsereibeQuelle
+    relationships:
+    - name: ''
+      to: Tasse
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Teller
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Vorratsdose
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+    - name: ''
+      to: Pfeffermühle
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Teller:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - GemüseschälerQuelle
+    relationships: []
+  Besteckkasten:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - MixerQuelle
+    relationships:
+    - name: ''
+      to: Teesieb
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Auflaufform
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Vorratsdose
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Teesieb
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Tasse
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Dosenöffner
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: Pfeffermühle
+      to: Toaster
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Spülbürste:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SchöpfkelleQuelle
+    relationships:
+    - name: ''
+      to: Dosenöffner
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Vorratsdose:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - MörserQuelle
+    relationships: []
+  Küchenwaage:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - SchüsselQuelle
+    relationships:
+    - name: ''
+      to: Auflaufform
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Tasse
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Pfanne
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Brotkasten
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Topflappen:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources: []
+    relationships:
+    - name: ''
+      to: Pfanne
+      cardinality:
+        from: exactly_one
+        to: one_or_many
+  Auflaufform:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - NudelholzQuelle
+    relationships:
+    - name: ''
+      to: Auflaufform
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - name: ''
+      to: Spülbürste
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Teesieb:
+    desc: ''
+    Domain: Haushalt
+    BusinessKeys: []
+    sources:
+    - DosenöffnerQuelle
+    relationships: []

@@ -68,7 +68,13 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Kennungen, Anlegen, Löschen, Rückgängig.
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
-  (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel).
+  (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel),
+  Anschlüsse zeigen dorthin, wohin ihr Zug läuft (Knickwinkel).
+- **`ortho.js`** — rechtwinklige Führung im dichten Modell `verquer_bo.yaml`:
+  keine Haken weit außerhalb des Anschluss-Intervalls, parallele Beziehungen
+  zwischen denselben zwei Objekten kreuzen einander nicht, Deckel je
+  Flussrichtung. Dazu die Gegenprobe, dass die weiche Führung unberührt
+  bleibt.
 
 Ein neuer Rauchtest gehört in die passende Themendatei; wächst ein Thema aus
 dem Rahmen, bekommt es eine eigene Datei — der Läufer nimmt jede `*.js` unter
