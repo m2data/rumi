@@ -2,7 +2,12 @@
    (willibald + Delta crm + Delta sap-finanz). Hier zeigten sich die
    Blitzmuster und Zickzack-Züge, die in den kleinen Fixture-Modellen nicht
    auftreten. Die Kastenmaße werden vereinheitlicht (152×38 wie im Browser),
-   damit die Geometrie nicht an der Schriftmessung des Mini-DOM hängt. */
+   damit die Geometrie nicht an der Schriftmessung des Mini-DOM hängt.
+
+   Ausnahme ist der letzte Abschnitt: er misst Ansicht 2 mit den echten
+   Kastenmaßen — die Ansicht, in der wirklich gearbeitet wird. Dort sind die
+   Kästen unterschiedlich hoch und breit, die Ebenenreihenfolge fällt anders
+   aus, und die Zahlen hängen an measure() im Mini-DOM. */
 const fs = require('fs');
 const path = require('path');
 const {bootApp, makeT} = require('./start');
@@ -228,6 +233,99 @@ console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==
   // Ebenenreihenfolge schickte einen Zug mehr auf einen Umweg); die Wunschlage
   // der Anschlüsse holt den wieder zurück.
   t('höchstens 2 Züge müssen ihr Intervall verlassen', raus.length <= 2, raus.length + ': ' + raus.join(', '));
+}
+
+console.log('== Ansicht 2 mit echten Kastenmaßen (die Ansicht der Praxis) ==');
+{
+  /* Alles darüber vereinheitlicht die Kästen auf 152×38, damit die Geometrie
+     nicht an der Schriftmessung des Mini-DOM hängt. Die Ansicht, in der
+     wirklich gearbeitet wird, zeigt aber Domain und Quellen — und dann sind
+     die Kästen zwischen 76 und 175 px hoch und unterschiedlich breit. Das
+     ergibt eine ANDERE Ebenenreihenfolge und andere Zahlen; ungeprüft war
+     davon bisher nichts.
+
+     Anlass: ein Nutzer hat diese Ansicht von Hand nachgebessert (23 auf 19
+     Kreuzungen) und den Export geschickt. Aus den Handgriffen ließ sich keine
+     Regel gewinnen — jeder Kandidat wurde gemessen und war den Preis nicht
+     wert. Was bleibt, ist der Deckel: dass eine künftige Änderung diese
+     Anordnung nicht verschlechtert.
+
+     Die Zahlen hängen an measure() im Mini-DOM. Ändert sich dessen
+     Schriftmessung, sind sie neu zu eichen. */
+  api.setView(2);
+  const echt = (algo, dir)=>{
+    S.layout.dir = dir;
+    [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
+      .find(b => b.dataset.algo === algo).onclick();
+  };
+  // Eigene Geometriehelfer: die weiter oben sind an ihre Blöcke gebunden.
+  const ccw2 = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+  const kreuzt2 = (a,b,c,d)=>{
+    const d1=ccw2(c,d,a), d2=ccw2(c,d,b), d3=ccw2(a,b,c), d4=ccw2(a,b,d);
+    return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
+  };
+  const schnittpunkt = (a,b,c,d)=>{
+    const rx=b.x-a.x, ry=b.y-a.y, sx=d.x-c.x, sy=d.y-c.y;
+    const den = rx*sy - ry*sx;
+    if(!den) return null;
+    const u = ((c.x-a.x)*sy - (c.y-a.y)*sx) / den;
+    return {x:a.x + rx*u, y:a.y + ry*u};
+  };
+  const trifftKasten = (a,b,r)=>{
+    if(Math.max(a.x,b.x) < r.x || Math.min(a.x,b.x) > r.x+r.w
+    || Math.max(a.y,b.y) < r.y || Math.min(a.y,b.y) > r.y+r.h) return false;
+    const drin = p => p.x > r.x && p.x < r.x+r.w && p.y > r.y && p.y < r.y+r.h;
+    if(drin(a) || drin(b)) return true;
+    const E = [{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+    for(let i=0;i<4;i++){
+      const c = E[i], d = E[(i+1)%4];
+      if(((ccw2(a,b,c)>0)!==(ccw2(a,b,d)>0)) && ((ccw2(c,d,a)>0)!==(ccw2(c,d,b)>0))) return true;
+    }
+    return false;
+  };
+  const zaehle = ()=>{
+    const segs = [];
+    S.graph.edges.forEach(e=>{
+      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+      if(!A || !B || A === B) return;
+      const pts = api.routePoints(e, A, B);
+      for(let i=0;i<pts.length-1;i++) segs.push({e, a:pts[i], b:pts[i+1]});
+    });
+    let n = 0, nah = 0, schnitte = 0;
+    for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
+      const e1 = segs[i].e, e2 = segs[j].e;
+      if(e1 === e2) continue;
+      if(!kreuzt2(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) continue;
+      n++;
+      const gem = e1.from === e2.from || e1.from === e2.to ? e1.from
+                : e1.to === e2.from  || e1.to === e2.to    ? e1.to : null;
+      if(!gem) continue;
+      const n0 = S.graph.byId.get(gem), pt = schnittpunkt(segs[i].a, segs[i].b, segs[j].a, segs[j].b);
+      if(n0 && pt && Math.hypot(pt.x-(n0.x+n0.w/2), pt.y-(n0.y+n0.h/2)) < 140) nah++;
+    }
+    S.graph.edges.forEach(e=>{
+      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+      if(!A || !B || A === B || !e.bends) return;
+      const pts = api.routePoints(e, A, B);
+      if(S.graph.nodes.some(nd=>{
+        if(nd.hidden || nd.id === e.from || nd.id === e.to) return false;
+        for(let i=0;i<pts.length-1;i++) if(trifftKasten(pts[i], pts[i+1], nd)) return true;
+        return false;
+      })) schnitte++;
+    });
+    return {n, nah, schnitte};
+  };
+  const DECKEL = {hier: {TB:23, BT:22, LR:20, RL:20},
+                  ortho:{TB:17, BT:17, LR:22, RL:23}};
+  for(const algo of ['hier', 'ortho']) for(const dir of ['TB','BT','LR','RL']){
+    echt(algo, dir);
+    const r = zaehle();
+    t(`${algo} ${dir}: höchstens ${DECKEL[algo][dir]} geroutete Kreuzungen`,
+      r.n <= DECKEL[algo][dir], r.n + ' Kreuzungen');
+    t(`${algo} ${dir}: kein auffälliges X am Kasten, kein Schnitt`,
+      r.nah === 0 && r.schnitte === 0, `${r.nah} X, ${r.schnitte} Schnitte`);
+  }
+  api.setView(1);
 }
 
 finish();

@@ -69,7 +69,10 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
   (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel),
-  Anschlüsse zeigen dorthin, wohin ihr Zug läuft (Knickwinkel).
+  Anschlüsse zeigen dorthin, wohin ihr Zug läuft (Knickwinkel). Der letzte
+  Abschnitt deckelt zusätzlich **Ansicht 2 mit den echten Kastenmaßen** in
+  allen vier Richtungen und beiden Verfahren — die Ansicht der Praxis, deren
+  Geometrie sich von der vereinheitlichten deutlich unterscheidet.
 - **`ortho.js`** — rechtwinklige Führung im dichten Modell `verquer_bo.yaml`:
   keine Haken weit außerhalb des Anschluss-Intervalls, parallele Beziehungen
   zwischen denselben zwei Objekten kreuzen einander nicht, Deckel je
