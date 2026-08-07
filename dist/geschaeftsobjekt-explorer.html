@@ -2103,6 +2103,48 @@ function layered(nodes, edges, dir, ortho){
             }
           }
         }
+        /* Anschlusslagen an die endgültige Zugrichtung rücken. verteilePorts()
+           REIHT die Kanten einer Kastenseite richtig, verteilt sie dann aber
+           GLEICHMÄSSIG über die Spanne. Eine Kante, die weit zur Seite zieht,
+           bekommt damit nicht den äußeren Rand, sondern ihren Rasterplatz —
+           und knickt gleich hinter dem Anschluss ab. Hier bekommt jede Kante
+           ihre Wunschlage (dorthin, wo ihr Zug hinführt), monoton mit
+           Mindestabstand in die Spanne projiziert: dasselbe Vor- und
+           Rückwärtsschieben wie in tidy(). Die Reihung bleibt dabei erhalten,
+           nur die Abstände folgen den Zielen. */
+        for(const grp of ports.values()){
+          if(grp.length < 2) continue;
+          const port = ref => ref.e[ref.which];
+          // Nach der AKTUELLEN Lage sortieren, nicht nach der Listenreihenfolge:
+          // swapT() tauscht die t-Werte, ordnet die Liste aber nicht um. Die
+          // Projektion würde sonst die alte Reihung erzwingen und damit genau
+          // die Tausche zurücknehmen, die die Suche eben erst gefunden hat.
+          const list = grp.slice().sort((a,b)=> port(a).t - port(b).t);
+          const alt = list.map(ref => port(ref).t);
+          const knoten = ref => nodeOf.get(ref.which === 'portFrom' ? ref.e.from : ref.e.to);
+          const span = Math.min(0.84, Math.max(0.36, (list.length - 1) * 0.1));
+          const lo = 0.5 - span/2, hi = 0.5 + span/2;
+          const sep = Math.min(0.12, span / (list.length - 1));
+          const wunsch = list.map(ref=>{
+            const n0 = knoten(ref);
+            if(!n0) return 0.5;
+            const z = crossOf(ref);                       // wohin der Zug läuft
+            const t = vertical ? (z - n0.x) / n0.w : (z - n0.y) / n0.h;
+            return Math.min(hi, Math.max(lo, t));
+          });
+          const t = wunsch.slice();
+          for(let i=1;i<t.length;i++) if(t[i] < t[i-1] + sep) t[i] = t[i-1] + sep;
+          for(let i=t.length-2;i>=0;i--) if(t[i] > t[i+1] - sep) t[i] = t[i+1] - sep;
+          if(t[0] < lo){ const d = lo - t[0]; t.forEach((_,i)=> t[i] += d); }
+          list.forEach((ref,i)=>{ port(ref).t = Math.min(hi, Math.max(lo, t[i])); });
+          // Gleichstand genügt: kostet die Wunschlage keine Kreuzung, ist sie
+          // die bessere — sie nimmt den Knick gleich hinter dem Anschluss.
+          // Fortgefahren wird aber nur bei echter Verbesserung, sonst liefe
+          // die Schleife endlos.
+          const s2 = score();
+          if(s2 <= best){ if(s2 < best) besser = true; best = s2; }
+          else list.forEach((ref,i)=>{ port(ref).t = alt[i]; });
+        }
         if(!besser) break;
       }
     }

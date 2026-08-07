@@ -134,10 +134,12 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
   // kreuzen sich DIREKT vor diesem Kasten (fast immer durch die
   // Anschluss-Reihung vermeidbar; die Tauschsuche gewichtet den Ort der
   // Kreuzung) — und die Gesamtzahl als Deckel gegen Wildwuchs.
-  // Der Deckel liegt bei 22 und hält zwei Gewinne fest: mit den drei
-  // geordneten Startordnungen allein kam dieses Modell auf 44 (TB) bzw. 42
-  // (LR) Kreuzungen, mit den gemischten Zusatzstarts auf 25 bzw. 21, und mit
-  // dem Spaltenversatz der Stützpunkte auf 21 bzw. 21.
+  // Die Deckel halten drei Gewinne fest. Mit den drei geordneten
+  // Startordnungen allein kam dieses Modell auf 44 (TB) bzw. 42 (LR)
+  // Kreuzungen, mit den gemischten Zusatzstarts auf 25 bzw. 21, mit dem
+  // Spaltenversatz der Stützpunkte auf 21 bzw. 21 und mit der Wunschlage der
+  // Anschlüsse auf 21 bzw. 20. Darum je Richtung ein eigener Deckel.
+  const DECKEL = {TB: 21, LR: 20};
   const ccw=(p,q,r)=>(r.y-p.y)*(q.x-p.x)-(q.y-p.y)*(r.x-p.x);
   const cross=(a,b,c,d)=>{const d1=ccw(c,d,a),d2=ccw(c,d,b),d3=ccw(a,b,c),d4=ccw(a,b,d);
     return ((d1>0)!==(d2>0))&&((d3>0)!==(d4>0));};
@@ -168,7 +170,43 @@ console.log('== Kreuzungen: keine auffälligen X am Kasten, Gesamtzahl gedeckelt
       }
     }
     t(`${dir}: höchstens 2 auffällige X direkt am Kasten`, nah.length <= 2, nah.length + ': ' + nah.join(', '));
-    t(`${dir}: höchstens 22 geroutete Kreuzungen insgesamt`, n <= 22, n + ' Kreuzungen');
+    t(`${dir}: höchstens ${DECKEL[dir]} geroutete Kreuzungen insgesamt`,
+      n <= DECKEL[dir], n + ' Kreuzungen');
+  }
+}
+
+console.log('== Anschlüsse zeigen dorthin, wohin ihr Zug läuft ==');
+{
+  // Die Anschlüsse einer Kastenseite werden nicht nur RICHTIG GEREIHT, sondern
+  // auch nach ihrer Zielrichtung gelegt. Gleichmäßig gerastert bekam eine
+  // Kante, die weit zur Seite zieht, ihren Rasterplatz statt des äußeren
+  // Randes — und knickte gleich hinter dem Anschluss ab. Gemessen wird der
+  // Winkel zwischen der Seitennormalen des Kastens und dem ersten Segment:
+  // 0° heißt senkrecht heraus, große Werte heißen sofortiges Abknicken.
+  const NORM = {T:{x:0,y:-1}, B:{x:0,y:1}, L:{x:-1,y:0}, R:{x:1,y:0}};
+  const mittlererKnick = ()=>{
+    let summe = 0, zahl = 0;
+    S.graph.edges.forEach(e=>{
+      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+      if(!A || !B || A === B || !e.portFrom) return;
+      const pts = api.routePoints(e, A, B);
+      for(const [port, p, q] of [[e.portFrom, pts[0], pts[1]],
+                                 [e.portTo, pts[pts.length-1], pts[pts.length-2]]]){
+        if(!port || !p || !q) continue;
+        const n0 = NORM[port.side]; if(!n0) continue;
+        const vx = q.x - p.x, vy = q.y - p.y;
+        const len = Math.hypot(vx, vy); if(len < 1) continue;
+        const cos = Math.max(-1, Math.min(1, (n0.x*vx + n0.y*vy) / len));
+        summe += Math.acos(cos) * 180 / Math.PI; zahl++;
+      }
+    });
+    return zahl ? summe / zahl : 0;
+  };
+  // Vor der Wunschlage: 44,9° (TB) und 25,0° (LR).
+  for(const [dir, grenze] of [['TB', 43], ['LR', 24.7]]){
+    layoutMit('hier', dir);
+    const w = mittlererKnick();
+    t(`${dir}: mittlerer Knick am Anschluss unter ${grenze}°`, w < grenze, w.toFixed(1) + '°');
   }
 }
 
@@ -186,11 +224,10 @@ console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==
       raus.push(e.from.replace('o:','') + '>' + e.to.replace('o:',''));
   });
   // Wo alle Ebenen belegt sind, bleibt ein Umweg erlaubt — aber nicht viele.
-  // Drei statt zwei, seit die gemischten Startordnungen eine kreuzungsärmere
-  // Ebenenreihenfolge wählen: dieselbe Anordnung, die hier 44 auf 25
-  // Kreuzungen drückt, schickt einen Zug mehr auf einen Umweg. Der Handel ist
-  // gemessen und bewusst so herum entschieden.
-  t('höchstens 3 Züge müssen ihr Intervall verlassen', raus.length <= 3, raus.length + ': ' + raus.join(', '));
+  // Mit den gemischten Startordnungen waren es drei (die kreuzungsärmere
+  // Ebenenreihenfolge schickte einen Zug mehr auf einen Umweg); die Wunschlage
+  // der Anschlüsse holt den wieder zurück.
+  t('höchstens 2 Züge müssen ihr Intervall verlassen', raus.length <= 2, raus.length + ': ' + raus.join(', '));
 }
 
 finish();
