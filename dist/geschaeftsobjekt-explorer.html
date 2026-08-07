@@ -6260,19 +6260,47 @@ document.addEventListener('keydown', ev=>{
 
 const PFEIL = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]};
 
-/* Die markierten Objekte um dx/dy verschieben — mit derselben Kantenbehandlung
-   wie beim Ziehen mit der Maus: Kanten innerhalb der Auswahl wandern starr mit,
-   Kanten nach außen werden gelöst und neu gezogen. Gibt false zurück, wenn
-   nichts markiert ist. */
+/* Die markierten Objekte um dx/dy verschieben. Kanten INNERHALB der Auswahl
+   wandern starr mit.
+
+   Kanten über die Auswahlgrenze behalten ihren Zug. Anders als beim Ziehen mit
+   der Maus, wo ein weiter Weg ein Neuziehen rechtfertigt, sind die Pfeiltasten
+   zum Feinjustieren da: einen von Hand gelegten oder vom Verfahren geführten
+   Zug für ein Rasterfeld wegzuwerfen, nimmt mehr weg, als die Bewegung wert
+   ist. Anschlusspunkte sind Seite plus Anteil und wandern mit dem Kasten, die
+   Stützpunkte bleiben liegen — es ändert sich also von selbst nur das Stück am
+   bewegten Objekt. Gibt false zurück, wenn nichts markiert ist. */
 function moveSelection(dx, dy){
   const ids = new Set([...S.sel].filter(id => isVisible(id)));
   if(!ids.size) return false;
   S.graph.edges.forEach(e=>{
-    const a = ids.has(e.from), b = ids.has(e.to);
-    if(a && b){ if(e.bends) e.bends.forEach(q=>{ q.x += dx; q.y += dy; }); }
-    else if(a !== b && !e.manual){ e.bends = null; e.portFrom = null; e.portTo = null; }
+    if(ids.has(e.from) && ids.has(e.to) && e.bends)
+      e.bends.forEach(q=>{ q.x += dx; q.y += dy; });
   });
   ids.forEach(id=>{ const n = S.graph.byId.get(id); n.x = Math.round(n.x + dx); n.y = Math.round(n.y + dy); });
+
+  /* Rechtwinklige Züge bleiben rechtwinklig: das Stück zwischen Anschluss und
+     erstem Stützpunkt lief achsparallel, und der Anschluss ist gerade
+     mitgewandert. Ohne Nachzug bliebe ein schräger Stummel am Kasten stehen —
+     gezeichnet wird der Zug als gerade Strecke von Punkt zu Punkt. Die
+     Anschlussseite gibt die Achse vor: oben/unten heißt senkrecht hinaus, also
+     übernimmt der Stützpunkt die Querlage des Anschlusses.
+
+     Erst ab zwei Stützpunkten: bei nur einem müssten beide Enden dieselbe
+     Spalte fordern, und das Nachziehen des einen bräche die Achse am anderen. */
+  const nachziehen = (e, port, bend, n)=>{
+    if(!e.ortho || !port || !bend || !n) return;
+    const p = portPoint(n, port);
+    if(port.side === 'T' || port.side === 'B') bend.x = Math.round(p.x);
+    else                                       bend.y = Math.round(p.y);
+  };
+  S.graph.edges.forEach(e=>{
+    const a = ids.has(e.from), b = ids.has(e.to);
+    if(a === b || !e.bends || e.bends.length < 2) return;   // nur über die Grenze
+    if(a) nachziehen(e, e.portFrom, e.bends[0], S.graph.byId.get(e.from));
+    else  nachziehen(e, e.portTo, e.bends[e.bends.length-1], S.graph.byId.get(e.to));
+  });
+
   spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   draw(); persist();
   return true;

@@ -155,6 +155,41 @@ console.log('== Pfeiltasten verschieben, Entf blendet aus ==');
     innen.bends = null;
   }
 
+  /* Kante über die Auswahlgrenze: der Zug bleibt erhalten und passt sich nur
+     am bewegten Kasten an. Vorher wurde er beim ersten Tastendruck verworfen
+     (bends und Anschlusspunkte auf null) und vom Verfahren neu gezogen. */
+  const raus = S.graph.edges.find(e =>
+    (e.from === a.id && e.to !== b.id) || (e.to === a.id && e.from !== b.id));
+  if(raus){
+    const amAnfang = raus.from === a.id;
+    raus.ortho = true;
+    raus.portFrom = {side:'B', t:0.5};
+    raus.portTo   = {side:'T', t:0.5};
+    const n = S.graph.byId.get(a.id);
+    raus.bends = [{x:Math.round(n.x + n.w/2), y:Math.round(n.y + n.h + 40)},
+                  {x:Math.round(n.x + n.w/2) + 120, y:Math.round(n.y + n.h + 40)}];
+    const merk = raus.bends.map(q=>({x:q.x, y:q.y}));
+    api.setSelection([a.id]);
+    taste('ArrowRight');
+    t('Zug über die Auswahlgrenze bleibt erhalten',
+      !!raus.bends && raus.bends.length === 2 && !!raus.portFrom,
+      'bends=' + (raus.bends ? raus.bends.length : 'null'));
+    if(raus.bends && raus.bends.length === 2){
+      const pts = api.routePoints(raus, S.graph.byId.get(raus.from), S.graph.byId.get(raus.to));
+      const nah = amAnfang ? [pts[0], pts[1]] : [pts[pts.length-1], pts[pts.length-2]];
+      t('das erste Stück bleibt achsparallel (rechtwinklig)',
+        Math.abs(nah[0].x - nah[1].x) < 1 || Math.abs(nah[0].y - nah[1].y) < 1,
+        `(${Math.round(nah[0].x)},${Math.round(nah[0].y)}) → (${Math.round(nah[1].x)},${Math.round(nah[1].y)})`);
+      const fern = amAnfang ? raus.bends[1] : raus.bends[0];
+      const fernMerk = amAnfang ? merk[1] : merk[0];
+      t('der vom Kasten abgewandte Stützpunkt bleibt liegen',
+        fern.x === fernMerk.x && fern.y === fernMerk.y,
+        `(${fern.x},${fern.y}) statt (${fernMerk.x},${fernMerk.y})`);
+    }
+    raus.bends = null; raus.ortho = false; raus.portFrom = null; raus.portTo = null;
+    api.setSelection([a.id, b.id]);
+  }
+
   // ohne Auswahl passiert nichts
   api.setSelection([]);
   const cx = a.x;
