@@ -2019,31 +2019,11 @@ function layered(nodes, edges, dir, ortho){
     const fuehreBeste = e=>{
       const r = interpoliere(e);
       if(!r || !r.seite) return r;
-      /* Verglichen werden die beiden Seiten nicht nur nach Kreuzungen, sondern
-         auch nach dem UMWEG: wie weit die Stützspalten aus dem Intervall
-         zwischen den beiden Anschlüssen herauslaufen. Nach Kreuzungen allein
-         gewinnt sonst regelmäßig die weit ausholende Seite. Gemessener Fall:
-         die Luftlinie streifte einen Kasten um neun Pixel; rechts herum hätte
-         der Zug im Intervall bleiben können, links herum lief er 145 px
-         daneben — und wurde gewählt, weil er EINE Kreuzung sparte. Hundert
-         Pixel Umweg wiegen darum eine Kreuzung. */
-      const cP = (n, port)=> vertical ? n.x + n.w * (port ? port.t : 0.5)
-                                      : n.y + n.h * (port ? port.t : 0.5);
-      const A0 = nodeOf.get(e.from), B0 = nodeOf.get(e.to);
-      const ca0 = A0 ? cP(A0, e.portFrom) : 0, cb0 = B0 ? cP(B0, e.portTo) : 0;
-      const lo0 = Math.min(ca0, cb0), hi0 = Math.max(ca0, cb0);
-      const umweg = ()=> r.info.ds.reduce((m,d)=>
-        Math.max(m, d.c < lo0 ? lo0 - d.c : d.c > hi0 ? d.c - hi0 : 0), 0);
-
       const zugA = {bends: e.bends ? e.bends.map(p=>({x:p.x, y:p.y})) : null,
                     cs: r.info.ds.map(d=>d.c)};
-      const kA = kreuzungen(e), uA = umweg();
+      const kA = kreuzungen(e);
       interpoliere(e, -r.seite);
-      // Die Gegenseite muss kreuzungsärmer sein UND darf dafür nicht wesentlich
-      // weiter ausholen. Als laufende Strafe formuliert kostete der Umweg in
-      // einer Flussrichtung sechs Kreuzungen; als Veto greift er nur dort, wo
-      // er gebraucht wird — gegen den groben Bogen um einen ganzen Kasten.
-      if(kA <= kreuzungen(e) || umweg() > uA + 80){   // Gegenseite verworfen
+      if(kA <= kreuzungen(e)){                    // Gegenseite nicht besser: zurück
         e.bends = zugA.bends;
         r.info.ds.forEach((d,k)=>{ d.c = zugA.cs[k]; });
       }

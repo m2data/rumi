@@ -129,10 +129,18 @@ console.log('== Rechtwinklig: Züge bleiben nahe an ihrem Anschluss-Intervall ==
   }
 }
 
-console.log('== Weiche Führung bleibt unberührt ==');
+console.log('== Weiche Führung: „Tasse" läuft gerade, ohne Umweg-Veto ==');
 {
-  // Das Kappen läuft nur im rechtwinkligen Zweig.
-  for(const [dir, grenze] of [['TB', 69], ['BT', 65], ['LR', 61], ['RL', 59]]){
+  /* Das Umweg-Veto in fuehreBeste() ist wieder draußen. Es war gegen einen
+     hierarchischen Umweg gebaut, den der Commit davor („Die Luftlinie darf
+     keine neuen Kästen anschneiden") längst beseitigt hatte — die Vorlage
+     stammte aus einem älteren Export. Statt zu helfen hob es den Umweg von 0
+     auf 14 px und kostete acht Kreuzungen. */
+  layoutMit('hier', 'TB');
+  const e = mitLabel('Tasse');
+  if(e) t('TB: „Tasse" läuft hierarchisch ohne Umweg', umwegVon(e, 'TB') <= 5,
+          Math.round(umwegVon(e, 'TB')) + ' px');
+  for(const [dir, grenze] of [['TB', 68], ['BT', 66], ['LR', 57], ['RL', 55]]){
     layoutMit('hier', dir);
     const n = alleKreuzungen();
     t(`${dir}: hierarchisch höchstens ${grenze} Kreuzungen`, n <= grenze, n + ' Kreuzungen');
