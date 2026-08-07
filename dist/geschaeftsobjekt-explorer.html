@@ -1898,6 +1898,20 @@ function layered(nodes, edges, dir, ortho){
         e.bends = bendsOf(info);
       });
     }
+
+    /* Anschluss-Reihenfolge an die jetzt endgültigen Spalten anpassen.
+       verteilePorts() reiht jede Kastenseite nach der Querlage der ERSTEN
+       Stützspalte — lief im rechtwinkligen Zweig aber nur ganz am Anfang,
+       vor dem Geraderücken und vor dem Kappen. Passte die Reihung danach
+       nicht mehr zu den Spalten, kreuzten sich zwei Kanten gleich unter dem
+       Kasten und ein zweites Mal weiter unten, wo die Spalten sich wieder
+       trafen. Gemeldeter Fall: Besteckkasten→Dosenöffner saß auf t=0.20 und
+       damit links von Besteckkasten→Spülbürste (t=0.30), seine Spalte lag
+       mit -367 aber rechts von deren -390.
+
+       Die weiche Führung sortiert aus demselben Grund nach; der
+       rechtwinkligen fehlte es. */
+    verteilePorts();
   }
 
   /* Weiche Führung (hierarchisch): lange Kanten wirken natürlicher, wenn ihre
