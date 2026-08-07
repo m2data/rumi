@@ -5,6 +5,9 @@ es gibt, wie sie zusammenhängen, aus welchen Quellen sie stammen und mit welche
 Attributen sie beschrieben sind. Die Anwendung ist eine einzelne HTML-Datei,
 läuft offline und lädt nichts nach.
 
+Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
+Überblick.
+
 ## Was das Tool kann
 
 - **Komplettansicht** mit drei Ansichten:
