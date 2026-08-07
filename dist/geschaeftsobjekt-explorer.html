@@ -1828,7 +1828,23 @@ function layered(nodes, edges, dir, ortho){
     });
     const cOf = (n, port)=> vertical ? n.x + n.w * port.t : n.y + n.h * port.t;
     for(const grp of gruppen.values()){
-      const noten = () => grp.reduce((s,e)=> s + kreuzungen(e), 0);
+      /* Bewertet wird die Gruppe nach Kreuzungen UND nach dem Umweg: wie weit
+         ihre Stützspalten aus dem Intervall zwischen den Anschlüssen
+         herauslaufen. Ohne den Umweg kannte die Prüfung nur die halbe
+         Rechnung — gemessener Fall: eine Spalte 146 px außerhalb wurde nicht
+         hereingeholt, weil das Hereinholen EINE Kreuzung kostete. Hundert
+         Pixel Umweg wiegen darum eine Kreuzung, dieselbe Umrechnung wie in
+         der Seitenwahl der weichen Führung. */
+      const umwegVon = e2=>{
+        const info2 = chain.get(e2);
+        const A2 = nodeOf.get(e2.from), B2 = nodeOf.get(e2.to);
+        if(!info2 || !A2 || !B2 || !e2.portFrom || !e2.portTo) return 0;
+        const a2 = cOf(A2, e2.portFrom), b2 = cOf(B2, e2.portTo);
+        const l2 = Math.min(a2, b2), h2 = Math.max(a2, b2);
+        return info2.ds.reduce((m,d)=>
+          Math.max(m, d.c < l2 ? l2 - d.c : d.c > h2 ? d.c - h2 : 0), 0);
+      };
+      const noten = () => grp.reduce((s,e2)=> s + kreuzungen(e2) + umwegVon(e2) / 100, 0);
       const merk = grp.map(e => chain.get(e).ds.map(d => d.c));
       let bewegt = false;
       const vorher = noten();
@@ -1858,8 +1874,16 @@ function layered(nodes, edges, dir, ortho){
               }
             }
           }
+          /* Genommen wird der Rand, aus dessen Richtung die Spalte kommt — es
+             sei denn, der ANDERE bringt sie ganz ins Anschluss-Intervall und
+             dieser bliebe weit draußen. Sonst bleibt eine Spalte, die außen
+             begonnen hat, außen, obwohl der Kasten auf der anderen Seite
+             gleich zu Ende ist. Immer den näheren Rand zu nehmen wäre zu
+             grob: das kostete im Bestand durchweg Kreuzungen. */
+          const raus = c => c < lo ? lo - c : c > hi ? c - hi : 0;
+          const nah = d.c < ziel ? zLo : zHi, fern = d.c < ziel ? zHi : zLo;
           const neu = (zLo === ziel && zHi === ziel) ? ziel
-                    : (d.c < ziel ? zLo : zHi);      // von der Seite, aus der die Spalte kommt
+                    : (raus(fern) === 0 && raus(nah) > 120 ? fern : nah);
           if(Math.abs(neu - d.c) < 1) return;
           // Nur nach INNEN: das Ausweichen darf den Haken nicht vergrößern.
           if(Math.abs(neu - (lo + hi)/2) > Math.abs(d.c - (lo + hi)/2)) return;

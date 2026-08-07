@@ -74,7 +74,13 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   keine Haken weit außerhalb des Anschluss-Intervalls, parallele Beziehungen
   zwischen denselben zwei Objekten kreuzen einander nicht, Deckel je
   Flussrichtung. Dazu die Gegenprobe, dass die weiche Führung unberührt
-  bleibt.
+  bleibt. Zwei Abweichungen von den übrigen Themen, beide notwendig, um die
+  gemeldete Anordnung überhaupt zu treffen: das Modell wird **geladen** statt
+  als Delta ergänzt (sonst liegt es auf dem ausgelieferten Willibald-Modell,
+  und dessen elf Objekte verschieben Ebenen und Reihenfolge), und die
+  Kastenmaße bleiben, wie die App sie rechnet, statt vereinheitlicht zu
+  werden. Beides war zuvor falsch — der Test bestand, während der gemeldete
+  Fehler unverändert im Bild stand.
 
 Ein neuer Rauchtest gehört in die passende Themendatei; wächst ein Thema aus
 dem Rahmen, bekommt es eine eigene Datei — der Läufer nimmt jede `*.js` unter

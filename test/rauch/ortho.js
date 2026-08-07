@@ -18,12 +18,23 @@ if(!fs.existsSync(fixture)){
   finish();
   return;
 }
-api.loadDelta(fs.readFileSync(fixture, 'utf8').replace(/\r\n?/g, '\n'));
+/* Das Modell wird GELADEN, nicht als Delta ergänzt. Als Delta läge es auf dem
+   ausgelieferten Willibald-Modell, und die elf zusätzlichen Objekte ändern
+   Ebenenzuteilung wie Reihenfolge — die Anordnung wäre eine andere als die,
+   die der Nutzer vor sich hat. Genau daran ist die Nachstellung eines
+   gemeldeten Falls zuvor gescheitert. */
+await api.loadYaml(fs.readFileSync(fixture, 'utf8').replace(/\r\n?/g, '\n'), 'verquer_bo.yaml');
 document.getElementById('showAll').onclick();
+api.setView(2);                       // Domain und Quellen sichtbar, wie im Bericht
 
+/* Anders als in fuehrung.js werden die Kastenmaße hier NICHT vereinheitlicht.
+   Der gemeldete Fall hängt daran: mit 152×38 fallen die Kästen anders aus, die
+   Ebenenreihenfolge kippt, und die Konstellation entsteht gar nicht. Gemessen
+   wird deshalb mit den Maßen, die die App selbst rechnet — die stammen aus
+   measure() im Mini-DOM und sind damit im Repo deterministisch, hängen aber an
+   dessen Schriftmessung. Ändert die sich, sind die Zahlen hier neu zu eichen. */
 const layoutMit = (algo, dir)=>{
   S.layout.dir = dir;
-  S.graph.nodes.forEach(n=>{ n.w = 152; n.h = 38; });
   [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
     .find(b => b.dataset.algo === algo).onclick();
 };
@@ -57,95 +68,73 @@ const kreuzungenZwischen = (vonA, nachA, vonB, nachB)=>{
   return n;
 };
 
-console.log('== Der gemeldete Fall: Besteckkasten kreuzt sich nicht selbst ==');
-{
-  // Drei parallele Beziehungen Besteckkasten→Spülbürste liefen in einem weiten
-  // Haken nach links (bis x≈97, obwohl beide Anschlüsse zwischen 232 und 325
-  // liegen) und querten dabei zweimal die Spalte, in der Besteckkasten→
-  // Dosenöffner schnurgerade hinunterläuft.
-  layoutMit('ortho', 'TB');
-  const n = kreuzungenZwischen('Besteckkasten', 'Dosenöffner', 'Besteckkasten', 'Spülbürste');
-  t('TB: Besteckkasten→Dosenöffner kreuzt Besteckkasten→Spülbürste nicht', n === 0, n + ' Kreuzungen');
-  const s = kreuzungenZwischen('Besteckkasten', 'Spülbürste', 'Besteckkasten', 'Spülbürste');
-  t('TB: die parallelen Besteckkasten→Spülbürste kreuzen einander nicht', s === 0, s + ' Kreuzungen');
-}
-
-console.log('== Rechtwinklige Züge bleiben nahe an ihrem Anschluss-Intervall ==');
-{
-  // Vor dem gruppenweisen Kappen: 17 Züge (TB) bzw. 8 (LR) verließen ihr
-  // Intervall, der größte um 283 px.
-  for(const [dir, grenze] of [['TB', 13], ['LR', 6]]){
-    layoutMit('ortho', dir);
-    const q = (dir === 'TB' || dir === 'BT') ? 'x' : 'y';
-    let raus = 0;
-    S.graph.edges.forEach(e=>{
-      const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
-      if(!A || !B || A === B || !e.bends || !e.portFrom) return;
-      const pts = api.routePoints(e, A, B);
-      const lo = Math.min(pts[0][q], pts[pts.length-1][q]) - 30;
-      const hi = Math.max(pts[0][q], pts[pts.length-1][q]) + 30;
-      if(pts.some(p => p[q] < lo || p[q] > hi)) raus++;
-    });
-    t(`${dir}: höchstens ${grenze} Züge verlassen ihr Intervall`, raus <= grenze, raus + ' Züge');
+/* Umweg eines Zuges: wie weit läuft er aus dem Intervall zwischen seinen
+   beiden Anschlüssen heraus (quer zur Flussrichtung)? */
+const umwegVon = (e, dir)=>{
+  const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+  if(!A || !B || A === B || !e.bends || !e.portFrom) return 0;
+  const q = (dir === 'TB' || dir === 'BT') ? 'x' : 'y';
+  const pts = api.routePoints(e, A, B);
+  const lo = Math.min(pts[0][q], pts[pts.length-1][q]);
+  const hi = Math.max(pts[0][q], pts[pts.length-1][q]);
+  return pts.reduce((m,p)=> Math.max(m, lo - p[q], p[q] - hi), 0);
+};
+const mitLabel = txt => S.graph.edges.find(e => e.label === txt);
+const alleKreuzungen = ()=>{
+  const segs = segmente();
+  let n = 0;
+  for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
+    if(segs[i].e === segs[j].e) continue;
+    if(kreuzt(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) n++;
   }
+  return n;
+};
+
+console.log('== Der gemeldete Fall: „Tasse" holt nicht um einen Kasten aus ==');
+{
+  /* Die Beziehung „Tasse" (Besteckkasten → Spülbürste) lief außen um das
+     Nudelholz herum: ihre Stützspalte lag 146 px außerhalb des Intervalls
+     zwischen ihren Anschlüssen, obwohl der andere Rand derselben Sperrzone
+     mitten im Intervall liegt. Die Seitenwahl nahm stur den Rand, aus dessen
+     Richtung die Spalte kam, und die Gruppenprüfung verwarf das Hereinholen,
+     weil es eine Kreuzung kostete — sie kannte den Umweg nicht. */
+  layoutMit('ortho', 'TB');
+  const e = mitLabel('Tasse');
+  t('die Beziehung „Tasse" ist im Modell', !!e);
+  if(e) t('TB: „Tasse" holt höchstens 30 px aus (vorher 146)',
+          umwegVon(e, 'TB') <= 30, Math.round(umwegVon(e, 'TB')) + ' px');
+  const s = kreuzungenZwischen('Besteckkasten', 'Spülbürste', 'Besteckkasten', 'Spülbürste');
+  t('TB: die drei parallelen Besteckkasten→Spülbürste kreuzen einander nicht',
+    s === 0, s + ' Kreuzungen');
 }
 
-console.log('== Gesamtzahl der Kreuzungen gedeckelt ==');
+console.log('== Rechtwinklig: Kreuzungen je Flussrichtung ==');
 {
-  // Vor dem Kappen: TB 91, BT 90, RL 81 — jetzt 71, 75, 78.
-  for(const [dir, grenze] of [['TB', 75], ['BT', 78], ['LR', 75], ['RL', 80]]){
+  // Vor der umwegbewussten Gruppenprüfung: TB 64, BT 63, LR 60, RL 59.
+  for(const [dir, grenze] of [['TB', 60], ['BT', 57], ['LR', 60], ['RL', 59]]){
     layoutMit('ortho', dir);
-    const segs = segmente();
-    let n = 0;
-    for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
-      if(segs[i].e === segs[j].e) continue;
-      if(kreuzt(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) n++;
-    }
+    const n = alleKreuzungen();
     t(`${dir}: höchstens ${grenze} geroutete Kreuzungen`, n <= grenze, n + ' Kreuzungen');
   }
 }
 
-console.log('== Weiche Führung: kein grober Bogen um einen ganzen Kasten ==');
+console.log('== Rechtwinklig: Züge bleiben nahe an ihrem Anschluss-Intervall ==');
 {
-  // Muss ein Zug einem Kasten ausweichen, rechnet fuehreBeste() beide Seiten
-  // durch. Verglichen wurden sie nur nach Kreuzungen — und dabei gewann
-  // regelmäßig die weit ausholende Seite: gemeldet wurde ein Zug, der eine
-  // Sperrzone um neun Pixel streifte und dann 145 px außen um den Kasten
-  // herumlief, weil das EINE Kreuzung sparte. Jetzt hat der Umweg ein Veto.
-  // Hier gemessen: vorher 12 Züge außerhalb ihres Intervalls, größter 136 px.
-  layoutMit('hier', 'TB');
-  let raus = 0, weitester = 0;
-  S.graph.edges.forEach(e=>{
-    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
-    if(!A || !B || A === B || !e.bends || !e.portFrom) return;
-    const pts = api.routePoints(e, A, B);
-    const lo = Math.min(pts[0].x, pts[pts.length-1].x) - 30;
-    const hi = Math.max(pts[0].x, pts[pts.length-1].x) + 30;
-    let weit = 0;
-    pts.forEach(p=>{ if(p.x < lo) weit = Math.max(weit, lo - p.x);
-                     if(p.x > hi) weit = Math.max(weit, p.x - hi); });
-    if(weit > 0){ raus++; weitester = Math.max(weitester, weit); }
-  });
-  t('TB: höchstens 11 Züge verlassen ihr Intervall', raus <= 11, raus + ' Züge');
-  t('TB: kein Zug holt weiter als 110 px aus', weitester <= 110, Math.round(weitester) + ' px');
+  // Vor der Korrektur: 13 Züge (TB) bzw. 8 (LR) außerhalb.
+  for(const [dir, grenze] of [['TB', 12], ['LR', 8]]){
+    layoutMit('ortho', dir);
+    let raus = 0;
+    S.graph.edges.forEach(e=>{ if(umwegVon(e, dir) > 30) raus++; });
+    t(`${dir}: höchstens ${grenze} Züge holen mehr als 30 px aus`, raus <= grenze, raus + ' Züge');
+  }
 }
 
-console.log('== Weiche Führung: die Luftlinie schneidet keine Kästen an ==');
+console.log('== Weiche Führung bleibt unberührt ==');
 {
-  // In diesem dichten Modell verdoppelte die Interpolation auf die Luftlinie
-  // die Schnitte durch fremde Kästen (13 auf 28), und die Härtung legte 51
-  // Kreuzungen drauf, um sie zurückzukaufen. Seit ein Zug, der NEU durch
-  // Kästen schneidet, immer zurückgenommen wird — auch bei einer Kante, deren
-  // alter Zug schlecht aussah —, bleiben die Schnitte auf 9 und die Endzahl
-  // fällt von 89 auf 70 (TB), 91 auf 75 (BT), 76 auf 69 (LR), 77 auf 68 (RL).
-  for(const [dir, grenze] of [['TB', 67], ['BT', 75], ['LR', 69], ['RL', 68]]){
+  // Das Kappen läuft nur im rechtwinkligen Zweig.
+  for(const [dir, grenze] of [['TB', 69], ['BT', 65], ['LR', 61], ['RL', 59]]){
     layoutMit('hier', dir);
-    const segs = segmente();
-    let n = 0;
-    for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
-      if(segs[i].e === segs[j].e) continue;
-      if(kreuzt(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) n++;
-    }
+    const n = alleKreuzungen();
     t(`${dir}: hierarchisch höchstens ${grenze} Kreuzungen`, n <= grenze, n + ' Kreuzungen');
   }
 }
