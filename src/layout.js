@@ -642,7 +642,7 @@ function layered(nodes, edges, dir, ortho){
       const info = chain.get(e);
       if(!info || !info.ds.length || !e.portFrom || !e.portTo) return;
       if(!nodeOf.get(e.from) || !nodeOf.get(e.to)) return;
-      const k = e.from + ' ' + e.to;
+      const k = e.from + '|' + e.to;
       if(!gruppen.has(k)) gruppen.set(k, []);
       gruppen.get(k).push(e);
     });
@@ -704,6 +704,32 @@ function layered(nodes, edges, dir, ortho){
      Kästen. Je Ebene wird die Spalte auf die Interpolation zwischen den
      Anschlüssen gezogen, mit denselben Prüfungen wie beim Geraderücken:
      nur wenn die Ebene dort frei ist und keine neuen Kreuzungen entstehen. */
+  /* Schneidet die Strecke a–b das Rechteck r? Wird von der Rücknahmeprüfung der
+     Interpolation UND von der Härtung darunter gebraucht — darum hier oben. */
+  const schneidet = (a, b, r)=>{
+    if(Math.max(a.x,b.x) < r.x || Math.min(a.x,b.x) > r.x+r.w
+    || Math.max(a.y,b.y) < r.y || Math.min(a.y,b.y) > r.y+r.h) return false;
+    const cr = (p,q,s)=> (s.y-p.y)*(q.x-p.x) - (q.y-p.y)*(s.x-p.x);
+    const drin = p => p.x > r.x && p.x < r.x+r.w && p.y > r.y && p.y < r.y+r.h;
+    if(drin(a) || drin(b)) return true;
+    const ecken = [{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+    for(let i=0;i<4;i++){
+      const c = ecken[i], d = ecken[(i+1)%4];
+      if(((cr(a,b,c)>0)!==(cr(a,b,d)>0)) && ((cr(c,d,a)>0)!==(cr(c,d,b)>0))) return true;
+    }
+    return false;
+  };
+  // Fremde Kästen, durch die der aktuelle Zug einer Kante schneidet
+  const schnitteVon = e=>{
+    const P = polyOf(e); if(!P) return 0;
+    let s = 0;
+    for(const n of nodes){
+      if(n.id === e.from || n.id === e.to) continue;
+      for(let i=0;i<P.length-1;i++) if(schneidet(P[i], P[i+1], n)){ s++; break; }
+    }
+    return s;
+  };
+
   let interpoliereWeich = null;
   if(!ortho){
     /* Eine Kante auf die Luftlinie führen. Gibt {alt, warSchlecht, vorher}
@@ -722,6 +748,7 @@ function layered(nodes, edges, dir, ortho){
       const ma = mOf(A), mb = mOf(B);
       if(Math.abs(mb - ma) < 1) return null;
       const vorher = kreuzungen(e);
+      const vorherSchnitte = schnitteVon(e);
       const alt = info.ds.map(d => d.c);
       // Zwei Zugformen wiegen schwerer als eine Kreuzung mehr und werden darum
       // nie aus Kreuzungsgründen behalten: der Kringel (eine Spalte AUSSERHALB
@@ -778,7 +805,7 @@ function layered(nodes, edges, dir, ortho){
         refC = d.c; refM = mainOf[d.lay];
       });
       e.bends = bendsOf(info);
-      return {info, alt, warSchlecht, vorher, seite};
+      return {info, alt, warSchlecht, vorher, vorherSchnitte, seite};
     };
     /* Musste die Kante ausweichen, wird auch die GEGENSEITE durchgerechnet
        und die kreuzungsärmere behalten. Die nähere Seite ist sonst oft die
@@ -800,7 +827,22 @@ function layered(nodes, edges, dir, ortho){
     };
     edges.forEach(e=>{
       const r = fuehreBeste(e);
-      if(r && !r.warSchlecht && kreuzungen(e) > r.vorher){
+      /* Zwei Gründe zur Rücknahme. Der erste ist alt: die Luftlinie kreuzt
+         mehr als der Median-Kanal — das gilt nur für Kanten, deren alter Zug
+         in Ordnung war (ein Kringel oder Zickzack wiegt schwerer als eine
+         Kreuzung mehr, siehe warSchlecht).
+
+         Der zweite ist neu und gilt IMMER: die Luftlinie schneidet durch mehr
+         fremde Kästen als vorher. ausweich() prüft nur die Ebene der Spalte
+         selbst — die Schräge dorthin kann am Bandrand trotzdem in einen
+         Nachbarkasten laufen. Dafür gibt es die Härtung, aber die kauft jeden
+         Schnitt mit Kreuzungen zurück. In einem dichten Modell verdoppelte die
+         Interpolation so die Schnitte (13 auf 28) und die Härtung legte 51
+         Kreuzungen drauf, um sie wieder loszuwerden. Ein Zug, der neu durch
+         Kästen schneidet, ist kein guter Zug — auch nicht für eine Kante,
+         deren alter Zug schlecht aussah. */
+      if(r && (schnitteVon(e) > r.vorherSchnitte
+            || (!r.warSchlecht && kreuzungen(e) > r.vorher))){
         r.info.ds.forEach((d,k)=>{ d.c = r.alt[k]; });
         e.bends = bendsOf(r.info);
       }

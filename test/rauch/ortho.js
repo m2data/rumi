@@ -105,11 +105,15 @@ console.log('== Gesamtzahl der Kreuzungen gedeckelt ==');
   }
 }
 
-console.log('== Die weiche Führung bleibt unberührt ==');
+console.log('== Weiche Führung: die Luftlinie schneidet keine Kästen an ==');
 {
-  // Das Kappen läuft nur im rechtwinkligen Zweig; vorgeschaltet verschöbe es
-  // der weichen Führung bloß den Ausgangsstand.
-  for(const [dir, grenze] of [['TB', 89], ['LR', 76]]){
+  // In diesem dichten Modell verdoppelte die Interpolation auf die Luftlinie
+  // die Schnitte durch fremde Kästen (13 auf 28), und die Härtung legte 51
+  // Kreuzungen drauf, um sie zurückzukaufen. Seit ein Zug, der NEU durch
+  // Kästen schneidet, immer zurückgenommen wird — auch bei einer Kante, deren
+  // alter Zug schlecht aussah —, bleiben die Schnitte auf 9 und die Endzahl
+  // fällt von 89 auf 70 (TB), 91 auf 75 (BT), 76 auf 69 (LR), 77 auf 68 (RL).
+  for(const [dir, grenze] of [['TB', 70], ['BT', 75], ['LR', 69], ['RL', 68]]){
     layoutMit('hier', dir);
     const segs = segmente();
     let n = 0;
@@ -117,7 +121,7 @@ console.log('== Die weiche Führung bleibt unberührt ==');
       if(segs[i].e === segs[j].e) continue;
       if(kreuzt(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) n++;
     }
-    t(`${dir}: hierarchisch weiterhin höchstens ${grenze} Kreuzungen`, n <= grenze, n + ' Kreuzungen');
+    t(`${dir}: hierarchisch höchstens ${grenze} Kreuzungen`, n <= grenze, n + ' Kreuzungen');
   }
 }
 
