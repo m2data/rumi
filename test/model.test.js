@@ -277,6 +277,100 @@ console.log('== Blockskalare: | , |- und > ==');
   t('# und : im Block bleiben erhalten', doc.x === 'Preis # Stück\nVerhältnis 1:2', JSON.stringify(doc.x));
 }
 
+console.log('== Beziehung als Rumpf unter ihrem Namen ==');
+{
+  /* Zweite Schreibweise: der Beziehungsname ist der Schlüssel, das Ziel steht
+     im Rumpf darunter. Bisher war nur die Form mit „to:" auf gleicher Ebene
+     geprüft — die andere lief durch keinen Test. */
+  const y = [
+    'BusinessObjects:',
+    '  Kunde:',
+    '    domain: D',
+    '    business_key: [Nr]',
+    '    relationships:',
+    '      - hat:',
+    '          to: Bestellung',
+    '  Bestellung:',
+    '    domain: D',
+    '    business_key: [Nr]'
+  ].join('\n') + '\n';
+  const m = buildModel(y);
+  const r = m.objects.Kunde.rels[0];
+  t('Ziel aus dem Rumpf gelesen', r && r.to === 'Bestellung', JSON.stringify(r));
+  t('der Schlüssel darüber wird zum Namen', r && r.name === 'hat', r && r.name);
+  t('kein Hinweis auf eine unlesbare Beziehung', !has(m.messages, 'err', 'unlesbar'));
+}
+
+console.log('== Beziehung ohne Ziel wird gemeldet ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  Kunde:',
+    '    domain: D',
+    '    business_key: [Nr]',
+    '    relationships:',
+    '      - name: irgendwas',
+    '  Bestellung:',
+    '    domain: D',
+    '    business_key: [Nr]'
+  ].join('\n') + '\n';
+  const m = buildModel(y);
+  t('fehlendes "to" wird gemeldet', has(m.messages, 'err', 'unlesbar'),
+    m.messages.map(x => x.title).join(' | '));
+  t('der Hinweis nennt die erwartete Schreibweise', has(m.messages, 'err', 'Erwartet wird "to:"'));
+  t('die unlesbare Beziehung landet nicht im Modell', m.objects.Kunde.rels.length === 0);
+}
+
+console.log('== Verweis auf ein Attribut, das im Ziel fehlt ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  Bestellung:',
+    '    domain: D',
+    '    business_key: [Nr]',
+    '    attributes:',
+    '      - name: Nr',
+    '        type: int',
+    '  Position:',
+    '    domain: D',
+    '    business_key: [PNr]',
+    '    attributes:',
+    '      - name: PNr',
+    '        type: int',
+    '      - name: BestellungID',
+    '        type: int',
+    '        references: Bestellung.Nummer'
+  ].join('\n') + '\n';
+  const m = buildModel(y);
+  t('das fehlende Attribut im Ziel wird gemeldet',
+    has(m.messages, 'warn', 'Attribut im Ziel fehlt'), m.messages.map(x => x.title).join(' | '));
+  t('der Hinweis nennt Verweis und Zielobjekt',
+    has(m.messages, 'warn', '"Bestellung.Nummer"') && has(m.messages, 'warn', 'bei Bestellung'));
+  t('ein Verweis auf ein vorhandenes Attribut löst nichts aus',
+    !has(buildModel(y.replace('Bestellung.Nummer', 'Bestellung.Nr')).messages,
+         'warn', 'Attribut im Ziel fehlt'));
+}
+
+console.log('== Doppelter Schlüssel auf derselben Ebene ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  Kunde:',
+    '    domain: Erst',
+    '    domain: Zweit',
+    '    business_key: [Nr]'
+  ].join('\n') + '\n';
+  const r = readYaml(y);
+  t('der doppelte Schlüssel wird gemeldet',
+    r.notes.some(n => n.level === 'warn' && n.title.includes('"domain" doppelt')),
+    r.notes.map(n => n.title).join(' | '));
+  t('der Hinweis nennt die Zeile', r.notes.some(n => /Zeile 4/.test(n.title)),
+    r.notes.map(n => n.title).join(' | '));
+  t('der spätere Wert gewinnt', r.doc.BusinessObjects.Kunde.domain === 'Zweit',
+    r.doc.BusinessObjects.Kunde.domain);
+  t('der Hinweis steht auch im Modell', has(buildModel(y).messages, 'warn', 'doppelt'));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

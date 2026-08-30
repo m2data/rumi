@@ -379,5 +379,46 @@ console.log('== Absicherung: hängendes Ziehen blockiert nicht ==');
   t('Knoten trotz abgebrochenem Ziehen beweglich', n.x !== ox, ox + ' → ' + n.x);
 }
 
+console.log('== Ortho: Direktlinie bei waagrechter Flussrichtung ==');
+{
+  /* Gegenstück zum Fall oben: läuft der Fluss waagrecht, gehen die Anschlüsse
+     nach rechts und links hinaus statt nach unten und oben. Der Zweig war
+     bisher ungeprüft — die Kante wäre schräg aus dem Kasten gelaufen, ohne dass
+     ein Test es gemerkt hätte. */
+  api.setView(1);
+  const e = S.graph.edges.find(x=>{
+    const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
+    return A && B && !A.hidden && !B.hidden && x.from !== x.to;
+  });
+  e.bends = null; e.portFrom = null; e.portTo = null; e.ortho = false; e.manual = true;
+  S.layout.algo = 'ortho'; S.layout.dir = 'LR'; S.selEdge = e.id; api.draw();
+  const gh = document.getElementById('handles').querySelector('.gh');
+  t('Direktlinie hat auch hier einen Zusatzpunkt-Griff', !!gh);
+  if(gh){
+    dispatch(gh, 'pointerdown', {clientX:0, clientY:0});
+    dispatch(svg, 'pointermove', {clientX:40, clientY:0});
+    dispatch(svg, 'pointerup', {clientX:40, clientY:0});
+    t('auch waagrecht entstehen genau zwei Stützpunkte',
+      Array.isArray(e.bends) && e.bends.length === 2, 'bends=' + (e.bends ? e.bends.length : 0));
+    const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
+    const rechtsherum = (A.x + A.w/2) <= (B.x + B.w/2);
+    t('der Anschluss verlässt den Kasten seitlich, nicht oben oder unten',
+      e.portFrom && e.portTo
+      && e.portFrom.side === (rechtsherum ? 'R' : 'L')
+      && e.portTo.side === (rechtsherum ? 'L' : 'R'),
+      (e.portFrom && e.portFrom.side) + ' → ' + (e.portTo && e.portTo.side));
+    t('und sitzt mittig auf seiner Kante', e.portFrom.t === 0.5 && e.portTo.t === 0.5);
+    {
+      const pp = (n,p)=>{ const tt = Math.min(0.92, Math.max(0.08, p.t));
+        return p.side==='T'?{x:n.x+n.w*tt,y:n.y}:p.side==='B'?{x:n.x+n.w*tt,y:n.y+n.h}:p.side==='L'?{x:n.x,y:n.y+n.h*tt}:{x:n.x+n.w,y:n.y+n.h*tt}; };
+      const pts = [pp(A, e.portFrom), ...e.bends, pp(B, e.portTo)];
+      let alle90 = true;
+      for(let k=0;k<pts.length-1;k++){ const dx=Math.abs(pts[k+1].x-pts[k].x), dy=Math.abs(pts[k+1].y-pts[k].y); if(dx>=1 && dy>=1) alle90 = false; }
+      t('alle drei Strecken bleiben rechtwinklig', alle90);
+    }
+  }
+  S.selEdge = null; S.layout.algo = 'hier'; S.layout.dir = 'TB';
+}
+
 finish();
 })();

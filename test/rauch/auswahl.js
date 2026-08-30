@@ -373,5 +373,28 @@ console.log('== Anordnen-Menü: Beschriftungen, Flussrichtung, eine Kante ==');
   S.selEdge = null; api.draw();
 }
 
+console.log('== Kanten neu ziehen bei waagrechter Flussrichtung ==');
+{
+  /* Die Wegsuche schiebt jeden Anschluss ein Stück aus dem Kasten heraus —
+     bei waagrechtem Fluss nach links und rechts. Bisher lief nur die senkrechte
+     Hälfte davon durch einen Test. */
+  const menu = document.getElementById('layoutMenu');
+  const richtung = d => [...document.getElementById('dirGrid').querySelectorAll('button')]
+    .find(b => b.dataset.dir === d);
+  api.setSelection([]);
+  richtung('LR').click();
+  [...menu.querySelectorAll('[data-route]')].find(b => b.dataset.route === 'all').click();
+
+  const gezogen = S.graph.edges.filter(e => e.bends && e.bends.length);
+  t('bei LR werden Kanten neu gezogen', gezogen.length > 0, gezogen.length + ' Kanten');
+  const seiten = new Set(S.graph.edges.filter(e => e.portFrom).map(e => e.portFrom.side));
+  t('die Anschlüsse liegen jetzt seitlich', seiten.has('L') || seiten.has('R'),
+    [...seiten].join(','));
+  t('kein Zug hat einen unendlichen oder fehlenden Punkt',
+    gezogen.every(e => e.bends.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))));
+
+  richtung('TB').click();
+}
+
 finish();
 })();

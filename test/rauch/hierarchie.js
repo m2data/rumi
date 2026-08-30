@@ -186,6 +186,35 @@ console.log('== Verknüpfte Objekte ins Diagramm holen ==');
   api.setMode('komplett');
 }
 
+console.log('== Verknüpfte Objekte bei waagrechter Flussrichtung ==');
+{
+  /* Dieselbe Regel um 90 Grad gedreht: bei LR steht die „zu 1"-Seite links,
+     die „zu n"-Seite rechts. Das Platzieren dafür ist eigener Code und lief
+     bisher durch keinen Test. */
+  const vieleSeite = nid => S.graph.edges.some(e =>
+    (e.from === 'o:Bestellung' && e.to === nid && /many/.test(e.toCard || '')) ||
+    (e.to === 'o:Bestellung' && e.from === nid && /many/.test(e.fromCard || '')));
+  S.hierShown['Übersicht'] = ['o:Bestellung'];
+  S.layout.dir = 'LR';
+  api.selectDiagram('Übersicht');
+  api.addRelated('o:Bestellung');
+  const B = S.graph.byId.get('o:Bestellung');
+  const neu = S.graph.nodes.filter(n => !n.hidden && n.id !== 'o:Bestellung');
+  t('LR: verknüpfte Objekte hinzugefügt', neu.length > 0, neu.length + ' neu');
+  const links = neu.filter(n => n.x + n.w <= B.x);
+  const rechts = neu.filter(n => n.x >= B.x + B.w);
+  t('LR: die einen links, die anderen rechts vom Anker',
+    links.length > 0 && rechts.length > 0, links.length + ' links, ' + rechts.length + ' rechts');
+  t('LR: keins liegt über oder unter dem Anker',
+    links.length + rechts.length === neu.length,
+    (neu.length - links.length - rechts.length) + ' daneben');
+  t('LR: die „zu n"-Seite steht rechts', rechts.every(n => vieleSeite(n.id)),
+    rechts.map(n => n.id).join(','));
+  t('LR: die „zu 1"-Seite steht links', links.every(n => !vieleSeite(n.id)),
+    links.map(n => n.id).join(','));
+  S.layout.dir = 'TB';
+}
+
 console.log('== Hierarchiebeschreibung laden ==');
 {
   const y = 'Testwurzel:\n  objekte:\n    - Kunde\n  Details:\n    Unterthema:\n      objekte:\n        - Bestellung\n';

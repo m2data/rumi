@@ -365,5 +365,27 @@ console.log('== PNG-Export bis zum Bild ==');
     !/zu groß|fehlgeschlagen/.test(toast()), toast() || vorher);
 }
 
+console.log('== Eine Datei, die kein Modell ist ==');
+{
+  /* Greift jemand zur falschen Datei, muss das benannt werden — und der bisher
+     geladene Stand stehen bleiben. */
+  const feld = document.getElementById('fileInput');
+  const vorher = Object.keys(S.model.objects).join(',');
+  const name = S.fileName;
+  feld.files = [{name:'notizen.txt', text: ()=> Promise.resolve('einfach nur Text ohne Doppelpunkt\n')}];
+  dispatch(feld, 'change', {});
+  for(let k = 0; k < 60; k++) await Promise.resolve();
+
+  t('die Datei wird als unlesbar gemeldet',
+    /Datei nicht lesbar/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+  t('und der Grund steht dabei',
+    /BusinessObjects/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+  t('das bisherige Modell bleibt stehen',
+    Object.keys(S.model.objects).join(',') === vorher, Object.keys(S.model.objects).join(','));
+  t('auch der Dateiname bleibt der alte', S.fileName === name, S.fileName);
+}
+
 finish();
 })();
