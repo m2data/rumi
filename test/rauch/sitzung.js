@@ -387,5 +387,24 @@ console.log('== Eine Datei, die kein Modell ist ==');
   t('auch der Dateiname bleibt der alte', S.fileName === name, S.fileName);
 }
 
+console.log('== Delta-Merge bringt einen Block auf die Einrückung der Basis ==')
+{
+  /* Zwei Modelle, dieselbe Struktur, verschiedene Einrückung — beim
+     Zusammenführen muss der übernommene Block auf die Einrückung der Basis
+     gebracht werden, sonst steht er im Ergebnis schief und ist kein gültiges
+     YAML mehr. */
+  const basis = 'BusinessObjects:\n  Alt:\n    domain: D\n    business_key: [Nr]\n';
+  const delta = 'BusinessObjects:\n        Neu:\n            domain: D\n            business_key: [Nr]\n';
+  const r = api.mergeGoText(basis, delta);
+  t('der Block wird als neu gezählt', r && r.added === 1, JSON.stringify(r && {a:r.added, m:r.merged}));
+  const zeile = r.text.split('\n').find(l => /Neu:/.test(l));
+  t('er sitzt in der Einrückung der Basis', zeile === '  Neu:', JSON.stringify(zeile));
+  // der Block wandert als Ganzes: seine Felder bleiben tiefer als seine Kopfzeile
+  const feld = r.text.slice(r.text.indexOf('Neu:')).split('\n').find(l => /domain: D/.test(l));
+  t('seine Felder rücken als Ganzes mit', /^ {3,}domain: D$/.test(feld || ''), JSON.stringify(feld));
+  t('beide Objekte stehen danach auf derselben Ebene',
+    r.text.includes('\n  Alt:') && r.text.includes('\n  Neu:'), r.text);
+}
+
 finish();
 })();

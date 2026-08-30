@@ -378,5 +378,36 @@ console.log('== Anlegen und Löschen über die Dialoge ==');
   t('ein Ja löscht es', !S.model.objects.Testobjekt, Object.keys(S.model.objects).join(','));
 }
 
+console.log('== Umbenennen zieht den Hierarchie-Ausschnitt mit ==');
+{
+  /* Die Kennung eines Objekts steckt in seinem Namen (o:Kunde). Beim Umbenennen
+     muss sie in jeder Ablage mitwandern — auch in der Liste der Objekte, die ein
+     Diagramm zeigt. Sonst fällt das Objekt beim Umbenennen aus dem Diagramm. */
+  if(!S.pflegeAn) S.pflegeAn = true;
+  const alt = Object.keys(S.model.objects)[0];
+  const neu = alt + 'Neu';
+  api.loadUebersicht('Thema:\n  objekte:\n    - ' + alt + '\n');
+  api.setMode('hierarchie');
+  api.selectDiagram('Thema');
+  api.addRelated('o:' + alt);          // ein- und ausblenden merkt den Ausschnitt
+  t('das Diagramm merkt sich seine Objekte', (S.hierShown['Thema'] || []).includes('o:' + alt),
+    JSON.stringify(S.hierShown['Thema']));
+  api.setMode('komplett'); api.setView(1);   // umbenannt wird in der Komplettansicht
+
+  t('das Formular lässt sich öffnen', formularOeffnen('o:' + alt));
+  $('pfName').value = neu;
+  dispatch($('pfSave'), 'click', {});
+
+  t('das Objekt heißt jetzt anders', !!S.model.objects[neu] && !S.model.objects[alt],
+    Object.keys(S.model.objects).join(','));
+  t('der Ausschnitt trägt die neue Kennung',
+    (S.hierShown['Thema'] || []).includes('o:' + neu)
+    && !(S.hierShown['Thema'] || []).includes('o:' + alt),
+    JSON.stringify(S.hierShown['Thema']));
+  const n = S.graph.byId.get('o:' + neu);
+  t('und das Objekt bleibt im Diagramm sichtbar', !!n && n.hidden === false,
+    n ? ('hidden=' + n.hidden) : 'nicht im Graphen');
+}
+
 finish();
 })();
