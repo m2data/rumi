@@ -60,10 +60,40 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Objekt beschreibt: Name, Domain, Business Keys, Quellen, Attributnamen samt
   Verweisziel und Beziehungsnamen — „KundeID" zeigt also auch, wer darauf
   verweist. Datentypen bleiben außen vor, „int" träfe sonst fast jedes Objekt.
+- **Stand speichern** (Strg+S) schreibt den ganzen Stand — Modell, Hierarchie,
+  Anordnung, Kantenzüge, Einstellungen — in eine **bestehende** HTML-Datei
+  zurück, statt jedes Mal eine neue anzulegen. Der Dialog fragt vor jedem
+  Speichern, welche Datei es sein soll; beim nächsten Öffnen ist alles wieder
+  da. **Voraussetzung:** die Seite muss über `http(s)` geladen sein — den
+  Dateizugriff gibt der Browser einer `file://`-Seite nicht (siehe
+  [Zum Zurückschreiben: lokal ausliefern](#zum-zurückschreiben-lokal-ausliefern)).
+  Fehlt er, wird stattdessen heruntergeladen und die App sagt warum.
 - **Laden/Speichern** der drei Dateien (siehe unten) und **Export** als
-  eigenständige HTML, SVG oder PNG (Maßstab 1×, 2× oder 4×, etwa für Druck).
+  SVG oder PNG (Maßstab 1×, 2× oder 4×, etwa für Druck).
 - Alles offline, ohne externe Abhängigkeiten. Schriften optional lokal
   einbettbar (`node fonts-einbetten.js <ordner-mit-woff2>`).
+
+## Zum Zurückschreiben: lokal ausliefern
+
+Eine direkt aus dem Dateisystem geöffnete Seite (`file://…`) bekommt vom
+Browser keinen Schreibzugriff auf Dateien — die File System Access API
+(`showSaveFilePicker`) steht dort nicht zur Verfügung, und es gibt keinen Weg
+daran vorbei. „Stand speichern" fällt dann auf einen Download zurück, der eine
+neue Datei anlegt.
+
+Soll wirklich dieselbe Datei überschrieben werden, die Datei über einen
+lokalen Server öffnen — offline bleibt dabei alles, es wird nichts
+nachgeladen:
+
+    npx http-server dist -p 8080     # oder: python -m http.server 8080 -d dist
+
+und dann `http://localhost:8080/geschaeftsobjekt-explorer.html` aufrufen. Dort
+schreibt Strg+S nach dem Dateidialog in genau die gewählte Datei.
+
+Ohne Server bleibt der Download; in Chrome lässt er sich über die Einstellung
+„Speicherort für jede Datei erfragen" auf die vorhandene Datei lenken, die
+dann ersetzt wird. Firefox und Safari kennen die API überhaupt nicht — dort
+gilt derselbe Weg.
 
 ## Die drei Dateien
 

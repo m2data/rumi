@@ -103,6 +103,9 @@ body.modus-hierarchie .views{display:none}
 .dirgrid.off,#dirHead.off{opacity:.32}
 .dirgrid.off{pointer-events:none}
 .menu .head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--muted);padding:6px 10px 3px}
+/* Eintrag mit Kurztaste rechts daneben */
+.menu .withkey{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.menu .withkey .kbd{font-family:var(--mono);font-size:9.5px;color:var(--muted);white-space:nowrap}
 /* PNG-Zeile: Haupteintrag (Standard 2×) plus Maßstabsknöpfe rechts daneben */
 .pngrow{display:flex;align-items:center}
 .pngrow > button{flex:1 1 auto;width:auto;white-space:nowrap}

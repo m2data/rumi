@@ -239,7 +239,7 @@ console.log('== Das Dateimenü löst die Aktionen aus ==');
   t('der Diagramm-Export endet auf .svg', /\.svg$/.test(letzter()), letzter());
 }
 
-console.log('== Eigenständige HTML-Datei sichern ==');
+console.log('== Stand in dieselbe Datei zurückschreiben ==');
 {
   const geladen = [];
   const echtesElement = document.createElement;
@@ -250,7 +250,7 @@ console.log('== Eigenständige HTML-Datei sichern ==');
   };
   /* Das Mini-DOM wirft beim Einlesen alle <script>-Blöcke weg — der
      Platzhalter für den eingebackenen Stand fehlt deshalb und wird hier
-     nachgereicht, sonst läuft exportHTML() ins Leere. */
+     nachgereicht, sonst läuft das Sichern ins Leere. */
   let baked = document.getElementById('bakedState');
   if(!baked){
     baked = document.createElement('script');
@@ -260,18 +260,52 @@ console.log('== Eigenständige HTML-Datei sichern ==');
     document.body.appendChild(baked);
   }
   const vorher = baked.textContent;
-  [...document.getElementById('menu').querySelectorAll('button')]
-    .find(b => b.dataset.act === 'html').click();
+  const knopf = [...document.getElementById('menu').querySelectorAll('button')]
+    .find(b => b.dataset.act === 'saveHtml');
+  t('das Menü bietet „Stand speichern" unter SPEICHERN an', !!knopf);
 
-  t('die Datei heißt nach dem Modell und endet auf -stand.html',
-    /-stand\.html$/.test(geladen.length && geladen[geladen.length-1].download),
-    geladen.length ? geladen[geladen.length-1].download : '(keine)');
-  t('der eingebackene Stand ist danach wieder leer', baked.textContent === vorher,
+  // 1) Browser mit Dateizugriff: es entsteht keine neue Datei, geschrieben wird
+  //    in die gewählte — und zwar der ganze Stand samt Modelltext.
+  let gefragt = null, geschrieben = null, geschlossen = false;
+  win.showSaveFilePicker = async opt=>{
+    gefragt = opt;
+    return {name:'geschaeftsobjekt-explorer.html',
+      createWritable: async ()=>({
+        write: async txt=>{ geschrieben = txt; },
+        close: async ()=>{ geschlossen = true; }
+      })};
+  };
+  await api.speichernInDatei();
+  t('der Dialog schlägt die geöffnete Datei vor',
+    !!gefragt && /\.html?$/.test(gefragt.suggestedName || ''), gefragt && gefragt.suggestedName);
+  t('geschrieben wird eine vollständige HTML', /^<!DOCTYPE html>/.test(geschrieben || ''),
+    (geschrieben || '').slice(0, 30));
+  t('der Modelltext steckt darin', (geschrieben || '').includes('BusinessObjects'));
+  t('die Datei wird ordentlich geschlossen', geschlossen);
+  t('dabei entsteht kein Download', geladen.length === 0, geladen.length + ' Downloads');
+  t('der eingebackene Stand ist danach wieder wie zuvor', baked.textContent === vorher,
     baked.textContent.slice(0, 40));
-  t('das Diagramm ist nach dem Export wieder gezeichnet',
+  t('das Diagramm ist nach dem Sichern wieder gezeichnet',
     document.getElementById('nodes').querySelectorAll('.node').length > 0);
   t('die Objektliste ebenfalls',
     document.getElementById('objectList').innerHTML.length > 0);
+
+  // 2) Abgebrochener Dialog schreibt nichts und meldet auch nichts als Fehler
+  geschrieben = null;
+  const toastEl = document.getElementById('toast');
+  toastEl.textContent = '';
+  win.showSaveFilePicker = async ()=>{ const e = new Error('abbruch'); e.name = 'AbortError'; throw e; };
+  await api.speichernInDatei();
+  t('ein abgebrochener Dialog schreibt nichts', geschrieben === null);
+  t('und meldet keinen Fehler', toastEl.textContent === '', toastEl.textContent);
+
+  // 3) Browser ohne Dateizugriff (Firefox, Safari, Sandkasten): Download wie bisher
+  delete win.showSaveFilePicker;
+  knopf.click();
+  t('ohne Dateizugriff wird heruntergeladen',
+    /-stand\.html$/.test(geladen.length && geladen[geladen.length-1].download),
+    geladen.length ? geladen[geladen.length-1].download : '(keine)');
+  t('und das auch gemeldet', toastEl.textContent.includes('gesichert'), toastEl.textContent);
 }
 
 console.log('== Anordnung aus einer Datei übernehmen ==');

@@ -4,7 +4,7 @@
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
-const {S, api, document, dispatch} = await bootApp();
+const {S, api, win, document, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
 const detail = ()=> document.getElementById('detailBody');
@@ -326,6 +326,25 @@ console.log('== Bearbeiten ist rückgängig zu machen ==');
   api.redo();
   t('Wiederherstellen bringt sie zurück', S.model.objects.Kunde.domain === 'Testdomäne');
   api.undo();
+}
+
+console.log('== Ein offenes Formular blockiert das Sichern ==');
+{
+  // Das Formular steht nur im DOM: würde still gesichert, fehlten dem Stand
+  // genau die Änderungen, wegen derer gespeichert wird.
+  formularOeffnen('o:Kunde');
+  $('pfDomain').value = 'Ungespeichert';
+  let gefragt = false;
+  win.showSaveFilePicker = async ()=>{ gefragt = true; throw new Error('darf nicht kommen'); };
+  const toastEl = document.getElementById('toast');
+  await api.speichernInDatei();
+  t('der Dateidialog kommt gar nicht erst', gefragt === false);
+  t('stattdessen ein Hinweis auf das offene Formular',
+    toastEl.textContent.includes('Bearbeiten-Formular'), toastEl.textContent);
+  dispatch($('pfCancel'), 'click', {});
+  await api.speichernInDatei();
+  t('nach dem Abbrechen wird gesichert', gefragt === true);
+  delete win.showSaveFilePicker;
 }
 
 console.log('== Das Formular wehrt sich gegen kaputte Eingaben ==');

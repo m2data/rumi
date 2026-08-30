@@ -743,6 +743,11 @@ $('zIn').onclick = ()=> zoomBy(1.25);
 $('zOut').onclick = ()=> zoomBy(0.8);
 
 document.addEventListener('keydown', ev=>{
+  // Strg+S sichert den Stand — auch aus einem Eingabefeld heraus, sonst öffnete
+  // der Browser seinen eigenen „Seite speichern"-Dialog und legte eine Kopie an.
+  if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 's' || ev.key === 'S')){
+    ev.preventDefault(); speichernInDatei(); return;
+  }
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
   // z. B. die Taste „1" ein setView() aus und zeigte plötzlich alle Objekte.
@@ -1022,8 +1027,8 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     toast('Hierarchiebeschreibung gespeichert');
   }
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
+  if(a === 'saveHtml') speichernInDatei();
   // Diagramm exportieren
-  if(a === 'html') exportHTML();
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
@@ -1384,8 +1389,12 @@ async function loadYaml(text, name, preset){
   }
 }
 
-/* ---------- Eigenständigen Stand als HTML sichern ---------- */
-function exportHTML(){
+/* ---------- Stand sichern ----------
+   Der ganze Stand — Modelltext, Hierarchie, Anordnung, Kantenzüge,
+   Einstellungen — wird in das Dokument selbst eingebacken. Beim Öffnen liest
+   boot() ihn aus <script id="bakedState"> und ist sofort wieder dort, wo man
+   aufgehört hat. Die Datei bleibt dabei eigenständig und ohne Nachladen. */
+function standAlsHtml(){
   const el = $('bakedState');
   const before = el.textContent;
   el.textContent = JSON.stringify(
@@ -1398,8 +1407,58 @@ function exportHTML(){
   el.textContent = before;
 
   initSvg(); draw(); renderObjectList(); renderMessages(); renderLegend(); renderDetails();
-  download(html, S.fileName.replace(/\.[^.]+$/, '') + '-stand.html', 'text/html');
+  return html;
+}
+
+function exportHTML(){
+  download(standAlsHtml(), S.fileName.replace(/\.[^.]+$/, '') + '-stand.html', 'text/html');
   toast('Eigenständige HTML-Datei gesichert');
+}
+
+/* Der Name der gerade geöffneten Datei als Vorschlag im Dialog — nur so lässt
+   sich im Dateiauswahlfenster genau sie wieder treffen und überschreiben. */
+function htmlDateiname(){
+  const pfad = (window.location && window.location.pathname) || '';
+  let roh = '';
+  try{ roh = decodeURIComponent(pfad.split('/').pop() || ''); }catch(_){ roh = ''; }
+  return /\.html?$/i.test(roh) ? roh : S.fileName.replace(/\.[^.]+$/, '') + '-stand.html';
+}
+
+/* In eine bestehende Datei zurückschreiben, statt bei jedem Sichern eine neue
+   anzulegen. Der Dialog kommt vor jedem Speichern: der Browser vergibt die
+   Schreiberlaubnis nur auf ausdrückliche Wahl des Nutzers, und so ist zugleich
+   immer zu sehen, welche Datei überschrieben wird. Wo der Browser das nicht
+   kann (Firefox, Safari, Sandkasten), bleibt es beim Download. */
+async function speichernInDatei(){
+  // Ein offenes Formular steht nur im DOM, nicht im Modell — es stillschweigend
+  // zu übergehen sicherte einen Stand ohne die gerade getippten Änderungen.
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  // Den Dateizugriff gibt der Browser nur einer über http(s) geladenen Seite.
+  // Direkt aus einer Datei geöffnet (file://) fehlt er — dann bleibt der
+  // Download, und der Grund gehört benannt statt verschwiegen.
+  if(!window.showSaveFilePicker){
+    const ausDatei = window.location && window.location.protocol === 'file:';
+    toast(ausDatei
+      ? 'Aus einer Datei geöffnet kann der Browser nicht zurückschreiben — es wird heruntergeladen'
+      : 'Dieser Browser kann nicht in eine Datei zurückschreiben — es wird heruntergeladen');
+    exportHTML();
+    return;
+  }
+  let datei;
+  try{
+    datei = await window.showSaveFilePicker({
+      suggestedName: htmlDateiname(),
+      types:[{description:'HTML-Datei', accept:{'text/html':['.html', '.htm']}}]
+    });
+  }catch(_){ return; }                   // Dialog abgebrochen — das ist keine Störung
+  try{
+    const schreiber = await datei.createWritable();
+    await schreiber.write(standAlsHtml());
+    await schreiber.close();
+    toast('Stand gespeichert: ' + datei.name);
+  }catch(err){
+    toast('Speichern fehlgeschlagen: ' + err.message);
+  }
 }
 
 /* ---------- Start ---------- */

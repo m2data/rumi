@@ -66,7 +66,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
 - **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
   -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen; dazu das
   Dateimenü Knopf für Knopf, die Ladewege über die Dateifelder und das Ablegen
-  einer Datei auf der Zeichenfläche.
+  einer Datei auf der Zeichenfläche; dazu „Stand speichern" in dieselbe Datei
+  (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download).
 - **`pflege.js`** — Geschäftsobjekte bearbeiten: Einstellung „Geschäftsobjekte
   bearbeiten" (Vorgabe aus, Dialog in der Kopfzeile, nicht im Verlauf),
   Formular im Reiter „Details", Text-Chirurgie am Modell-YAML (Kommentare und
