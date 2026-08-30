@@ -84,11 +84,22 @@ class El {
       }
     };
   }
+  /* dataset schreibt auf die Attribute durch: die App merkt sich damit Zustände
+     am Element (z. B. die Ablegestelle beim Ziehen im Baum). Eine bloße Kopie
+     würde jede Zuweisung verschlucken. */
   get dataset(){
-    const d = {};
-    for(const k in this.attrs) if(k.startsWith('data-'))
-      d[k.slice(5).replace(/-([a-z])/g, (_,c)=>c.toUpperCase())] = this.attrs[k];
-    return d;
+    const el = this;
+    const name = k => 'data-' + String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    return new Proxy({}, {
+      get: (_, k) => el.attrs[name(k)],
+      set: (_, k, v) => { el.attrs[name(k)] = String(v); return true; },
+      has: (_, k) => name(k) in el.attrs,
+      deleteProperty: (_, k) => { delete el.attrs[name(k)]; return true; },
+      ownKeys: () => Object.keys(el.attrs).filter(k => k.startsWith('data-'))
+        .map(k => k.slice(5).replace(/-([a-z])/g, (_,c) => c.toUpperCase())),
+      getOwnPropertyDescriptor: (_, k) => name(k) in el.attrs
+        ? {value: el.attrs[name(k)], enumerable: true, configurable: true} : undefined
+    });
   }
   setAttribute(k, v){ this.attrs[k.toLowerCase()] = String(v); }
   getAttribute(k){ const v = this.attrs[k.toLowerCase()]; return v === undefined ? null : v; }

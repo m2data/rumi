@@ -216,5 +216,117 @@ console.log('== Export: Markdown in der Diagramm-Beschreibung wird formatiert ==
   api.setMode('komplett'); api.setView(1);
 }
 
+console.log('== Werkzeugleiste über dem Baum ==');
+{
+  /* hierAction() fragt Namen über prompt/confirm ab — im Browser stellt die das
+     Fenster, im Mini-DOM niemand. Hier werden sie gesetzt, sonst ist die ganze
+     Werkzeugleiste vom Test aus nicht erreichbar. Geprüft wird gegen den Baum
+     im Zustand, nicht gegen die gezeichneten Zeilen: ein zugeklapptes Diagramm
+     zeigt seine Kinder nicht an, angelegt sind sie trotzdem. */
+  api.setMode('hierarchie');
+  api.loadUebersicht('Alpha:\n  objekte:\n    - Kunde\n  Details:\n    Beta:\n      objekte:\n        - Bestellung\nGamma:\n  objekte:\n    - Kunde\n');
+  const werkzeug = h => [...document.getElementById('hierTools').querySelectorAll('[data-hact]')]
+    .find(b => b.dataset.hact === h);
+  const sammle = (liste, aus)=> liste.reduce((a,n)=> a.concat([n.id], sammle(n.kinder || [], aus)), []);
+  const ids = ()=> sammle(S.outline.roots);
+
+  let gefragt = null;
+  global.prompt = (frage)=>{ gefragt = frage; return global.__antwort; };
+  global.confirm = ()=> global.__ja !== false;
+
+  global.__antwort = 'Testdomäne';
+  werkzeug('add-top').click();
+  t('＋ Domäne legt eine Domäne auf oberster Ebene an',
+    ids().includes('Testdomäne'), ids().join(' | '));
+  t('und fragt vorher nach dem Namen', /Domäne/.test(gefragt || ''), gefragt);
+
+  api.selectDiagram('Testdomäne');
+  global.__antwort = 'Unterthema';
+  werkzeug('add-child').click();
+  t('＋ Unterdiagramm hängt es unter das gewählte',
+    ids().includes('Testdomäne›Unterthema'), ids().join(' | '));
+
+  api.selectDiagram('Testdomäne›Unterthema');
+  global.__antwort = 'Umbenannt';
+  werkzeug('rename').click();
+  t('Umbenennen wirkt auf das gewählte Diagramm',
+    ids().includes('Testdomäne›Umbenannt'), ids().join(' | '));
+
+  api.selectDiagram('Testdomäne');
+  global.__ja = true;
+  werkzeug('delete').click();
+  t('Löschen nimmt das Diagramm samt Unterdiagrammen mit',
+    !ids().some(id => id.startsWith('Testdomäne')), ids().join(' | '));
+
+  // Abbrechen im Dialog darf nichts verändern
+  global.__antwort = '';
+  const vorher = ids().length;
+  werkzeug('add-top').click();
+  t('ein abgebrochener Dialog legt nichts an', ids().length === vorher);
+
+  // Ohne gewähltes Diagramm sagt die Leiste Bescheid, statt stillzuhalten
+  S.hierSel = null;
+  werkzeug('rename').click();
+  t('ohne Auswahl kommt ein Hinweis',
+    /Erst ein Diagramm wählen/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+}
+
+console.log('== Baum: klappen, wählen, per Ziehen umhängen ==');
+{
+  api.setMode('hierarchie');
+  api.loadUebersicht('Alpha:\n  objekte:\n    - Kunde\n  Details:\n    Beta:\n      objekte:\n        - Bestellung\nGamma:\n  objekte:\n    - Kunde\n');
+  const baum = document.getElementById('hierTree');
+  const zeile = id => [...baum.querySelectorAll('.dnode')].find(r => r.dataset.id === id);
+  const gezeigt = ()=> [...baum.querySelectorAll('.dnode')].map(r => r.dataset.id);
+  const sammle = liste => liste.reduce((a,n)=> a.concat([n.id], sammle(n.kinder || [])), []);
+  const ids = ()=> sammle(S.outline.roots);
+
+  // Klick auf den Klapp-Pfeil: die Kinder verschwinden aus dem gezeichneten Baum
+  api.selectDiagram('Alpha');
+  const tw = zeile('Alpha') && zeile('Alpha').querySelector('[data-toggle]');
+  t('ein Diagramm mit Kindern hat einen Klapp-Pfeil', !!tw, gezeigt().join(' | '));
+  if(tw){
+    dispatch(tw, 'click', {});
+    t('Zuklappen nimmt die Kinder aus dem Baum', !gezeigt().includes('Alpha›Beta'),
+      gezeigt().join(' | '));
+    t('angelegt sind sie weiterhin', ids().includes('Alpha›Beta'));
+    dispatch(zeile('Alpha').querySelector('[data-toggle]'), 'click', {});
+    t('Aufklappen bringt sie zurück', gezeigt().includes('Alpha›Beta'), gezeigt().join(' | '));
+  }
+
+  // Klick auf die Zeile wählt das Diagramm
+  dispatch(zeile('Gamma'), 'click', {});
+  t('ein Klick auf die Zeile wählt das Diagramm', S.hierSel === 'Gamma', S.hierSel);
+
+  /* Ziehen im Baum: obere Kante = davor, Mitte = als Unterdiagramm. Das
+     Mini-DOM meldet für jede Zeile dieselbe Fläche (0/0, 1200×800) — die
+     Trefferzone folgt also clientY: unter 224 „davor", über 576 „danach". */
+  const dt = ()=> ({effectAllowed:'', setData(){}, getData(){ return ''; }});
+  const ziehen = (von, nach, y)=>{
+    dispatch(zeile(von), 'dragstart', {dataTransfer: dt()});
+    dispatch(zeile(nach), 'dragover',  {dataTransfer: dt(), clientY: y});
+    dispatch(zeile(nach), 'drop',      {dataTransfer: dt(), clientY: y});
+  };
+
+  ziehen('Gamma', 'Alpha', 400);                        // Mitte: als Unterdiagramm
+  t('in die Mitte gezogen wird es zum Unterdiagramm',
+    ids().includes('Alpha›Gamma'), ids().join(' | '));
+  t('die Meldung nennt das verschobene Diagramm',
+    /verschoben/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+
+  ziehen('Alpha›Gamma', 'Alpha', 40);                   // obere Kante: davor
+  t('an die obere Kante gezogen landet es davor',
+    ids().indexOf('Gamma') === 0 && ids().includes('Alpha'), ids().join(' | '));
+
+  // Eine Zeile auf sich selbst zu ziehen darf den Baum nicht verändern
+  const vorher = ids().join('|');
+  ziehen('Alpha', 'Alpha', 400);
+  t('auf sich selbst gezogen bleibt alles, wie es war', ids().join('|') === vorher,
+    ids().join(' | '));
+  api.setMode('komplett'); api.setView(1);
+}
+
 finish();
 })();
