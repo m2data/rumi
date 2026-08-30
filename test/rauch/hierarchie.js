@@ -357,5 +357,84 @@ console.log('== Baum: klappen, wählen, per Ziehen umhängen ==');
   api.setMode('komplett'); api.setView(1);
 }
 
+console.log('== Das Objekt selbst kommt unter die vorhandenen ==');
+{
+  /* Holt man verknüpfte Objekte zu einem Objekt, das selbst noch nicht im
+     Diagramm ist, wird es mit eingeblendet — und zwar unter die vorhandenen
+     gelegt. Geprüft war bisher nur der andere Fall: das leere Diagramm, wo es
+     auf 0/0 landet. */
+  api.setMode('hierarchie');
+  api.loadUebersicht('Test:\n  objekte:\n    - Kunde\n');
+  api.selectDiagram('Test');
+  S.layout.dir = 'TB';
+  const vorhanden = S.graph.nodes.filter(n => !n.hidden);
+  t('genau ein Kasten liegt im Diagramm', vorhanden.length === 1,
+    vorhanden.map(n => n.id).join(','));
+  const x0 = Math.min(...vorhanden.map(n => n.x)), x1 = Math.max(...vorhanden.map(n => n.x + n.w));
+  const y1 = Math.max(...vorhanden.map(n => n.y + n.h));
+
+  api.addRelated('o:Bestellung');
+  const A = S.graph.byId.get('o:Bestellung');
+  t('das Objekt selbst ist eingeblendet', A.hidden === false);
+  t('es liegt unter den vorhandenen', A.y === Math.round(y1 + 120), A.y + ' statt ' + Math.round(y1 + 120));
+  t('und waagrecht in deren Mitte',
+    A.x === Math.round((x0 + x1)/2 - A.w/2), A.x + ' statt ' + Math.round((x0 + x1)/2 - A.w/2));
+  t('seine verknüpften Objekte kommen mit', S.graph.nodes.filter(n => !n.hidden).length > 2,
+    S.graph.nodes.filter(n => !n.hidden).length + ' sichtbar');
+}
+
+console.log('== Rückgängig nimmt das gewählte Diagramm weg ==');
+{
+  /* Dann muss ein anderes gewählt werden — sonst zeigt die Auswahl auf ein
+     Diagramm, das es nicht mehr gibt. */
+  api.setMode('hierarchie');
+  api.loadUebersicht('Eins:\n  objekte:\n    - Kunde\nZwei:\n  objekte:\n    - Bestellung\n');
+  api.selectDiagram('Eins');
+  api.outlineAdd(null, 'Drei');            // legt an und wählt gleich aus
+  t('das neue Diagramm ist gewählt', S.hierSel === 'Drei', String(S.hierSel));
+
+  /* Anlegen hinterlässt zwei Verlaufsschritte — erst die Struktur, dann der
+     Ausschnitt des neu gewählten Diagramms. Zurück geht es entsprechend in zwei
+     Schritten; hier zählt, was danach gewählt ist. */
+  api.undo(); api.undo();
+  const ids = S.outline.roots.map(r => r.id);
+  t('zwei Schritte zurück nehmen es wieder weg', !ids.includes('Drei'), ids.join(' | '));
+  t('die Auswahl zeigt auf ein vorhandenes Diagramm',
+    !!S.hierSel && ids.includes(S.hierSel), String(S.hierSel));
+  t('der Baum ist gezeichnet',
+    document.getElementById('hierTree').querySelectorAll('.dnode').length === ids.length,
+    document.getElementById('hierTree').querySelectorAll('.dnode').length + ' Zeilen');
+}
+
+console.log('== Export: Link und Zeilenumbruch in der Beschreibung ==');
+{
+  api.setMode('hierarchie');
+  api.loadUebersicht('Thema:\n  objekte:\n    - Kunde\n');
+  api.selectDiagram('Thema');
+  const zaehle = s => (s.match(/<text/g) || []).length;
+
+  S.hierText['Thema'] = 'Siehe [die Doku](https://example.org/doku) dazu.';
+  const mitLink = api.exportSVG();
+  t('der Link wird als eigener Abschnitt gesetzt',
+    /text-decoration="underline"/.test(mitLink), 'keine Unterstreichung im Export');
+  // im Export steht jedes Wort in einem eigenen tspan — deshalb wortweise prüfen
+  t('sein Text steht im Export', mitLink.includes('Doku') && mitLink.includes('Siehe'));
+  t('die Adresse selbst wird nicht mitgedruckt', !mitLink.includes('example.org'));
+
+  S.hierText['Thema'] = 'Kurz.';
+  const kurz = zaehle(api.exportSVG());
+  const lang = 'Ein Absatz ohne jeden Zeilenumbruch, der so lang gerät, dass er '
+    + 'in mehrere Zeilen gebrochen werden muss, weil er sonst weit über den Rand '
+    + 'des Diagramms hinausliefe und niemand ihn mehr lesen könnte.';
+  S.hierText['Thema'] = lang;
+  const out = api.exportSVG();
+  t('ein langer Absatz wird umbrochen', zaehle(out) >= kurz + 2,
+    kurz + ' → ' + zaehle(out) + ' Textzeilen');
+  t('dabei geht kein Wort verloren',
+    lang.split(/\s+/).every(w => out.includes(w.replace(/[.,]$/, ''))),
+    lang.split(/\s+/).find(w => !out.includes(w.replace(/[.,]$/, ''))));
+  api.setMode('komplett'); api.setView(1);
+}
+
 finish();
 })();
