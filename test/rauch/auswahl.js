@@ -315,5 +315,63 @@ console.log('== Ausrichten und Verteilen über die Leiste ==');
   api.setSelection([]);
 }
 
+console.log('== Strg+Klick, Escape, Strg+A ==');
+{
+  const taste = (key, opt)=> dispatch(document.getElementById('canvas'), 'keydown',
+    Object.assign({key}, opt || {}));
+  const kasten = id => [...document.getElementById('nodes').querySelectorAll('.node')]
+    .find(e => e.dataset.id === id);
+  const sicht = S.graph.nodes.filter(n => !n.hidden);
+  const [a, b] = sicht;
+
+  api.setSelection([a.id, b.id]);
+  dispatch(kasten(b.id), 'pointerdown', {clientX:0, clientY:0, ctrlKey:true});
+  dispatch(svg, 'pointerup', {clientX:0, clientY:0, ctrlKey:true});
+  t('Strg+Klick nimmt einen einzelnen aus der Auswahl',
+    S.sel.has(a.id) && !S.sel.has(b.id), '[' + [...S.sel].join(', ') + ']');
+  dispatch(kasten(b.id), 'pointerdown', {clientX:0, clientY:0, ctrlKey:true});
+  dispatch(svg, 'pointerup', {clientX:0, clientY:0, ctrlKey:true});
+  t('und holt ihn genauso wieder dazu', S.sel.has(a.id) && S.sel.has(b.id),
+    '[' + [...S.sel].join(', ') + ']');
+
+  taste('Escape');
+  t('Escape hebt die Auswahl auf', S.sel.size === 0);
+
+  taste('a', {ctrlKey:true});
+  t('Strg+A wählt alles Sichtbare',
+    S.sel.size === sicht.filter(n => !n.hidden).length, S.sel.size + ' von ' + sicht.length);
+  api.setSelection([]);
+}
+
+console.log('== Anordnen-Menü: Beschriftungen, Flussrichtung, eine Kante ==');
+{
+  const menu = document.getElementById('layoutMenu');
+  const vorher = S.layout.labels !== false;
+  document.getElementById('optLabels').click();
+  t('Beziehungsnamen lassen sich ausblenden', (S.layout.labels !== false) !== vorher,
+    'labels=' + S.layout.labels);
+  document.getElementById('optLabels').click();
+  t('und wieder einblenden', (S.layout.labels !== false) === vorher);
+
+  const richtung = [...document.getElementById('dirGrid').querySelectorAll('button')]
+    .find(b => b.dataset.dir === 'LR');
+  richtung.click();
+  t('die Flussrichtung folgt dem Knopf', S.layout.dir === 'LR', S.layout.dir);
+  [...document.getElementById('dirGrid').querySelectorAll('button')]
+    .find(b => b.dataset.dir === 'TB').click();
+
+  // Nur die gewählte Kante neu ziehen
+  const hit = document.getElementById('edges').querySelectorAll('.e-hit')[0];
+  dispatch(hit, 'pointerdown', {clientX:100, clientY:100});
+  t('eine Kante ist gewählt', !!S.selEdge, String(S.selEdge));
+  const eine = [...menu.querySelectorAll('[data-route]')].find(b => b.dataset.route === 'one');
+  t('„nur diese Kante" ist mit Auswahl bedienbar', !eine.disabled);
+  eine.click();
+  t('die Meldung nennt die einzelne Kante',
+    /Kante neu gezogen/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+  S.selEdge = null; api.draw();
+}
+
 finish();
 })();

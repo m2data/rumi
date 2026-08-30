@@ -302,5 +302,68 @@ console.log('== Anordnung aus einer Datei übernehmen ==');
     S.graph.byId.get(n.id).x + '/' + S.graph.byId.get(n.id).y);
 }
 
+console.log('== Dateien über die Dateifelder laden ==');
+{
+  /* Der Weg, den die Menüknöpfe anstoßen: das Feld meldet „change", die App
+     liest die Datei. Geprüft wird für alle drei Felder, weil jedes an einer
+     anderen Stelle im Zustand landet. */
+  const fuettern = async (id, name, text)=>{
+    const feld = document.getElementById(id);
+    feld.files = [{name, text: ()=> Promise.resolve(text)}];
+    dispatch(feld, 'change', {});
+    for(let k = 0; k < 60; k++) await Promise.resolve();
+  };
+
+  await fuettern('fileInput', 'klein.yaml',
+    'BusinessObjects:\n  Apfel:\n    domain: Obst\n    business_key: [Name]\n  Birne:\n    domain: Obst\n    business_key: [Name]\n');
+  t('das geladene Modell ersetzt das alte',
+    Object.keys(S.model.objects).join(',') === 'Apfel,Birne', Object.keys(S.model.objects).join(','));
+  t('der Dateiname wird übernommen', S.fileName === 'klein.yaml', S.fileName);
+  t('das Feld ist danach wieder leer', document.getElementById('fileInput').value === '');
+
+  await fuettern('deltaInput', 'delta.yaml',
+    'BusinessObjects:\n  Kirsche:\n    domain: Obst\n    business_key: [Name]\n');
+  t('das Delta kommt zum geladenen Modell dazu',
+    !!S.model.objects.Kirsche && !!S.model.objects.Apfel,
+    Object.keys(S.model.objects).join(','));
+
+  await fuettern('uebersichtInput', 'hierarchie.yaml',
+    'Obstkorb:\n  objekte:\n    - Apfel\n    - Birne\n');
+  t('die geladene Hierarchiebeschreibung steht im Baum',
+    S.outline && S.outline.roots.length === 1 && S.outline.roots[0].name === 'Obstkorb',
+    S.outline && S.outline.roots.map(r => r.name).join(','));
+}
+
+console.log('== Eine Datei auf die Zeichenfläche ablegen ==');
+{
+  const wrap = document.getElementById('canvasWrap');
+  const dz = document.getElementById('dropzone');
+  dispatch(wrap, 'dragenter', {dataTransfer:{files:[]}});
+  t('beim Hereinziehen erscheint die Ablegefläche', dz.classList.contains('on'));
+  dispatch(wrap, 'dragleave', {dataTransfer:{files:[]}});
+  t('beim Hinausziehen verschwindet sie wieder', !dz.classList.contains('on'));
+
+  dispatch(wrap, 'dragenter', {dataTransfer:{files:[]}});
+  dispatch(wrap, 'drop', {dataTransfer:{files:[{name:'abgelegt.yaml',
+    text: ()=> Promise.resolve('BusinessObjects:\n  Zwetschge:\n    domain: Obst\n    business_key: [Name]\n')}]}});
+  for(let k = 0; k < 60; k++) await Promise.resolve();
+  t('die abgelegte Datei wird geladen', !!S.model.objects.Zwetschge,
+    Object.keys(S.model.objects).join(','));
+  t('und die Ablegefläche ist wieder weg', !dz.classList.contains('on'));
+}
+
+console.log('== PNG-Export bis zum Bild ==');
+{
+  /* Das Größenlimit ist weiter oben geprüft; hier läuft der andere Zweig durch
+     bis zum Bild. Das Zeichnen auf die Leinwand selbst bleibt außen vor — dafür
+     fehlt dem Mini-DOM die Grundlage. */
+  const toast = ()=> document.getElementById('toast').textContent;
+  const vorher = toast();
+  [...document.getElementById('menu').querySelectorAll('button')]
+    .find(b => b.dataset.act === 'png' && (b.dataset.scale === '1' || !b.dataset.scale)).click();
+  t('ein PNG in normaler Größe wird nicht abgelehnt',
+    !/zu groß|fehlgeschlagen/.test(toast()), toast() || vorher);
+}
+
 finish();
 })();

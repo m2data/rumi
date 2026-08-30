@@ -53,7 +53,7 @@ function findTagEnd(src, from){
 class El {
   constructor(tag){
     this.tag = tag; this.attrs = {}; this.children = []; this.parent = null;
-    this.text = ''; this.listeners = {}; this.disabled = false; this.hidden = false;
+    this.text = ''; this.listeners = {}; this.disabled = false;
     this.style = {};
   }
   append(el){ el.parent = this; this.children.push(el); }
@@ -101,6 +101,11 @@ class El {
         ? {value: el.attrs[name(k)], enumerable: true, configurable: true} : undefined
     });
   }
+  /* hidden spiegelt das Attribut: im Geruest verborgene Bereiche (Dialoge)
+     müssen auch im Mini-DOM verborgen anfangen, sonst laufen Tastenwege wie
+     Escape in den falschen Zweig. */
+  get hidden(){ return 'hidden' in this.attrs; }
+  set hidden(v){ if(v) this.attrs.hidden = ''; else delete this.attrs.hidden; }
   setAttribute(k, v){ this.attrs[k.toLowerCase()] = String(v); }
   getAttribute(k){ const v = this.attrs[k.toLowerCase()]; return v === undefined ? null : v; }
   removeAttribute(k){ delete this.attrs[k.toLowerCase()]; }

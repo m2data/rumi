@@ -239,5 +239,22 @@ console.log('== Herkunft: Metadaten gelesen, aber nicht angezeigt ==');
   t('Herkunft nicht in der Seitenleiste angezeigt', box.hidden === true && box.textContent === '');
 }
 
+console.log('== Details einer Quelle (Ansicht 3) ==');
+{
+  /* In Ansicht 3 stehen die Quellen als eigene Kästen — der Detailbereich zeigt
+     dann nicht ein Geschäftsobjekt, sondern wer aus der Quelle versorgt wird. */
+  api.setView(3);
+  const q = S.graph.nodes.find(n => n.kind === 'source' && !n.hidden);
+  t('Ansicht 3 zeigt Quellen als eigene Kästen', !!q, q && q.name);
+  if(q){
+    api.setSelection([q.id]);
+    const html = document.getElementById('detailBody').innerHTML;
+    t('der Detailbereich weist sie als Quelle aus', /QUELLE/.test(html));
+    t('und listet, wen sie versorgt', /VERSORGT/.test(html) && /data-goto="o:/.test(html));
+  }
+  api.setSelection([]);
+  api.setView(1);
+}
+
 finish();
 })();

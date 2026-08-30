@@ -347,5 +347,36 @@ console.log('== Das Formular wehrt sich gegen kaputte Eingaben ==');
   t('„Abbrechen" schließt das Formular ohne Änderung', !$('pfName') && S.yamlText === text);
 }
 
+console.log('== Anlegen und Löschen über die Dialoge ==');
+{
+  /* pflegeNeu()/pflegeLoeschen() fragen über prompt/confirm nach — im Mini-DOM
+     stellt die niemand, also hier gesetzt. Die Arbeit dahinter ist oben schon
+     geprüft; hier geht es um den Knopf und darum, dass ein Nein nichts tut. */
+  global.prompt = ()=> global.__antwort;
+  global.confirm = ()=> global.__ja !== false;
+  if(!S.pflegeAn) S.pflegeAn = true;
+
+  global.__antwort = 'Testobjekt';
+  document.getElementById('objNew').click();
+  t('„＋ Objekt" legt das Objekt an', !!S.model.objects.Testobjekt,
+    Object.keys(S.model.objects).join(','));
+  t('und öffnet gleich sein Formular', S.pflege === 'o:Testobjekt', String(S.pflege));
+
+  global.__antwort = '';
+  const vorher = Object.keys(S.model.objects).length;
+  document.getElementById('objNew').click();
+  t('ein abgebrochener Dialog legt nichts an',
+    Object.keys(S.model.objects).length === vorher);
+
+  api.pflegeStart('o:Testobjekt');
+  global.__ja = false;
+  document.getElementById('pfDelete').click();
+  t('ein Nein im Löschdialog lässt das Objekt stehen', !!S.model.objects.Testobjekt);
+
+  global.__ja = true;
+  document.getElementById('pfDelete').click();
+  t('ein Ja löscht es', !S.model.objects.Testobjekt, Object.keys(S.model.objects).join(','));
+}
+
 finish();
 })();

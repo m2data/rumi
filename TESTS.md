@@ -54,13 +54,19 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
 - **`beschriftung.js`** — Beziehungsbeschriftungen: frei verschiebbar auf Kante
   und Schleife, automatisches Entzerren.
 - **`auswahl.js`** — Auswahl und Tastatur: Klick-Verhalten, Bereichs-Layout,
-  Pfeiltasten/Entf, Rückgängig/Wiederherstellen.
+  Pfeiltasten/Entf, Rückgängig/Wiederherstellen, Ausrichten und Verteilen über
+  die Leiste, Strg+Klick/Escape/Strg+A, Anordnen-Menü.
+- **`zeiger.js`** — was auf der leeren Fläche beginnt: Rahmen aufziehen,
+  Schwenken, Zoom (Rad, Knöpfe, Grenzen), dazu das Versetzen eines Mittelstücks
+  in einem Zug, der schon Knicke hat.
 - **`anzeige.js`** — Seitenleiste und Kästen: Inhaltsauswahl, Prüfliste
   (Gruppen, Sprung zum Objekt), Objektliste, Kastengeometrie.
 - **`hierarchie.js`** — Hierarchie-Modus: Baum, Ausschnitte, Beschreibung,
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
 - **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
-  -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen.
+  -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen; dazu das
+  Dateimenü Knopf für Knopf, die Ladewege über die Dateifelder und das Ablegen
+  einer Datei auf der Zeichenfläche.
 - **`pflege.js`** — Geschäftsobjekte bearbeiten: Einstellung „Geschäftsobjekte
   bearbeiten" (Vorgabe aus, Dialog in der Kopfzeile, nicht im Verlauf),
   Formular im Reiter „Details", Text-Chirurgie am Modell-YAML (Kommentare und
