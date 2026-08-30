@@ -189,5 +189,118 @@ console.log('== Jeder Tab behält beim Neuladen seine eigene Sitzung ==');
     (win.localStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));
 }
 
+console.log('== Das Dateimenü löst die Aktionen aus ==');
+{
+  /* Die Funktionen dahinter sind geprüft — hier geht es um den Weg über die
+     Knöpfe: dass jeder data-act beim Richtigen landet. Die erzeugten Downloads
+     werden über document.createElement mitgeschrieben (downloadBlob hängt dafür
+     ein <a> ins Dokument). */
+  const geladen = [];
+  const echtesElement = document.createElement;
+  document.createElement = tag=>{
+    const el = echtesElement(tag);
+    if(tag === 'a') geladen.push(el);
+    return el;
+  };
+  const letzter = ()=> geladen.length ? geladen[geladen.length-1].download : '(keiner)';
+  const menu = document.getElementById('menu');
+  const akt = a => [...menu.querySelectorAll('button')].find(b => b.dataset.act === a);
+
+  // Auf und zu
+  dispatch(document.getElementById('btnMenu'), 'click', {});
+  t('der Knopf öffnet das Menü', menu.classList.contains('open'));
+  t('und meldet den Zustand an die Hilfstechnik',
+    document.getElementById('btnMenu').attrs['aria-expanded'] === 'true');
+  dispatch(document.getElementById('btnMenu'), 'click', {});
+  t('nochmal drücken schließt es', !menu.classList.contains('open'));
+
+  // Laden: die Knöpfe reichen an das jeweilige Dateifeld weiter
+  const gerufen = [];
+  ['fileInput','deltaInput','uebersichtInput','layoutInput'].forEach(id =>
+    document.getElementById(id).onclick = ()=> gerufen.push(id));
+  akt('open').click();
+  akt('openDelta').click();
+  akt('loadUebersicht').click();
+  akt('loadLayout').click();
+  t('jeder Lade-Knopf öffnet sein eigenes Dateifeld',
+    gerufen.join(',') === 'fileInput,deltaInput,uebersichtInput,layoutInput', gerufen.join(','));
+  t('ein Lade-Knopf schließt das Menü', !menu.classList.contains('open'));
+
+  // Speichern: Name und Endung der erzeugten Datei
+  akt('saveGO').click();
+  t('Geschäftsobjekte werden als .yaml gesichert', /\.yaml$/.test(letzter()), letzter());
+  akt('uebersicht').click();
+  t('die Hierarchiebeschreibung trägt ihren eigenen Namen',
+    letzter() === api.uebersichtName(), letzter());
+  akt('layout').click();
+  t('die Anordnung geht als -positionen.json heraus',
+    /-positionen\.json$/.test(letzter()), letzter());
+  akt('svg').click();
+  t('der Diagramm-Export endet auf .svg', /\.svg$/.test(letzter()), letzter());
+}
+
+console.log('== Eigenständige HTML-Datei sichern ==');
+{
+  const geladen = [];
+  const echtesElement = document.createElement;
+  document.createElement = tag=>{
+    const el = echtesElement(tag);
+    if(tag === 'a') geladen.push(el);
+    return el;
+  };
+  /* Das Mini-DOM wirft beim Einlesen alle <script>-Blöcke weg — der
+     Platzhalter für den eingebackenen Stand fehlt deshalb und wird hier
+     nachgereicht, sonst läuft exportHTML() ins Leere. */
+  let baked = document.getElementById('bakedState');
+  if(!baked){
+    baked = document.createElement('script');
+    baked.setAttribute('id', 'bakedState');
+    baked.setAttribute('type', 'application/json');
+    baked.textContent = 'null';
+    document.body.appendChild(baked);
+  }
+  const vorher = baked.textContent;
+  [...document.getElementById('menu').querySelectorAll('button')]
+    .find(b => b.dataset.act === 'html').click();
+
+  t('die Datei heißt nach dem Modell und endet auf -stand.html',
+    /-stand\.html$/.test(geladen.length && geladen[geladen.length-1].download),
+    geladen.length ? geladen[geladen.length-1].download : '(keine)');
+  t('der eingebackene Stand ist danach wieder leer', baked.textContent === vorher,
+    baked.textContent.slice(0, 40));
+  t('das Diagramm ist nach dem Export wieder gezeichnet',
+    document.getElementById('nodes').querySelectorAll('.node').length > 0);
+  t('die Objektliste ebenfalls',
+    document.getElementById('objectList').innerHTML.length > 0);
+}
+
+console.log('== Anordnung aus einer Datei übernehmen ==');
+{
+  /* Der Weg über das Dateifeld, nicht über adoptLayoutFile: eine kaputte Datei
+     muss benannt werden, statt die Anordnung stillschweigend zu zerlegen. */
+  const feld = document.getElementById('layoutInput');
+  const laden = async text=>{
+    feld.files = [{name:'positionen.json', text: ()=> Promise.resolve(text)}];
+    dispatch(feld, 'change', {target: feld});
+    for(let k = 0; k < 50; k++) await Promise.resolve();
+  };
+  const n = S.graph.nodes.find(x => !x.hidden);
+
+  await laden('{kein json');
+  t('eine kaputte Datei wird benannt',
+    /lässt sich nicht lesen/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+
+  const stand = {ansichten:{1:{}, 2:{}, 3:{}}};
+  stand.ansichten[S.view] = {[n.id]: {x: 777, y: 555}};
+  await laden(JSON.stringify(stand));
+  t('eine gültige Datei wird übernommen',
+    /Positionsinformationen übernommen/.test(document.getElementById('toast').textContent),
+    document.getElementById('toast').textContent);
+  t('der Kasten steht auf der geladenen Position',
+    S.graph.byId.get(n.id).x === 777 && S.graph.byId.get(n.id).y === 555,
+    S.graph.byId.get(n.id).x + '/' + S.graph.byId.get(n.id).y);
+}
+
 finish();
 })();

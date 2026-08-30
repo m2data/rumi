@@ -122,7 +122,8 @@ class El {
   setPointerCapture(){} releasePointerCapture(){}
   getBoundingClientRect(){ return {left:0, top:0, width:1200, height:800, right:1200, bottom:800}; }
   focus(){} blur(){} click(){ dispatch(this, 'click', {}); }
-  get files(){ return []; }
+  // Dateifelder: standardmäßig leer, für Tests des Ladewegs aber setzbar
+  get files(){ return this._files || []; } set files(v){ this._files = v; }
   set value(v){ this._v = v; } get value(){ return this._v || ''; }
   set checked(v){ this._c = v; } get checked(){ return !!this._c; }
 }
