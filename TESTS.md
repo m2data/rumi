@@ -89,6 +89,26 @@ Ein neuer Rauchtest gehört in die passende Themendatei; wächst ein Thema aus
 dem Rahmen, bekommt es eine eigene Datei — der Läufer nimmt jede `*.js` unter
 `rauch/` automatisch mit.
 
+## Abdeckung messen
+
+    node test/abdeckung.js
+
+Baut zusammen, lässt die vier Einstiege noch einmal mit eingeschalteter
+V8-Coverage laufen und rechnet das Ergebnis auf die Dateien in `src/` zurück:
+eine Tabelle je Modul und die längsten ungedeckten Strecken mit Zeilennummern.
+Der Aufruf gehört **nicht** in die Pflichtkette — er führt die Suite ein zweites
+Mal aus und ist zum Nachsehen da, wo Prüfungen fehlen, nicht als Tor.
+
+Zwei Dinge daran sind nicht offensichtlich:
+
+- Die App läuft in den Tests über `new Function` (gebaute HTML bzw. Module aus
+  `src/`); V8 meldet solche Skripte ohne Namen. `abdeckung-hook.js` wird deshalb
+  vorgeschaltet und schreibt die Rümpfe mit, zugeordnet wird über die Länge.
+- Gemessen wird je Prozess getrennt und danach **verodert**. Verschmilzt man die
+  Bereiche aller Prozesse vor der Auswertung, löscht ein in Prozess A nie
+  betretener Zweig, was Prozess B durchlaufen hat — die Quote hängt dann an der
+  Dateireihenfolge und fällt um mehr als zehn Punkte zu tief aus.
+
 ## Warum das nötig ist
 
 Prüfungen am reinen Modell — Layoutgüte, Kreuzungen, YAML-Rundlauf — laufen ohne
