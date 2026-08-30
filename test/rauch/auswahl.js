@@ -396,5 +396,42 @@ console.log('== Kanten neu ziehen bei waagrechter Flussrichtung ==');
   richtung('TB').click();
 }
 
+console.log('== Mehrfachauswahl mit dem Zeiger ziehen ==');
+{
+  /* Für die Pfeiltasten ist oben geprüft, dass ein Kantenzug innerhalb der
+     Auswahl starr mitwandert. Das Ziehen mit dem Zeiger läuft durch anderen
+     Code und war ungeprüft. */
+  api.setView(1);
+  const paar = S.graph.edges.find(e => e.from !== e.to
+    && !S.graph.byId.get(e.from).hidden && !S.graph.byId.get(e.to).hidden);
+  t('eine Kante zwischen zwei sichtbaren Kästen gefunden', !!paar);
+  if(paar){
+    const a = S.graph.byId.get(paar.from), b = S.graph.byId.get(paar.to);
+    paar.bends = [{x:300, y:300}, {x:360, y:340}];
+    paar.manual = true;
+    api.setSelection([a.id, b.id]);
+    const ax = a.x, ay = a.y, bx = b.x, by = b.y;
+    // erst hier zurücksetzen: setView() passt den Ausschnitt an und ändert den Maßstab
+    S.t.x = 0; S.t.y = 0; S.t.k = 1;
+    const kasten = [...document.getElementById('nodes').querySelectorAll('.node')]
+      .find(el => el.dataset.id === a.id);
+    dispatch(kasten, 'pointerdown', {clientX:100, clientY:100});
+    dispatch(svg, 'pointermove', {clientX:150, clientY:130});
+    dispatch(svg, 'pointerup', {clientX:150, clientY:130});
+
+    t('beide Kästen sind um denselben Betrag gewandert',
+      a.x === ax + 50 && a.y === ay + 30 && b.x === bx + 50 && b.y === by + 30,
+      `a ${ax}/${ay}→${a.x}/${a.y}, b ${bx}/${by}→${b.x}/${b.y}`);
+    t('die Stützpunkte innerhalb der Auswahl wandern mit',
+      paar.bends[0].x === 350 && paar.bends[0].y === 330
+      && paar.bends[1].x === 410 && paar.bends[1].y === 370,
+      JSON.stringify(paar.bends));
+    t('die Form des Zuges bleibt dieselbe',
+      paar.bends[1].x - paar.bends[0].x === 60 && paar.bends[1].y - paar.bends[0].y === 40);
+    paar.bends = null; paar.manual = false;
+    api.setSelection([]);
+  }
+}
+
 finish();
 })();

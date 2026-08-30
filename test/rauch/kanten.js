@@ -420,5 +420,43 @@ console.log('== Ortho: Direktlinie bei waagrechter Flussrichtung ==');
   S.selEdge = null; S.layout.algo = 'hier'; S.layout.dir = 'TB';
 }
 
+console.log('== Anschlusspunkt an einer Ortho-Kante mit Knicken ==');
+{
+  /* Beim Ziehen eines Anschlusspunktes rastet das anschließende Stub-Ende auf
+     die Achse des Anschlusses ein (alignStub). Das greift nur bei einer
+     rechtwinkligen Kante, die schon Knicke hat — die bisherigen Ziehversuche
+     trafen weiche oder knickfreie Kanten, der Zweig lief durch keinen Test. */
+  api.setView(1);
+  [...document.getElementById('layoutMenu').querySelectorAll('[data-algo]')]
+    .filter(b => b.dataset.algo === 'ortho').forEach(b => b.onclick && b.onclick());
+  const e = S.graph.edges.find(x => x.ortho && x.bends && x.bends.length && x.from !== x.to);
+  t('rechtwinklige Kante mit Knicken vorhanden', !!e);
+  if(e){
+    S.selEdge = e.id; api.draw();
+    const pt = document.getElementById('handles').querySelectorAll('.pt')[0];
+    t('sie bietet Anschlusspunkt-Griffe', !!pt);
+    if(pt){
+      dispatch(pt, 'pointerdown', {clientX:200, clientY:200});
+      dispatch(svg, 'pointermove', {clientX:260, clientY:250});
+      dispatch(svg, 'pointerup', {clientX:260, clientY:250});
+      const n = S.graph.byId.get(e.from);
+      const p = e.portFrom;
+      t('der Anschluss sitzt danach auf einer Kastenseite', !!p && 'TBLR'.includes(p.side),
+        p && p.side);
+      const tt = Math.min(0.92, Math.max(0.08, p.t));
+      const pp = p.side==='T'?{x:n.x+n.w*tt,y:n.y}:p.side==='B'?{x:n.x+n.w*tt,y:n.y+n.h}
+               :p.side==='L'?{x:n.x,y:n.y+n.h*tt}:{x:n.x+n.w,y:n.y+n.h*tt};
+      const b0 = e.bends[0];
+      const dx = Math.abs(b0.x - pp.x), dy = Math.abs(b0.y - pp.y);
+      t('das erste Stück läuft achsparallel aus dem Kasten', dx < 1 || dy < 1,
+        'dx=' + dx.toFixed(1) + ' dy=' + dy.toFixed(1) + ' (' + p.side + ')');
+      t('und zwar quer zur Anschlussseite',
+        (p.side === 'T' || p.side === 'B') ? dx < 1 : dy < 1,
+        p.side + ': dx=' + dx.toFixed(1) + ' dy=' + dy.toFixed(1));
+    }
+  }
+  S.selEdge = null; S.layout.algo = 'hier'; api.draw();
+}
+
 finish();
 })();

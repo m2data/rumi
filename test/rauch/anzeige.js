@@ -256,5 +256,34 @@ console.log('== Details einer Quelle (Ansicht 3) ==');
   api.setView(1);
 }
 
+console.log('== Zweiter Klick in der Objektliste hebt die Auswahl auf ==');
+{
+  /* Über den Kasten läuft das Abwählen durch endPointer, über die Liste durch
+     select() — ein eigener Zweig, der bisher durch keinen Test lief. */
+  api.setView(1);
+  api.setSelection([]);
+  const zeile = id => [...document.getElementById('objectList').querySelectorAll('button[data-id]')]
+    .find(b => b.dataset.id === id);
+  const sicht = S.graph.nodes.filter(n => !n.hidden);
+  const [a, b] = sicht;
+
+  dispatch(zeile(a.id), 'click', {});
+  t('ein Klick in der Liste wählt das Objekt', S.sel.has(a.id) && S.sel.size === 1,
+    '[' + [...S.sel].join(', ') + ']');
+  dispatch(zeile(a.id), 'click', {});
+  t('derselbe Eintrag noch einmal hebt die Auswahl auf', S.sel.size === 0,
+    '[' + [...S.sel].join(', ') + ']');
+
+  dispatch(zeile(a.id), 'click', {});
+  dispatch(zeile(b.id), 'click', {});
+  t('ein anderer Eintrag schaltet um statt aufzuheben',
+    S.sel.has(b.id) && !S.sel.has(a.id) && S.sel.size === 1,
+    '[' + [...S.sel].join(', ') + ']');
+  dispatch(zeile(a.id), 'click', {ctrlKey:true});
+  t('mit Strg kommt er dazu', S.sel.has(a.id) && S.sel.has(b.id),
+    '[' + [...S.sel].join(', ') + ']');
+  api.setSelection([]);
+}
+
 finish();
 })();
