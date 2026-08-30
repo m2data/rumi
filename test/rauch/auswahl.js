@@ -215,5 +215,105 @@ console.log('== Kurztasten greifen nicht in Eingabefeldern ==');
   api.setView(1);
 }
 
+console.log('== Ausrichten und Verteilen über die Leiste ==');
+{
+  /* Die Ausrichte-Leiste war bisher in keinem Test bedient — geprüft wird der
+     Bedienweg (Klick auf den Knopf), nicht alignSelection() direkt. */
+  const knopf = al => [...document.getElementById('alignBar').querySelectorAll('button')]
+    .find(b => b.dataset.al === al);
+  const bar = ()=> document.getElementById('alignBar');
+  const knoten = S.graph.nodes.filter(n => !n.hidden).slice(0, 3);
+  const [a] = knoten;
+  const stellen = ()=>{
+    knoten[0].x = 100; knoten[0].y = 100;
+    knoten[1].x = 240; knoten[1].y = 300;
+    knoten[2].x = 400; knoten[2].y = 520;
+    api.setSelection(knoten.map(n => n.id));
+    api.persist();          // Ausgangslage in den Verlauf, sonst prüft das Rückgängig nichts
+  };
+
+  api.setSelection([a.id]);
+  t('Leiste bleibt aus bei einem Kasten', !bar().classList.contains('on'));
+  stellen();
+  t('Leiste schaltet ab zwei Kästen an', bar().classList.contains('on'));
+  t('Zähler nennt die Zahl der Gewählten',
+    document.getElementById('alignCount').textContent === '3 gewählt',
+    document.getElementById('alignCount').textContent);
+
+  stellen();
+  const yVor = knoten.map(n => n.y);
+  knopf('l').click();
+  t('linksbündig: alle auf dem kleinsten x', knoten.every(n => n.x === 100),
+    knoten.map(n=>n.x).join('/'));
+  t('linksbündig lässt y in Ruhe', knoten.every((n,i) => n.y === yVor[i]));
+
+  stellen();
+  knopf('r').click();
+  const rechts = Math.max(...knoten.map(n => n.x + n.w));
+  t('rechtsbündig: alle enden auf derselben Kante',
+    knoten.every(n => n.x + n.w === rechts), knoten.map(n=>n.x+n.w).join('/'));
+
+  stellen();
+  knopf('ch').click();
+  const mitteX = knoten.map(n => n.x + n.w/2);
+  t('horizontal zentriert: gleiche Mitte',
+    mitteX.every(m => Math.abs(m - mitteX[0]) < 1), mitteX.join('/'));
+
+  stellen();
+  const xVor = knoten.map(n => n.x);
+  knopf('t').click();
+  t('oben: alle auf dem kleinsten y', knoten.every(n => n.y === 100),
+    knoten.map(n=>n.y).join('/'));
+  t('oben lässt x in Ruhe', knoten.every((n,i) => n.x === xVor[i]));
+
+  stellen();
+  knopf('b').click();
+  const unten = Math.max(...knoten.map(n => n.y + n.h));
+  t('unten: alle enden auf derselben Kante', knoten.every(n => n.y + n.h === unten));
+
+  stellen();
+  knopf('cv').click();
+  const mitteY = knoten.map(n => n.y + n.h/2);
+  t('vertikal zentriert: gleiche Mitte',
+    mitteY.every(m => Math.abs(m - mitteY[0]) < 1), mitteY.join('/'));
+
+  stellen();
+  const spanneX = [Math.min(...knoten.map(n=>n.x)), Math.max(...knoten.map(n=>n.x+n.w))];
+  knopf('dh').click();
+  {
+    const s = knoten.slice().sort((p,q)=> p.x - q.x);
+    const l1 = s[1].x - (s[0].x + s[0].w), l2 = s[2].x - (s[1].x + s[1].w);
+    t('waagrecht verteilt: gleiche Lücken', Math.abs(l1 - l2) <= 1, l1 + ' / ' + l2);
+    t('waagrecht verteilt: die Spanne bleibt stehen',
+      Math.abs(s[0].x - spanneX[0]) <= 1 && Math.abs(s[2].x + s[2].w - spanneX[1]) <= 1);
+  }
+
+  stellen();
+  knopf('dv').click();
+  {
+    const s = knoten.slice().sort((p,q)=> p.y - q.y);
+    const l1 = s[1].y - (s[0].y + s[0].h), l2 = s[2].y - (s[1].y + s[1].h);
+    t('senkrecht verteilt: gleiche Lücken', Math.abs(l1 - l2) <= 1, l1 + ' / ' + l2);
+  }
+
+  /* Ausrichten ist eine Änderung wie jede andere: der Verlauf muss sie kennen */
+  stellen();
+  const vor = knoten.map(n => n.x);
+  knopf('l').click();
+  api.undo();
+  // nach dem Rückgängig ist der Graph neu gebaut — über die Kennung nachsehen
+  const jetzt = knoten.map(n => S.graph.byId.get(n.id).x);
+  t('Rückgängig stellt die Lage vor dem Ausrichten her',
+    jetzt.every((x,i) => x === vor[i]), jetzt.join('/') + ' statt ' + vor.join('/'));
+
+  /* Ein einzelner Kasten darf sich durch einen Knopfdruck nicht bewegen */
+  api.setSelection([a.id]);
+  const einzeln = S.graph.byId.get(a.id);
+  const ax = einzeln.x, ay = einzeln.y;
+  knopf('l').click(); knopf('t').click();
+  t('mit einem Kasten bewirkt die Leiste nichts', einzeln.x === ax && einzeln.y === ay);
+  api.setSelection([]);
+}
+
 finish();
 })();
