@@ -1033,6 +1033,45 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
 
+/* Kontextmenü am Kasten: dieselben Aktionen wie im Detailbereich und auf der
+   Entf-Taste, nur dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
+   kommen keine dazu. Der Inhalt entsteht bei jedem Öffnen, denn welche
+   Einträge gelten, hängt an der Größe der Auswahl, an der Art des Objekts und
+   am Schalter „Geschäftsobjekte bearbeiten". Geschlossen wird es von
+   closeMenus() — es trägt die Klasse .menu und hängt damit schon an Escape
+   und am Klick daneben. */
+function ctxMenuOeffnen(n, x, y){
+  const m = $('ctxMenu');
+  const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(k => k && !k.hidden);
+  const mehrere = list.length > 1;
+  const einzeln = !mehrere && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  m.innerHTML =
+    `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
+    + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
+    + (einzeln && S.pflegeAn
+        ? `<button data-ctx="edit">Bearbeiten …</button>
+           <hr><button data-ctx="delete">Objekt löschen …</button>` : '');
+  m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
+    closeMenus();
+    const a = b.dataset.ctx;
+    if(a === 'hide'){
+      setGroupVisible(list, false);
+      toast(list.length + (list.length === 1 ? ' Objekt ausgeblendet' : ' Objekte ausgeblendet'));
+    }
+    if(a === 'related') addRelated(n.id);
+    if(a === 'edit') pflegeStart(n.id);
+    if(a === 'delete') pflegeLoeschen(n.id);
+  });
+  closeMenus(m);
+  m.style.left = x + 'px'; m.style.top = y + 'px';
+  m.classList.add('open');
+  // Am rechten und unteren Rand nach innen klappen, sonst stünde das Menü
+  // halb außerhalb des Fensters.
+  const r = m.getBoundingClientRect();
+  if(r.right > window.innerWidth) m.style.left = Math.max(0, x - r.width) + 'px';
+  if(r.bottom > window.innerHeight) m.style.top = Math.max(0, y - r.height) + 'px';
+}
+
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
 const slug = s => String(s).toLowerCase()
   .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')

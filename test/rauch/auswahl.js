@@ -433,5 +433,54 @@ console.log('== Mehrfachauswahl mit dem Zeiger ziehen ==');
   }
 }
 
+console.log('== Kontextmenü am Objekt ==');
+{
+  api.setView(1);
+  const ctx = ()=> document.getElementById('ctxMenu');
+  const eintraege = ()=> ctx().querySelectorAll('[data-ctx]').map(b => b.dataset.ctx).join(',');
+  const kastenVon = id => [...document.getElementById('nodes').querySelectorAll('.node')]
+    .find(el => el.dataset.id === id);
+
+  /* Regression: vor dem Kontextmenü unterschied pointerdown die Maustaste
+     nicht — ein Rechtsklick begann einen Knotenzug, der hinter dem Menü
+     weiterlief. */
+  {
+    const g = document.getElementById('nodes').querySelectorAll('.node')[0];
+    const n = S.graph.byId.get(g.dataset.id);
+    const ox = n.x, oy = n.y;
+    dispatch(g, 'pointerdown', {clientX:0, clientY:0, button:2});
+    dispatch(svg, 'pointermove', {clientX:80, clientY:40});
+    dispatch(svg, 'pointerup', {clientX:80, clientY:40});
+    t('Rechtsklick beginnt keinen Knotenzug', n.x === ox && n.y === oy,
+      `${ox}/${oy} → ${n.x}/${n.y}`);
+  }
+
+  const obj = S.graph.nodes.find(x => !x.hidden && x.kind === 'object');
+  t('ein sichtbares Geschäftsobjekt gefunden', !!obj);
+  if(obj){
+    api.setSelection([]);
+    S.pflegeAn = false;
+    const ev1 = dispatch(kastenVon(obj.id), 'contextmenu', {clientX:120, clientY:90});
+    t('Rechtsklick auf den Kasten öffnet das Menü und markiert das Objekt',
+      ctx().classList.contains('open') && S.sel.has(obj.id) && ev1.defaultPrevented,
+      'open=' + ctx().classList.contains('open') + ' sel=' + [...S.sel].join(','));
+    t('ohne „Bearbeiten" nur Ausblenden und Verknüpfte',
+      eintraege() === 'hide,related', eintraege());
+
+    S.pflegeAn = true;
+    dispatch(kastenVon(obj.id), 'contextmenu', {clientX:120, clientY:90});
+    t('mit „Bearbeiten" kommen Bearbeiten und Löschen dazu',
+      eintraege() === 'hide,related,edit,delete', eintraege());
+
+    dispatch(ctx().querySelector('[data-ctx="hide"]'), 'click', {});
+    t('„Ausblenden" blendet das Objekt aus', S.graph.byId.get(obj.id).hidden === true);
+    t('das Menü ist danach zu', !ctx().classList.contains('open'));
+
+    const ev2 = dispatch(svg, 'contextmenu', {clientX:10, clientY:10});
+    t('auf dem Hintergrund bleibt das Menü des Browsers',
+      !ctx().classList.contains('open') && !ev2.defaultPrevented);
+  }
+}
+
 finish();
 })();

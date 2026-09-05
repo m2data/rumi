@@ -96,6 +96,7 @@ body.modus-hierarchie .views{display:none}
   min-width:210px;padding:4px;z-index:60;display:none;
 }
 .menu.open{display:block}
+.menu.ctx{position:fixed;right:auto;top:auto}
 .menu button{
   display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;
   font-family:var(--ui);font-size:12px;color:var(--ink);cursor:pointer;border-radius:2px;
@@ -658,6 +659,10 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <div class="toast" id="toast"></div>
   </div>
 </main>
+
+<!-- Kontextmenü am Objekt: leer im Gerüst, der Inhalt entsteht beim Öffnen
+     (welche Einträge gelten, hängt an Auswahl und Pflegeschalter). -->
+<div class="menu ctx" id="ctxMenu" role="menu" aria-label="Objektaktionen"></div>
 
 <div class="modal" id="einstDlg" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="einstTitel">
@@ -4053,6 +4058,11 @@ function weltPunkt(ev){
 }
 
 svg.addEventListener('pointerdown', ev=>{
+  // Die rechte Taste gehört dem Kontextmenü und darf keine Interaktion
+  // beginnen — sonst hinge hinter dem Menü ein halb angefangener Zug (Knoten
+  // oder Schwenk) und finge die nächsten Bewegungen ab. Geprüft wird auf
+  // genau 2, nicht auf „nicht 0": im Mini-DOM der Tests fehlt `button` ganz.
+  if(ev.button === 2) return;
   // Sicherheitsnetz: ein verlorenes pointerup ließe sonst eine alte Interaktion
   // weiterlaufen und alle folgenden Bewegungen abfangen.
   zeiger = null;
@@ -4446,6 +4456,20 @@ function endPointer(){
 svg.addEventListener('pointerup', endPointer);
 svg.addEventListener('pointercancel', endPointer);
 svg.addEventListener('lostpointercapture', endPointer);
+
+/* Kontextmenü am Kasten. Nur dort: auf Kanten und auf dem Hintergrund bleibt
+   das Menü des Browsers erreichbar. Ein Rechtsklick auf ein nicht markiertes
+   Objekt markiert es zuerst — das Menü wirkt auf das, was sichtbar gewählt
+   ist, nicht auf eine unsichtbare zweite Auswahl. */
+svg.addEventListener('contextmenu', ev=>{
+  const g = ev.target.closest && ev.target.closest('.node');
+  if(!g) return;
+  const n = S.graph.byId.get(g.dataset.id);
+  if(!n) return;
+  ev.preventDefault();
+  if(!S.sel.has(n.id)) setSelection([n.id]);
+  ctxMenuOeffnen(n, ev.clientX, ev.clientY);
+});
 /* =====================================================================
    11 — Hierarchie: redaktionelle Diagramme
    Liest die Übersicht (Baum aus Diagrammen) und normalisiert sie zu Knoten
@@ -5368,7 +5392,7 @@ function pflegeFormular(box){
 
   $('pfSave').addEventListener('click', pflegeSpeichern);
   $('pfCancel').addEventListener('click', pflegeEnde);
-  $('pfDelete').addEventListener('click', pflegeLoeschen);
+  $('pfDelete').addEventListener('click', ()=> pflegeLoeschen());
   box.querySelectorAll('[data-neu]').forEach(b=> b.addEventListener('click', ()=> pfZeileNeu(b.dataset.neu)));
   box.querySelectorAll('[data-weg]').forEach(b=> b.addEventListener('click', ()=> pfZeileWeg(b.dataset.weg, +b.dataset.i)));
 }
@@ -5425,9 +5449,11 @@ function pflegeObjektNeu(name){
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
-function pflegeLoeschen(){
-  if(!S.pflege) return;
-  const name = S.pflege.slice(2);
+/* Ohne Argument das offene Formular, mit Kennung ein beliebiges Objekt — aus
+   dem Kontextmenü heraus ist kein Formular offen. */
+function pflegeLoeschen(id = S.pflege){
+  if(!id) return;
+  const name = id.slice(2);
   const rein = pfEingehend(name);
   if(confirm(`„${name}" aus dem Modell löschen?`
     + (rein ? ` ${rein} eingehende Beziehung(en) werden mit entfernt.` : ''))) pflegeObjektWeg(name);
@@ -6507,6 +6533,45 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
+
+/* Kontextmenü am Kasten: dieselben Aktionen wie im Detailbereich und auf der
+   Entf-Taste, nur dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
+   kommen keine dazu. Der Inhalt entsteht bei jedem Öffnen, denn welche
+   Einträge gelten, hängt an der Größe der Auswahl, an der Art des Objekts und
+   am Schalter „Geschäftsobjekte bearbeiten". Geschlossen wird es von
+   closeMenus() — es trägt die Klasse .menu und hängt damit schon an Escape
+   und am Klick daneben. */
+function ctxMenuOeffnen(n, x, y){
+  const m = $('ctxMenu');
+  const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(k => k && !k.hidden);
+  const mehrere = list.length > 1;
+  const einzeln = !mehrere && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  m.innerHTML =
+    `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
+    + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
+    + (einzeln && S.pflegeAn
+        ? `<button data-ctx="edit">Bearbeiten …</button>
+           <hr><button data-ctx="delete">Objekt löschen …</button>` : '');
+  m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
+    closeMenus();
+    const a = b.dataset.ctx;
+    if(a === 'hide'){
+      setGroupVisible(list, false);
+      toast(list.length + (list.length === 1 ? ' Objekt ausgeblendet' : ' Objekte ausgeblendet'));
+    }
+    if(a === 'related') addRelated(n.id);
+    if(a === 'edit') pflegeStart(n.id);
+    if(a === 'delete') pflegeLoeschen(n.id);
+  });
+  closeMenus(m);
+  m.style.left = x + 'px'; m.style.top = y + 'px';
+  m.classList.add('open');
+  // Am rechten und unteren Rand nach innen klappen, sonst stünde das Menü
+  // halb außerhalb des Fensters.
+  const r = m.getBoundingClientRect();
+  if(r.right > window.innerWidth) m.style.left = Math.max(0, x - r.width) + 'px';
+  if(r.bottom > window.innerHeight) m.style.top = Math.max(0, y - r.height) + 'px';
+}
 
 const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
 const slug = s => String(s).toLowerCase()

@@ -420,7 +420,7 @@ function pflegeFormular(box){
 
   $('pfSave').addEventListener('click', pflegeSpeichern);
   $('pfCancel').addEventListener('click', pflegeEnde);
-  $('pfDelete').addEventListener('click', pflegeLoeschen);
+  $('pfDelete').addEventListener('click', ()=> pflegeLoeschen());
   box.querySelectorAll('[data-neu]').forEach(b=> b.addEventListener('click', ()=> pfZeileNeu(b.dataset.neu)));
   box.querySelectorAll('[data-weg]').forEach(b=> b.addEventListener('click', ()=> pfZeileWeg(b.dataset.weg, +b.dataset.i)));
 }
@@ -477,9 +477,11 @@ function pflegeObjektNeu(name){
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
-function pflegeLoeschen(){
-  if(!S.pflege) return;
-  const name = S.pflege.slice(2);
+/* Ohne Argument das offene Formular, mit Kennung ein beliebiges Objekt — aus
+   dem Kontextmenü heraus ist kein Formular offen. */
+function pflegeLoeschen(id = S.pflege){
+  if(!id) return;
+  const name = id.slice(2);
   const rein = pfEingehend(name);
   if(confirm(`„${name}" aus dem Modell löschen?`
     + (rein ? ` ${rein} eingehende Beziehung(en) werden mit entfernt.` : ''))) pflegeObjektWeg(name);

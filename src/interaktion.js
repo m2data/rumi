@@ -31,6 +31,11 @@ function weltPunkt(ev){
 }
 
 svg.addEventListener('pointerdown', ev=>{
+  // Die rechte Taste gehört dem Kontextmenü und darf keine Interaktion
+  // beginnen — sonst hinge hinter dem Menü ein halb angefangener Zug (Knoten
+  // oder Schwenk) und finge die nächsten Bewegungen ab. Geprüft wird auf
+  // genau 2, nicht auf „nicht 0": im Mini-DOM der Tests fehlt `button` ganz.
+  if(ev.button === 2) return;
   // Sicherheitsnetz: ein verlorenes pointerup ließe sonst eine alte Interaktion
   // weiterlaufen und alle folgenden Bewegungen abfangen.
   zeiger = null;
@@ -424,3 +429,17 @@ function endPointer(){
 svg.addEventListener('pointerup', endPointer);
 svg.addEventListener('pointercancel', endPointer);
 svg.addEventListener('lostpointercapture', endPointer);
+
+/* Kontextmenü am Kasten. Nur dort: auf Kanten und auf dem Hintergrund bleibt
+   das Menü des Browsers erreichbar. Ein Rechtsklick auf ein nicht markiertes
+   Objekt markiert es zuerst — das Menü wirkt auf das, was sichtbar gewählt
+   ist, nicht auf eine unsichtbare zweite Auswahl. */
+svg.addEventListener('contextmenu', ev=>{
+  const g = ev.target.closest && ev.target.closest('.node');
+  if(!g) return;
+  const n = S.graph.byId.get(g.dataset.id);
+  if(!n) return;
+  ev.preventDefault();
+  if(!S.sel.has(n.id)) setSelection([n.id]);
+  ctxMenuOeffnen(n, ev.clientX, ev.clientY);
+});
