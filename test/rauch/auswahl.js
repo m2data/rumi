@@ -6,6 +6,10 @@ const {bootApp, makeT} = require('./start');
 const {S, api, document, svg, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
+// Der Start steht in der Hierarchie (oberste Stufe); dieses Thema prüft die
+// Komplettansicht und stellt sie darum ausdrücklich her.
+api.setMode('komplett');
+
 console.log('== Knoten und Auswahl ==');
 {
   const g = document.getElementById('nodes').querySelectorAll('.node')[0];

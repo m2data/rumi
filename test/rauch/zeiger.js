@@ -8,6 +8,10 @@ const {bootApp, makeT} = require('./start');
 const {S, api, document, svg, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
+// Der Start steht in der Hierarchie (oberste Stufe); dieses Thema prüft die
+// Komplettansicht und stellt sie darum ausdrücklich her.
+api.setMode('komplett');
+
 /* Ohne Verschiebung und ohne Maßstab ist Weltkoordinate = Bildschirmkoordinate
    (das Mini-DOM meldet die Zeichenfläche bei 0/0), das macht die Zahlen lesbar. */
 const zuruecksetzen = ()=>{ S.t.x = 0; S.t.y = 0; S.t.k = 1; };

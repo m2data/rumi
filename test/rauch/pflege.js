@@ -7,6 +7,10 @@ const {bootApp, makeT} = require('./start');
 const {S, api, win, document, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
+// Der Start steht in der Hierarchie (oberste Stufe); dieses Thema prüft die
+// Komplettansicht und stellt sie darum ausdrücklich her.
+api.setMode('komplett');
+
 const detail = ()=> document.getElementById('detailBody');
 const $ = id => document.getElementById(id);
 const formularOeffnen = id => {

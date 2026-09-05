@@ -7,6 +7,10 @@ const {bootApp, makeT} = require('./start');
 const {S, api, win, document, svg, dispatch, FILE, html} = await bootApp();
 const {t, finish} = makeT();
 
+// Der Start steht in der Hierarchie (oberste Stufe); dieses Thema prüft die
+// Komplettansicht und stellt sie darum ausdrücklich her.
+api.setMode('komplett');
+
 console.log('== Hierarchie-Export leitet den Namen vom Modell ab ==');
 {
   const prev = S.fileName;
@@ -182,6 +186,13 @@ console.log('== Jeder Tab behält beim Neuladen seine eigene Sitzung ==');
   for(let k=0;k<50;k++) await Promise.resolve();
   t('Neuladen nimmt die Tab-eigene Sitzung (nicht die geteilte)',
     S.fileName === 'tabeigen.yaml', 'fileName=' + S.fileName);
+  /* Der Start zeigt sonst die oberste Hierarchiestufe. Zu diesem Modell passt
+     die mitgelieferte Übersicht nicht (sie nennt Kunde und Bestellung, hier
+     gibt es nur „tabeigen") — das Diagramm wäre leer, also bleibt es bei der
+     Komplettansicht. */
+  t('zu einem fremden Modell bleibt der Start in der Komplettansicht',
+    S.mode === 'komplett' && S.graph.nodes.filter(n => !n.hidden).length > 0,
+    S.mode + ', ' + S.graph.nodes.filter(n => !n.hidden).length + ' sichtbar');
   api.persist();
   t('persist() schreibt die Tab-eigene Sitzung mit',
     (win.sessionStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));

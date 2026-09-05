@@ -16,6 +16,10 @@ const {bootApp, makeT} = require('./start');
 const {S, api, document} = await bootApp();
 const {t, finish} = makeT();
 
+// Der Start steht in der Hierarchie (oberste Stufe); dieses Thema prüft die
+// Komplettansicht und stellt sie darum ausdrücklich her.
+api.setMode('komplett');
+
 const lies = f => fs.readFileSync(path.join(__dirname, '..', '..', 'models', f), 'utf8').replace(/\r\n?/g, '\n');
 
 console.log('== Nach einem Ausweichen läuft der Rest gerade aufs Ziel ==');

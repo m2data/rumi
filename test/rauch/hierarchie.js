@@ -7,6 +7,31 @@ const {bootApp, makeT} = require('./start');
 const {S, api, document, svg, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
+console.log('== Start zeigt die oberste Stufe der Hierarchie ==');
+{
+  // Direkt nach dem Booten geprüft, bevor ein Test den Modus umstellt.
+  t('der Start steht im Hierarchie-Modus', S.mode === 'hierarchie', S.mode);
+  const oben = S.outline && S.outline.roots[0];
+  t('gewählt ist die oberste Stufe', !!oben && S.hierSel === oben.id,
+    S.hierSel + ' statt ' + (oben && oben.id));
+  t('im Baum ist sie markiert',
+    !!document.querySelector('.dnode.sel') &&
+    document.querySelector('.dnode.sel').dataset.id === S.hierSel);
+  const sichtbar = S.graph.nodes.filter(n => !n.hidden).map(n => n.name).sort();
+  t('gezeigt werden die Objekte der obersten Stufe',
+    !!oben && JSON.stringify(sichtbar) === JSON.stringify(oben.objekte.slice().sort()),
+    sichtbar.join(','));
+
+  /* Sind die Schriften geladen, wird neu gemessen. Das lief über setView() und
+     hob den Ausschnitt wieder auf: kurz nach dem Start standen plötzlich alle
+     Objekte im Diagramm. Im Mini-DOM gibt es kein document.fonts, deshalb
+     direkt gerufen. */
+  api.nachSchriftMessen();
+  const danach = S.graph.nodes.filter(n => !n.hidden).map(n => n.name).sort();
+  t('Neu messen nach dem Schriftladen behält den Ausschnitt',
+    JSON.stringify(danach) === JSON.stringify(sichtbar), danach.join(','));
+}
+
 console.log('== Hierarchie-Modus: Baum, Ausschnitt, Beschreibung ==');
 {
   api.setMode('hierarchie');

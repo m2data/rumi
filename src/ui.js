@@ -1515,7 +1515,28 @@ async function boot(){
   }
   if(preset && preset.yaml) await loadYaml(preset.yaml, preset.fileName, preset);
   else await loadYaml(DEFAULT_YAML, 'willibald-attr.yaml');
+  // Angezeigt wird zum Start die Hierarchie mit ihrer obersten Stufe: sie
+  // erklärt das Modell, die Komplettansicht zeigt es nur. Erst NACH dem Laden,
+  // denn die Übersicht entsteht aus dem fertigen Modell.
+  //
+  // Nur wenn sie dazu passt: zu einem fremden Modell fällt die Übersicht auf
+  // die mitgelieferte zurück, deren Objekte es dort nicht gibt — das Diagramm
+  // wäre leer. Geprüft wird an einer Probe, die nichts am Zustand ändert;
+  // erst setMode() legt Übersicht und Auswahl wirklich an.
+  if(S.model){
+    const roh = S.outlineText || (typeof DEFAULT_UEBERSICHT !== 'undefined' ? DEFAULT_UEBERSICHT : '');
+    const oben = buildOutline(roh, S.model).roots[0];
+    if(oben && oben.objekte.some(o => S.model.objects[o])) setMode('hierarchie');
+  }
 }
 boot();
 window.addEventListener('resize', ()=> applyTransform());
-document.fonts && document.fonts.ready.then(()=>{ if(S.graph){ setView(S.view); } });
+/* Sind die Schriften da, stimmen die Kastenmaße erst wirklich — also einmal
+   neu messen und anordnen. Im Hierarchie-Modus über das gewählte Diagramm:
+   setView() würde den Ausschnitt aufheben und wieder alle Objekte zeigen. */
+function nachSchriftMessen(){
+  if(!S.graph) return;
+  if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); }
+  else setView(S.view);
+}
+document.fonts && document.fonts.ready.then(nachSchriftMessen);
