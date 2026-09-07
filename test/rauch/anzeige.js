@@ -3,7 +3,7 @@
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
-const {S, api, document, svg, dispatch} = await bootApp();
+const {S, api, document, svg, dispatch, html} = await bootApp();
 const {t, finish} = makeT();
 
 console.log('== Start ==');
@@ -118,6 +118,21 @@ console.log('== Domänen zusammenklappen ==');
     const restored = document.getElementById('objectList').querySelectorAll('li.row').length;
     t('Aufklappen zeigt sie wieder', restored === before, before + ' → ' + restored);
   }
+
+  /* Die Klickfläche des Pfeils wird beim Zuklappen gedreht. Sie muss dabei
+     liegen bleiben, sonst zielt man beim Wiederaufklappen ins Leere: ohne
+     eigene Maße erbte der Pfeil flex:1 von „.olist button", wurde so breit wie
+     die Zeile, und die Drehung stellte diesen Streifen hochkant quer über die
+     Liste. Geprüft wird am Rohtext — das Mini-DOM wirft <style> weg und rechnet
+     ohnehin kein Layout. */
+  const regel = (html.match(/\.olist \.gcaret\{[^}]*\}/) || [''])[0];
+  t('der Klapp-Pfeil hat eigene Maße im Listenkontext', !!regel, regel);
+  const breite = (regel.match(/[^-]width:(\d+)px/) || [])[1];
+  const hoehe  = (regel.match(/[^-]height:(\d+)px/) || [])[1];
+  t('sie sind quadratisch — gedreht bleibt die Fläche deckungsgleich',
+    !!breite && breite === hoehe, breite + '×' + hoehe);
+  t('und der Pfeil wächst nicht auf Zeilenbreite mit',
+    /flex:0 0 auto/.test(regel), regel);
 }
 
 console.log('== Suche greift über den Objektnamen hinaus ==');

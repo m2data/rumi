@@ -249,7 +249,14 @@ body.modus-hierarchie .sidetab.tab-komplett{display:none}
 }
 .grouphead:first-child{margin-top:0}
 li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
-.gcaret{
+/* Im Listenkontext benannt, sonst gewinnt „.olist button" (gleiche Klasse,
+   dazu ein Typ) und der Pfeil erbt dessen flex:1 samt Polster: die Fläche wuchs
+   auf Zeilenbreite. Gedreht wurde beim Zuklappen dann dieser lange Streifen —
+   die Klickfläche stand hochkant quer über der Liste, weit neben dem Pfeil, und
+   das Wiederaufklappen wurde zum Zielen. Ein Quadrat bleibt beim Drehen
+   deckungsgleich; die Fläche liegt zu wie offen unter dem Pfeil. */
+.olist .gcaret{
+  flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;
   background:none;border:0;padding:0;cursor:pointer;color:var(--muted);
   font-size:24px;line-height:1;transition:transform .12s;transform:rotate(0);
 }
