@@ -77,6 +77,39 @@ t('Fremdschlüssel mit Verweis erkannt', (()=>{
 t('sauberes Modell ohne Fehler', !cm.messages.some(m => m.level === 'err'),
   cm.messages.filter(m => m.level === 'err').map(m => m.title).join(' | '));
 
+console.log('== Business Keys auch in Binnenmajuskel ==');
+{
+  /* Andere Werkzeuge schreiben den Schlüssel wie „Domain" groß. Bliebe er
+     ungelesen, fehlte der Business Key still — samt Warnung, obwohl er
+     dasteht. */
+  const m = buildModel(`BusinessObjects:
+  Kunde:
+    Domain: D
+    BusinessKeys:
+    - KundeID
+    sources:
+    - Q
+`);
+  t('BusinessKeys wird als Business Key gelesen',
+    m.objects.Kunde.keys.join(',') === 'KundeID', JSON.stringify(m.objects.Kunde.keys));
+  t('und die Warnung bleibt aus',
+    !has(m.messages, 'warn', 'kein Business Key'), m.messages.map(x=>x.title).join(' | '));
+
+  // Stehen beide da, gilt die Schreibweise, die das Werkzeug selbst schreibt.
+  const beide = buildModel(`BusinessObjects:
+  Kunde:
+    Domain: D
+    BusinessKeys:
+    - Gross
+    business_keys:
+    - Klein
+    sources:
+    - Q
+`);
+  t('business_keys hat Vorrang', beide.objects.Kunde.keys.join(',') === 'Klein',
+    JSON.stringify(beide.objects.Kunde.keys));
+}
+
 console.log('== buildModel: Prüfregeln greifen ==');
 const dirty = `foo: bar
 BusinessObjects:

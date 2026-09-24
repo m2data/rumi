@@ -501,5 +501,39 @@ console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
     (S.model.messages || []).map(m => m.title).join(' | '));
 }
 
+console.log('== Bedienweg: Business Keys in einem Feld „BusinessKeys" ==');
+{
+  /* Steht die Schreibvariante schon in der Datei, wird sie weiterbenutzt —
+     ein zweites Feld daneben trüge dieselbe Sache zweimal. */
+  api.loadYaml([
+    'BusinessObjects:',
+    '  Kelle:',
+    '    Domain: Haushalt',
+    '    BusinessKeys:',
+    '    - KelleID',
+    '    sources:',
+    '    - Schublade',
+    ''
+  ].join('\n'), 'gross.yaml');
+  api.setMode('komplett'); api.setView(1);
+  if(!S.pflegeAn) S.pflegeAn = true;
+
+  t('der vorhandene Business Key ist gelesen',
+    S.model.objects.Kelle.keys.join(',') === 'KelleID',
+    JSON.stringify(S.model.objects.Kelle.keys));
+  t('das Formular lässt sich öffnen', formularOeffnen('o:Kelle'));
+  t('und hat ihn vorbelegt', $('pfKeys').value === 'KelleID', $('pfKeys').value);
+
+  $('pfKeys').value = 'KelleID, Kellennummer';
+  dispatch($('pfSave'), 'click', {});
+
+  t('der zweite Business Key steht im Modell',
+    S.model.objects.Kelle.keys.join(',') === 'KelleID,Kellennummer',
+    JSON.stringify(S.model.objects.Kelle.keys));
+  t('geschrieben wird in das vorhandene Feld',
+    /\n {4}BusinessKeys:\n {4}- KelleID\n {4}- Kellennummer\n/.test(S.yamlText), S.yamlText);
+  t('und kein zweites Feld daneben', !/business_keys/.test(S.yamlText), S.yamlText);
+}
+
 finish();
 })();

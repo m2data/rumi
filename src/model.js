@@ -85,6 +85,9 @@ function buildModel(text){
   for(const [name, defRaw] of Object.entries(doc[rootKey])){
     const def = defRaw || {};
     const rels = readRels(def.relationships, name, messages);
+    // „BusinessKeys" schreiben andere Werkzeuge groß, wie „Domain". Ungelesen
+    // fehlte der Business Key still — samt Warnung, obwohl er dasteht.
+    const keysRaw = Array.isArray(def.business_keys) ? def.business_keys : def.BusinessKeys;
     const attrs = (Array.isArray(def.attributes) ? def.attributes : []).filter(a => a && a.name).map(a=>({
       name: a.name,
       type: a.type || null,
@@ -98,7 +101,7 @@ function buildModel(text){
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
       domain: def.Domain || def.domain || null,
-      keys: Array.isArray(def.business_keys) ? def.business_keys.filter(Boolean) : [],
+      keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: Array.isArray(def.sources) ? def.sources.filter(Boolean) : [],
       rels
     };

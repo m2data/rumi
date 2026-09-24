@@ -562,7 +562,9 @@ und ist absichtlich nachsichtig:
   `desc`/`beschreibung`/`description`; als Wurzel neben `BusinessObjects` auch
   `businessObjects`, `business_objects`, `Geschaeftsobjekte`; als
   Beziehungsname auch `label`, `bezeichnung`, `rolle`; statt `cardinality` auch
-  `kardinalitaet`.
+  `kardinalitaet`; statt `business_keys` auch `BusinessKeys`. Stehen beide
+  Schreibweisen da, gilt die erstgenannte; beim Bearbeiten wird die
+  vorhandene weitergeschrieben.
 - **Mehrzeilige Texte** als Blockskalar (`desc: |`, `|-`, `>`, `>-`) oder als
   eingerückte Fortsetzungszeilen.
 - **Kommentare** mit `#` — auch am Zeilenende, sofern nicht in

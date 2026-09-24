@@ -26,7 +26,7 @@ function yWert(v){
 const PF_FELDER = [
   {rolle:'domain',  keys:['Domain','domain']},
   {rolle:'desc',    keys:['desc','beschreibung','description']},
-  {rolle:'keys',    keys:['business_keys']},
+  {rolle:'keys',    keys:['business_keys','BusinessKeys']},
   {rolle:'sources', keys:['sources']},
   {rolle:'attrs',   keys:['attributes']},
   {rolle:'rels',    keys:['relationships']}
