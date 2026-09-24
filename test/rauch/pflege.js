@@ -128,6 +128,95 @@ console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trä
     /\n {4}sources: {6}# noch offen\n {4}- Q9\n/.test(wertlos), wertlos);
 }
 
+console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
+{
+  /* Eine Leerzeile am Ende eines Eintrags oder Blocks trennt vom Folgenden.
+     Die Zerleger schlagen sie dem letzten Eintrag bzw. dem letzten Feld zu —
+     käme sie mit zurück, rutschte sie mitten in die Liste, sobald darunter
+     etwas dazukommt. */
+  const alt = {name:'A', domain:'D', desc:null, keys:[], sources:['Q1'], attrs:[], rels:[]};
+  const entwurf = (s)=> ({name:'A', domain:'D', desc:'', keys:[], sources:s, attrs:[], rels:[]});
+
+  const inListe = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1',''].join('\n'),
+    'A', entwurf(['Q1','Q2']), alt);
+  t('in der Liste steht die Leerzeile hinter dem neuen Eintrag',
+    /\n {4}- Q1\n {4}- Q2\n$/.test(inListe), inListe);
+
+  const vorFeld = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    sources:','    - Q1','','    attributes:','    - name: X',''].join('\n'),
+    'A', Object.assign(entwurf(['Q1','Q2']),
+      {attrs:[{name:'X', type:'', nullable:false, pk:false, fk:false, ref:'',
+               _alt:{name:'X', type:null, nullable:false, pk:false, fk:false, ref:null}}]}),
+    Object.assign({}, alt, {attrs:[{name:'X', type:null, nullable:false, pk:false, fk:false, ref:null}]}));
+  t('die Leerzeile trennt weiter vom nächsten Feld',
+    /\n {4}- Q1\n {4}- Q2\n\n {4}attributes:\n/.test(vorFeld), vorFeld);
+
+  const imBlock = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D',''].join('\n'),
+    'A', entwurf(['Q1']), Object.assign({}, alt, {sources:[]}));
+  t('im Block steht die Leerzeile hinter dem ergänzten Feld',
+    /\n {4}Domain: D\n {4}sources:\n {4}- Q1\n$/.test(imBlock), imBlock);
+
+  const zweiObjekte = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','','  B:','    Domain: D',''].join('\n'),
+    'A', entwurf(['Q1']), Object.assign({}, alt, {sources:[]}));
+  t('die Leerzeile bleibt zwischen den beiden Objekten',
+    /\n {4}- Q1\n\n {2}B:\n/.test(zweiObjekte), zweiObjekte);
+
+  // Gegenproben: ohne Zuwachs bleibt alles, wo es ist.
+  const unberuehrt = ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1',''].join('\n');
+  t('ohne neuen Eintrag ist der Text Zeichen für Zeichen der alte',
+    api.goObjektAendern(unberuehrt, 'A', entwurf(['Q1']), alt) === unberuehrt,
+    JSON.stringify(api.goObjektAendern(unberuehrt, 'A', entwurf(['Q1']), alt)));
+
+  const gruppiert = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1','','    - Q2',''].join('\n'),
+    'A', entwurf(['Q1','Q2','Q3']), Object.assign({}, alt, {sources:['Q1','Q2']}));
+  t('eine Leerzeile zwischen zwei Einträgen bleibt liegen',
+    /\n {4}- Q1\n\n {4}- Q2\n {4}- Q3\n$/.test(gruppiert), gruppiert);
+
+  const mitKomm = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1','    # Ende',''].join('\n'),
+    'A', entwurf(['Q1','Q2']), alt);
+  t('ein Kommentar am Ende bleibt, wo er steht',
+    /\n {4}- Q1\n {4}# Ende\n {4}- Q2\n$/.test(mitKomm), mitKomm);
+
+  /* Ein Blockskalar als letztes Feld: die Leerzeile dahinter wandert vor das
+     ergänzte Feld, der Blockskalar selbst bleibt Zeichen für Zeichen stehen.
+     Für den Wert ist das folgenlos — der Leser wirft Leerzeilen am Blockende
+     ohnehin weg (expandBlockScalars). */
+  const blockText = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    desc: |','      Zeile eins',
+     '      Zeile zwei',''].join('\n'),
+    'A', Object.assign(entwurf(['Q1']), {desc:'Zeile eins\nZeile zwei'}),
+    Object.assign({}, alt, {sources:[], desc:'Zeile eins\nZeile zwei'}));
+  t('ein Blockskalar bleibt unangetastet',
+    blockText.includes('    desc: |\n      Zeile eins\n      Zeile zwei\n'), blockText);
+
+  /* Zwischen Kopfzeile und erstem Eintrag: so steht es in models/sap-finanz.yaml.
+     Diese Zeilen gehören zu keinem Eintrag und verschwanden beim Neuschreiben. */
+  const nachKopf = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','','    - Q1',''].join('\n'),
+    'A', entwurf(['Q1','Q2']), alt);
+  t('eine Leerzeile hinter der Kopfzeile bleibt dort',
+    /\n {4}sources:\n\n {4}- Q1\n {4}- Q2\n$/.test(nachKopf), nachKopf);
+
+  const kommKopf = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','    # alle Altsysteme','    - Q1',''].join('\n'),
+    'A', entwurf(['Q1','Q2']), alt);
+  t('ein Kommentar hinter der Kopfzeile bleibt dort',
+    /\n {4}sources:\n {4}# alle Altsysteme\n {4}- Q1\n {4}- Q2\n$/.test(kommKopf), kommKopf);
+
+  const leerListe = api.goObjektAendern(
+    ['BusinessObjects:','  A:','    Domain: D','    sources:','','  B:','    Domain: D',''].join('\n'),
+    'A', entwurf(['Q1']), Object.assign({}, alt, {sources:[]}));
+  t('ohne Eintrag trennt die Leerzeile weiter nach unten',
+    /\n {4}sources:\n {4}- Q1\n\n {2}B:\n/.test(leerListe), leerListe);
+  t('und das ergänzte Feld steht davor, nicht hinter der Lücke',
+    /\n {6}Zeile zwei\n {4}sources:\n {4}- Q1\n$/.test(blockText), blockText);
+}
+
 console.log('== Umbenennen zieht jeden Verweis mit ==');
 {
   // Das Objekt heißt wie ein Kardinalitätswert: „to: many" unter „cardinality:"

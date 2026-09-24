@@ -84,6 +84,20 @@ function pfListKopf(f, col, key){
   return ' '.repeat(yCol(l)) + key + ':' + (komm ? '  ' + komm[0] : '');
 }
 
+/* Leerzeilen am Ende trennen vom Folgenden — vom nächsten Feld, vom nächsten
+   Objekt. Sie gehören darum nicht an den letzten Eintrag oder das letzte Feld,
+   auch wenn die Zerleger sie dort einsortieren: käme darunter etwas dazu,
+   rutschte die Leerzeile mitten hinein. Abgestreift (und zurückgegeben) wird
+   nur die echte Leerzeile; eine Kommentarzeile bleibt, wo sie steht — yBlank
+   zählt Kommentare mit und ist hier das falsche Prädikat. `lines` wird gekürzt,
+   die ersten `behalten` Zeilen bleiben stehen. */
+function pfNachspann(lines, behalten = 1){
+  const raus = [];
+  while(lines.length > behalten && lines[lines.length - 1].trim() === '')
+    raus.unshift(lines.pop());
+  return raus;
+}
+
 /* Ein Listenfeld neu setzen. Einträge, die unverändert blieben, kommen mit
    ihren ursprünglichen Zeilen zurück — nur Geänderte und Neue werden
    geschrieben. `schluessel(w)` liefert den listItemKey des unveränderten
@@ -92,6 +106,15 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
   if(!werte.length) return [];
   const {items, itemCol} = f ? splitListItems(f) : {items:[], itemCol:null};
   const ic = itemCol == null ? col : itemCol;
+  /* Was zwischen Kopfzeile und erstem Eintrag steht — ein Kommentar zur ganzen
+     Liste, eine Leerzeile —, kennt splitListItems nicht: es gehört zu keinem
+     Eintrag und verschwände beim Neuschreiben. Eine Leerzeile ohne Eintrag
+     dahinter trennt allerdings nach unten und zählt zum Nachspann. */
+  const davor = [];
+  if(f) for(let i = 1; i < f.lines.length && yBlank(f.lines[i]); i++) davor.push(f.lines[i]);
+  const vorspann  = items.length ? davor : davor.filter(l => l.trim() !== '');
+  const nachspann = items.length ? pfNachspann(items[items.length - 1].lines)
+                                 : davor.filter(l => l.trim() === '');
   const vorhanden = new Map();
   items.forEach(it=>{
     const k = listItemKey(it);
@@ -104,14 +127,14 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
       if(!vorhanden.has(rein)) vorhanden.set(rein, it);
     }
   });
-  const out = [pfListKopf(f, col, key)];
+  const out = [pfListKopf(f, col, key), ...vorspann];
   werte.forEach(w=>{
     const k = schluessel(w);
     const it = k ? vorhanden.get(k) : null;
     if(it) out.push(...it.lines);
     else out.push(...erzeuge(w, ic));
   });
-  return out;
+  return out.concat(nachspann);
 }
 
 /* Die Zeilen eines Feldes nach der Bearbeitung. `f` ist das vorhandene Feld
@@ -159,9 +182,13 @@ function goObjektAendern(text, name, e, alt){
     fertig.add(rolle);
     zeilen.push(...pfFeldZeilen(rolle, f, col, e, alt));
   });
+  // Ein noch fehlendes Feld gehört vor die trennenden Leerzeilen am Blockende,
+  // nicht dahinter — sonst stünde es hinter der Lücke zum nächsten Objekt.
+  const nachspann = pfNachspann(zeilen);
   PF_FELDER.forEach(({rolle})=>{
     if(!fertig.has(rolle)) zeilen.push(...pfFeldZeilen(rolle, null, col, e, alt));
   });
+  zeilen.push(...nachspann);
   B.blocks[idx] = {name, lines: zeilen};
   return pfZusammen(B);
 }
