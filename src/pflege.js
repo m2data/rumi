@@ -67,6 +67,23 @@ const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||''
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
   && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
 
+/* Die Kopfzeile eines Listenfeldes. Steht hinter dem Doppelpunkt nichts (oder
+   nur ein Kommentar), bleibt die vorhandene Zeile Zeichen für Zeichen stehen.
+   Trägt sie schon einen Wert — „sources: []" schreiben andere Werkzeuge so, und
+   eine Inline-Liste „[Q1]" ebenso —, taugt sie nicht als Kopf einer Blockliste:
+   die Einträge darunter ergäben kein YAML mehr, und das Gepflegte wäre beim
+   nächsten Lesen still verschwunden. Dann wird die Zeile neu geschrieben, ein
+   Zeilenkommentar wandert mit. */
+function pfListKopf(f, col, key){
+  if(!f) return ' '.repeat(col) + key + ':';
+  const l = f.lines[0];
+  const m = l.match(/^\s*"?[\w-]+"?\s*:\s*(.*)$/);
+  const rest = m ? m[1].trim() : '';
+  if(rest === '' || rest.startsWith('#')) return l;
+  const komm = rest.match(/#.*$/);
+  return ' '.repeat(yCol(l)) + key + ':' + (komm ? '  ' + komm[0] : '');
+}
+
 /* Ein Listenfeld neu setzen. Einträge, die unverändert blieben, kommen mit
    ihren ursprünglichen Zeilen zurück — nur Geänderte und Neue werden
    geschrieben. `schluessel(w)` liefert den listItemKey des unveränderten
@@ -87,7 +104,7 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
       if(!vorhanden.has(rein)) vorhanden.set(rein, it);
     }
   });
-  const out = [f ? f.lines[0] : ' '.repeat(col) + key + ':'];
+  const out = [pfListKopf(f, col, key)];
   werte.forEach(w=>{
     const k = schluessel(w);
     const it = k ? vorhanden.get(k) : null;

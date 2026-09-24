@@ -88,6 +88,46 @@ console.log('== Nur geänderte Stellen: Kommentare und Formatierung bleiben ==')
     /desc: "Erste Zeile\\nZweite Zeile"/.test(mitDesc), mitDesc);
 }
 
+console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trägt ==');
+{
+  /* „sources: []" steht so in echten Modelldateien (models/verquer_bo.yaml).
+     Die Zeile trägt bereits einen Wert und taugt darum nicht als Kopf einer
+     Blockliste: Einträge darunter ergäben kein YAML mehr, und die gepflegte
+     Quelle wäre beim nächsten Lesen still verschwunden. */
+  const text = [
+    'BusinessObjects:',
+    '  A:',
+    '    Domain: Haushalt',
+    '    sources: []',
+    '    attributes:',
+    '    - name: AID',
+    ''
+  ].join('\n');
+  const alt = {name:'A', domain:'Haushalt', desc:null, keys:[], sources:[],
+    attrs:[{name:'AID', type:null, nullable:false, pk:false, fk:false, ref:null}], rels:[]};
+  const entwurf = {name:'A', domain:'Haushalt', desc:'', keys:[], sources:['Q9'],
+    attrs: alt.attrs.map(a => Object.assign({}, a, {type:'', ref:'', _alt:a})), rels:[]};
+
+  const mitQuelle = api.goObjektAendern(text, 'A', entwurf, alt);
+  t('die leere Inline-Liste wird zur Kopfzeile einer Blockliste',
+    /\n {4}sources:\n {4}- Q9\n/.test(mitQuelle) && !/sources: \[\]/.test(mitQuelle), mitQuelle);
+  t('das unberührte Attribut steht unverändert dahinter',
+    /\n {4}attributes:\n {4}- name: AID\n/.test(mitQuelle), mitQuelle);
+
+  // Auch eine gefüllte Inline-Liste zerfiele sonst in Kopfzeile plus Einträge.
+  const inline = api.goObjektAendern(text.replace('sources: []', 'sources: [Q1]'), 'A',
+    Object.assign({}, entwurf, {sources:['Q1','Q9']}),
+    Object.assign({}, alt, {sources:['Q1']}));
+  t('eine gefüllte Inline-Liste wird gleichfalls zur Blockliste',
+    /\n {4}sources:\n {4}- Q1\n {4}- Q9\n/.test(inline) && !/\[Q1\]/.test(inline), inline);
+
+  // Gegenprobe: eine wertlose Kopfzeile bleibt Zeichen für Zeichen stehen.
+  const wertlos = api.goObjektAendern(
+    text.replace('    sources: []', '    sources:      # noch offen'), 'A', entwurf, alt);
+  t('eine wertlose Kopfzeile bleibt samt Kommentar unangetastet',
+    /\n {4}sources: {6}# noch offen\n {4}- Q9\n/.test(wertlos), wertlos);
+}
+
 console.log('== Umbenennen zieht jeden Verweis mit ==');
 {
   // Das Objekt heißt wie ein Kardinalitätswert: „to: many" unter „cardinality:"
@@ -430,6 +470,35 @@ console.log('== Umbenennen zieht den Hierarchie-Ausschnitt mit ==');
   const n = S.graph.byId.get('o:' + neu);
   t('und das Objekt bleibt im Diagramm sichtbar', !!n && n.hidden === false,
     n ? ('hidden=' + n.hidden) : 'nicht im Graphen');
+}
+
+console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
+{
+  /* Derselbe Fall über das Formular: eingetippt, gespeichert — und beim
+     nächsten Lesen muss die Quelle im Modell stehen, nicht bloß im Text. */
+  api.loadYaml([
+    'BusinessObjects:',
+    '  Topflappen:',
+    '    Domain: Haushalt',
+    '    sources: []',
+    ''
+  ].join('\n'), 'inline.yaml');
+  api.setMode('komplett'); api.setView(1);
+  if(!S.pflegeAn) S.pflegeAn = true;
+
+  t('das Objekt hat noch keine Quelle', S.model.objects.Topflappen.sources.length === 0);
+  t('das Formular lässt sich öffnen', formularOeffnen('o:Topflappen'));
+  $('pfSources').value = 'Küchenschrank';
+  dispatch($('pfSave'), 'click', {});
+
+  t('die gepflegte Quelle steht im Modell',
+    S.model.objects.Topflappen.sources.join(',') === 'Küchenschrank',
+    JSON.stringify(S.model.objects.Topflappen.sources));
+  t('der Modelltext trägt sie als Listeneintrag',
+    /\n {4}sources:\n {4}- Küchenschrank\n/.test(S.yamlText), S.yamlText);
+  t('die Warnung „keine Quelle" ist weg',
+    !(S.model.messages || []).some(m => m.group === 'keine Quelle'),
+    (S.model.messages || []).map(m => m.title).join(' | '));
 }
 
 finish();
