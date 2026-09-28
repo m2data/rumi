@@ -81,6 +81,7 @@ const layoutFile = ()=> ({
   inhalt: S.content,
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
+  zusatzfelder: S.zusatzAn,
   uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
@@ -98,6 +99,10 @@ function adoptLayoutFile(obj){
   if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
   if(typeof obj.pflegeAn === 'boolean') S.pflegeAn = obj.pflegeAn;
+  if(obj.zusatzfelder && typeof obj.zusatzfelder === 'object') S.zusatzAn = {
+    objekt:   Array.isArray(obj.zusatzfelder.objekt)   ? obj.zusatzfelder.objekt.slice()   : [],
+    attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
+  };
   if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
@@ -134,6 +139,7 @@ function writeStore(){
 function histStand(){
   const b = layoutFile();
   delete b.pflegeAn;
+  delete b.zusatzfelder;
   return b;
 }
 
@@ -422,6 +428,7 @@ function renderDetails(){
        ${S.pflegeAn ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
+       ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
@@ -432,7 +439,9 @@ function renderDetails(){
           <td class="an">${esc(a.name)}</td>
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
-          </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')).join('') + `</table>`
+          </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
+          + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
+            `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
        ${o.rels.length ? o.rels.map((r,ri)=>`<div class="rel"><span class="arrow">→</span>
@@ -763,7 +772,7 @@ document.addEventListener('keydown', ev=>{
     ev.preventDefault(); redo(); return;
   }
   if(ev.key === 'Escape'){
-    if(!$('einstDlg').hidden){ einstellungenZu(); return; }
+    if(!$('zusatzDlg').hidden){ zusatzZu(); return; }
     if(S.selEdge){ S.selEdge = null; draw(); }
     else if(S.sel.size) setSelection([]);
     closeMenus();
@@ -997,7 +1006,7 @@ function closeMenus(except){
   document.querySelectorAll('[aria-haspopup]').forEach(b=>
     b.setAttribute('aria-expanded', String(b.nextElementSibling && b.nextElementSibling.classList.contains('open'))));
 }
-[['btnMenu','menu'], ['btnLayout','layoutMenu'], ['btnContent','contentMenu']].forEach(([bid, mid])=>{
+[['btnMenu','menu'], ['btnLayout','layoutMenu'], ['btnContent','contentMenu'], ['btnEinst','einstMenu']].forEach(([bid, mid])=>{
   const m = $(mid);
   $(bid).onclick = e=>{
     e.stopPropagation();
@@ -1231,7 +1240,7 @@ function splitObjectFields(lines){
   let cur = null;
   for(let i = 1; i < lines.length; i++){
     const l = lines[i];
-    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w-]*)"?\s*:/) : null;
+    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w.\/-]*)"?\s*:/) : null;
     if(m){ cur = {key: m[1], lines: [l]}; fields.push(cur); }
     else if(cur) cur.lines.push(l);
     else vorspann.push(l);

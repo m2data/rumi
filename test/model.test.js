@@ -404,6 +404,38 @@ console.log('== Doppelter Schlüssel auf derselben Ebene ==');
   t('der Hinweis steht auch im Modell', has(buildModel(y).messages, 'warn', 'doppelt'));
 }
 
+console.log('== Zusatzattribute: unbekannte Schlüssel werden mitgeführt ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  A:',
+    '    Domain: D',
+    '    schema.org: https://schema.org/Thing',
+    '    dq-regel:',
+    '    tags:',
+    '    - x',
+    '    attributes:',
+    '    - name: AID',
+    '      type: int',
+    '      schema.org: https://schema.org/identifier',
+    '  B:',
+    '    schema.org: https://schema.org/Order',
+    ''
+  ].join('\n');
+  const M = buildModel(y);
+  t('am Objekt: Wert gelesen, leerer Wert als ""',
+    M.objects.A.extra['schema.org'] === 'https://schema.org/Thing' && M.objects.A.extra['dq-regel'] === '',
+    JSON.stringify(M.objects.A.extra));
+  t('bekannte Schlüssel sind keine Zusatzattribute', !('Domain' in M.objects.A.extra) && !('attributes' in M.objects.A.extra));
+  t('eine Liste wird nicht angeboten', !('tags' in M.objects.A.extra) && !M.zusatz.objekt.has('tags'));
+  t('gezählt wird je Objekt', M.zusatz.objekt.get('schema.org') === 2 && M.zusatz.objekt.get('dq-regel') === 1,
+    JSON.stringify([...M.zusatz.objekt]));
+  t('am Attribut ebenso', M.objects.A.attrs[0].extra['schema.org'] === 'https://schema.org/identifier'
+    && !('type' in M.objects.A.attrs[0].extra) && M.zusatz.attribut.get('schema.org') === 1);
+  t('keine Meldung dafür', !M.messages.some(m => /schema|dq-regel/.test(m.title + m.body)),
+    M.messages.map(m => m.title).join(' | '));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

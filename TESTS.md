@@ -69,10 +69,12 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   einer Datei auf der Zeichenfläche; dazu „Stand speichern" in dieselbe Datei
   (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download).
 - **`pflege.js`** — Geschäftsobjekte bearbeiten: Einstellung „Geschäftsobjekte
-  bearbeiten" (Vorgabe aus, Dialog in der Kopfzeile, nicht im Verlauf),
+  bearbeiten" (Vorgabe aus, Haken im Menü „Einstellungen", nicht im Verlauf),
   Formular im Reiter „Details", Text-Chirurgie am Modell-YAML (Kommentare und
   Formatierung unberührter Stellen bleiben), Umbenennen samt Verweisen und
-  Kennungen, Anlegen, Löschen, Rückgängig.
+  Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
+  mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
+  `schema.org`, Erhalt beim Neuschreiben eines Attributs).
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
   (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel),

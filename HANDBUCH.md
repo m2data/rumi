@@ -58,7 +58,7 @@ dauerhaft: Wer einen Stand aufheben oder weitergeben will, speichert ihn über
 | **Anordnen ▾** | Verfahren, Richtung, Kanten neu ziehen (Kapitel 8) |
 | **Inhalt ▾** | was in den Kästen steht (Kapitel 10) |
 | **Einpassen** | alles ins Bild rücken (Taste `F`) |
-| **Einstellungen** | Bearbeiten ein- und ausschalten (Kapitel 13) |
+| **Einstellungen** | Bearbeiten ein- und ausschalten, Zusatzattribute wählen (Kapitel 13) |
 | **Datei & Export** | Laden, Speichern, Export (Kapitel 14) |
 
 **Seitenleiste** links: oben das **Suchfeld** — es steht bewusst *über* den
@@ -357,9 +357,9 @@ dabei stehen, damit man Hinweise der Reihe nach abarbeiten kann.
 ## 13. Geschäftsobjekte bearbeiten
 
 Ab Werk ist das Werkzeug ein **Betrachter**: Fachdaten lassen sich nicht
-verstellen. Das Bearbeiten wird über **Einstellungen → „Geschäftsobjekte
-bearbeiten"** eingeschaltet. Danach erscheinen „Bearbeiten" im Reiter Details
-und „＋ Objekt" über der Objektliste.
+verstellen. Das Bearbeiten wird im Menü **Einstellungen** über den Punkt
+**„Geschäftsobjekte bearbeiten"** eingeschaltet (Haken). Danach erscheinen
+„Bearbeiten" im Reiter Details und „＋ Objekt" über der Objektliste.
 
 Der Schalter wird gemerkt und wandert in den HTML-Export und in die
 Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an dem
@@ -387,6 +387,19 @@ Geschrieben wird **in die vorhandene YAML hinein**: geändert wird nur die
 bearbeitete Stelle. Kommentare, Reihenfolge, Einrückung und Schreibvarianten
 des Übrigen bleiben stehen. Jede Bearbeitung ist eine Aktion im Verlauf —
 Strg+Z nimmt sie zurück.
+
+**Zusatzattribute.** Jeder Schlüssel in der YAML, den die App nicht selbst
+auswertet — etwa `schema.org:` an einem Objekt oder an einem Attribut —, gilt
+als Zusatzattribut. Feldnamen dürfen Buchstaben, Ziffern und `_ - / .`
+enthalten. **Einstellungen → „Zusatzattribute …"** listet, was das geladene
+Modell mitbringt, getrennt nach Geschäftsobjekten und Attributen und mit der
+Zahl der Vorkommen. Eingeschaltete Felder erscheinen im Formular (am Objekt
+unter „Quellen", am Attribut als weitere Zeile) und lesend in den Details.
+Ausgeschaltete bleiben in der Datei unberührt stehen, auch wenn das Attribut
+daneben geändert wird. Ein geleertes Feld bleibt als Platzhalter (`schema.org:`)
+stehen, wenn es schon in der Datei stand. Angeboten werden nur Einzelwerte;
+Listen und Abbildungen bleiben unangetastet. Die Auswahl wird wie der
+Bearbeiten-Schalter gemerkt und mitgegeben, ist aber keine Aktion im Verlauf.
 
 ## 14. Laden, Speichern, Weitergeben
 

@@ -19,6 +19,12 @@ const CARD_LABEL = {
    Reservierte Felder, die nie als Name gelten. */
 const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinality','kardinalitaet']);
 
+/* Die Schlüssel, die die App selbst auswertet. Alles andere an einem Objekt
+   oder Attribut ist ein Zusatzattribut. */
+const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
+  'business_keys','BusinessKeys','sources','attributes','relationships']);
+const ATTR_KEYS = new Set(['name','type','nullable','primary_key','foreign_key','references']);
+
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
   let name = keyName || null, body = entry;
@@ -81,6 +87,22 @@ function buildModel(text){
       body:`"${k}" steht auf oberster Ebene, also außerhalb von ${rootKey}, und gehört zu keinem Geschäftsobjekt. Der Block wird ignoriert.`});
   });
 
+  /* Zusatzattribute: was an einem Objekt oder Attribut steht, das die App
+     nicht selbst kennt (etwa „schema.org"), wird mitgeführt und gezählt. Ob
+     es gepflegt wird, entscheidet die Einstellung, nicht das Modell. */
+  const zusatz = {objekt: new Map(), attribut: new Map()};
+  const extraAus = (def, bekannt, zaehler)=>{
+    const extra = {};
+    Object.keys(def).forEach(k=>{
+      if(bekannt.has(k)) return;
+      const v = def[k];
+      if(v !== null && typeof v === 'object') return;      // Listen und Abbildungen bleiben unangetastet
+      extra[k] = v == null ? '' : String(v);
+      zaehler.set(k, (zaehler.get(k) || 0) + 1);
+    });
+    return extra;
+  };
+
   const objects = {};
   for(const [name, defRaw] of Object.entries(doc[rootKey])){
     const def = defRaw || {};
@@ -94,7 +116,8 @@ function buildModel(text){
       nullable: a.nullable === true,
       pk: a.primary_key === true,
       fk: a.foreign_key === true,
-      ref: a.references || null
+      ref: a.references || null,
+      extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
     }));
     objects[name] = {
       name,
@@ -103,7 +126,8 @@ function buildModel(text){
       domain: def.Domain || def.domain || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: Array.isArray(def.sources) ? def.sources.filter(Boolean) : [],
-      rels
+      rels,
+      extra: extraAus(def, OBJ_KEYS, zusatz.objekt)
     };
   }
 
@@ -185,7 +209,7 @@ function buildModel(text){
 
   const rank = {err:0, warn:1, info:2};
   messages.sort((a,b)=> rank[a.level] - rank[b.level]);
-  return {objects, messages, meta};
+  return {objects, messages, meta, zusatz};
 }
 
 /* =====================================================================

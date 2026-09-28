@@ -40,7 +40,7 @@ const pfZusammen = B => {
 };
 
 /* ---------- Zeilen für einen geänderten Eintrag ---------- */
-function pfAttrZeilen(a, col){
+function pfAttrZeilen(a, col, altEintrag){
   const e = ' '.repeat(col), i = ' '.repeat(col + 2);
   const z = [e + '- name: ' + yWert(a.name)];
   if(a.type)     z.push(i + 'type: ' + yWert(a.type));
@@ -48,7 +48,37 @@ function pfAttrZeilen(a, col){
   if(a.pk)       z.push(i + 'primary_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
+  // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
+  // verschwänden sie, sobald das Attribut neu geschrieben wird. Ein leerer
+  // Wert bleibt als Platzhalter stehen, wenn er schon in der Datei stand.
+  const vorher = (a._alt && a._alt.extra) || {};
+  Object.entries(a.extra || {}).forEach(([k, v])=>{
+    if(v !== '') z.push(i + k + ': ' + yWert(v));
+    else if(k in vorher) z.push(i + k + ':');
+  });
+  // Was als Liste oder Abbildung am Attribut hängt, kennt das Modell nicht als
+  // Wert — es kommt mit seinen ursprünglichen Zeilen zurück.
+  if(altEintrag){
+    const ic = yCol(altEintrag.lines[0]);
+    let mit = false;
+    altEintrag.lines.slice(1).forEach(l=>{
+      const m = !yBlank(l) && yCol(l) === ic + 2 ? l.match(/^\s*"?([A-Za-z_][\w.\/-]*)"?\s*:\s*(.*)$/) : null;
+      if(m) mit = !ATTR_KEYS.has(m[1]) && !(m[1] in (a.extra || {})) && (m[2] === '' || m[2].startsWith('#'));
+      if(mit && l.trim() !== '') z.push(l);
+    });
+  }
   return z;
+}
+/* Ein Zusatzattribut am Objekt: Einzelwert wie Domain. Unverändert bleibt die
+   Zeile stehen; geleert bleibt der Schlüssel als Platzhalter, wenn es ihn gab. */
+function pfZusatzZeilen(k, f, col, e, alt){
+  const neu = e.extra[k], vor = alt.extra && alt.extra[k];
+  if(f){
+    if(vor === undefined || neu === vor) return f.lines;   // Liste/Abbildung oder unverändert
+    const nachspann = pfNachspann(f.lines.slice());
+    return [' '.repeat(col) + f.key + ':' + (neu === '' ? '' : ' ' + yWert(neu)), ...nachspann];
+  }
+  return neu === '' ? [] : [' '.repeat(col) + k + ': ' + yWert(neu)];
 }
 function pfRelZeilen(r, col){
   const e = ' '.repeat(col), i = ' '.repeat(col + 2), j = ' '.repeat(col + 4);
@@ -62,8 +92,11 @@ function pfRelZeilen(r, col){
   return z;
 }
 
+const pfExtraGleich = (x = {}, y = {}) =>
+  [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
-  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'');
+  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
+  && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
   && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
 
@@ -77,7 +110,7 @@ const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
 function pfListKopf(f, col, key){
   if(!f) return ' '.repeat(col) + key + ':';
   const l = f.lines[0];
-  const m = l.match(/^\s*"?[\w-]+"?\s*:\s*(.*)$/);
+  const m = l.match(/^\s*"?[\w.\/-]+"?\s*:\s*(.*)$/);
   const rest = m ? m[1].trim() : '';
   if(rest === '' || rest.startsWith('#')) return l;
   const komm = rest.match(/#.*$/);
@@ -132,7 +165,7 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
     const k = schluessel(w);
     const it = k ? vorhanden.get(k) : null;
     if(it) out.push(...it.lines);
-    else out.push(...erzeuge(w, ic));
+    else out.push(...erzeuge(w, ic, vorhanden));
   });
   return out.concat(nachspann);
 }
@@ -157,7 +190,8 @@ function pfFeldZeilen(rolle, f, col, e, alt){
   }
   if(rolle === 'attrs')
     return pfListe(f, col, key, e.attrs,
-      a => (a._alt && pfAttrGleich(a, a._alt)) ? 'attr:' + a._alt.name : null, pfAttrZeilen);
+      a => (a._alt && pfAttrGleich(a, a._alt)) ? 'attr:' + a._alt.name : null,
+      (a, ic, vorhanden)=> pfAttrZeilen(a, ic, a._alt ? vorhanden.get('attr:' + a._alt.name) : null));
   return pfListe(f, col, key, e.rels,
     r => (r._alt && pfRelGleich(r, r._alt)) ? 'bez:' + r._alt.to + '\u0000' + (r._alt.name || '') : null, pfRelZeilen);
 }
@@ -176,8 +210,14 @@ function goObjektAendern(text, name, e, alt){
   const col = F.fieldCol != null ? F.fieldCol : yCol(blk.lines[0]) + 2;
   const zeilen = [F.head, ...F.vorspann];
   const fertig = new Set();
+  const extra = e.extra || {};
   F.fields.forEach(f=>{
     const rolle = pfRolle(f.key);
+    if(!rolle && f.key in extra && !fertig.has('+' + f.key)){
+      fertig.add('+' + f.key);
+      zeilen.push(...pfZusatzZeilen(f.key, f, col, e, alt));
+      return;
+    }
     if(!rolle || fertig.has(rolle)){ zeilen.push(...f.lines); return; }
     fertig.add(rolle);
     zeilen.push(...pfFeldZeilen(rolle, f, col, e, alt));
@@ -187,6 +227,9 @@ function goObjektAendern(text, name, e, alt){
   const nachspann = pfNachspann(zeilen);
   PF_FELDER.forEach(({rolle})=>{
     if(!fertig.has(rolle)) zeilen.push(...pfFeldZeilen(rolle, null, col, e, alt));
+  });
+  Object.keys(extra).forEach(k=>{
+    if(!fertig.has('+' + k)) zeilen.push(...pfZusatzZeilen(k, null, col, e, alt));
   });
   zeilen.push(...nachspann);
   B.blocks[idx] = {name, lines: zeilen};
@@ -351,8 +394,10 @@ function pflegeStart(id){
   pfEntwurf = {
     name: o.name, domain: o.domain || '', desc: o.desc || '',
     keys: o.keys.slice(), sources: o.sources.slice(),
+    // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
+    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, fk:!!a.fk, ref:a.ref||'', _alt:a})),
+                            pk:!!a.pk, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
   };
   S.pflege = id;
@@ -379,6 +424,7 @@ function pfLesen(){
   e.keys = liste($('pfKeys').value);
   e.sources = liste($('pfSources').value);
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
+  S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = feld('.pfo-extra', z).value.trim(); });
   e.attrs.forEach((a, i)=>{
     a.name = feld('.pfa-name', i).value.trim();
     a.type = feld('.pfa-type', i).value.trim();
@@ -386,6 +432,13 @@ function pfLesen(){
     a.pk   = feld('.pfa-pk', i).checked;
     a.fk   = feld('.pfa-fk', i).checked;
     a.nullable = feld('.pfa-null', i).checked;
+    const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
+    S.zusatzAn.attribut.forEach((k, z)=>{
+      const v = zf[z].value.trim();
+      // Leer und vorher nicht da: kein Platzhalter anlegen.
+      if(v === '' && !(a._alt && k in a._alt.extra)) delete a.extra[k];
+      else a.extra[k] = v;
+    });
   });
   e.rels.forEach((r, i)=>{
     r.to     = feld('.pfb-to', i).value.trim();
@@ -413,6 +466,7 @@ function pflegeFormular(box){
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
        <label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>
+       ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><input class="pfo-extra" data-i="${z}"></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
        ${e.attrs.map((a,i)=>`<div class="pfa">
@@ -424,7 +478,9 @@ function pflegeFormular(box){
             <label class="pfk"><input type="checkbox" class="pfa-fk" data-i="${i}">FK</label>
             <label class="pfk"><input type="checkbox" class="pfa-null" data-i="${i}">null</label>
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
-          </div></div>`).join('')}
+          </div>
+          ${S.zusatzAn.attribut.map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
+            <input class="pfa-extra" data-i="${i}" placeholder="${esc(k)}" aria-label="${esc(k)}"></div>`).join('')}</div>`).join('')}
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
@@ -447,7 +503,10 @@ function pflegeFormular(box){
   $('pfKeys').value = e.keys.join(', ');
   $('pfSources').value = e.sources.join(', ');
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
+  S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = e.extra[k]; });
   e.attrs.forEach((a,i)=>{
+    const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
+    S.zusatzAn.attribut.forEach((k, z)=>{ zf[z].value = k in a.extra ? a.extra[k] : ''; });
     feld('.pfa-name', i).value = a.name;
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;
@@ -471,7 +530,7 @@ function pflegeFormular(box){
 
 function pfZeileNeu(art){
   pfLesen();
-  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, fk:false, ref:'', _alt:null});
+  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, fk:false, ref:'', extra:{}, _alt:null});
   else {
     const ziele = Object.keys(S.model.objects);
     pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
@@ -545,29 +604,63 @@ function pflegeObjektWeg(name){
 $('objNew').addEventListener('click', pflegeNeu);
 
 /* ---------- Einstellungen ----------
-   Bisher genau eine: ob sich Geschäftsobjekte bearbeiten lassen. Aus ist die
-   Vorgabe — das Werkzeug ist zuerst ein Betrachter, und ein weitergegebener
-   Stand (HTML-Export, Positionsinformationen) trägt die Einstellung mit,
-   statt jedem Leser das Bearbeiten anzubieten. Ausgeschaltet betrifft das nur
-   die Fachdaten: anordnen, Kanten umlenken und die Hierarchie bleiben. */
-function einstellungenAuf(){
-  $('einstPflege').checked = S.pflegeAn;
-  $('einstDlg').hidden = false;
-  $('btnEinst').setAttribute('aria-expanded', 'true');
-}
-function einstellungenZu(){
-  $('einstDlg').hidden = true;
-  $('btnEinst').setAttribute('aria-expanded', 'false');
-}
+   Ein Menü in der Kopfzeile. „Geschäftsobjekte bearbeiten" ist ein Haken:
+   aus ist die Vorgabe — das Werkzeug ist zuerst ein Betrachter, und ein
+   weitergegebener Stand (HTML-Export, Positionsinformationen) trägt die
+   Einstellung mit, statt jedem Leser das Bearbeiten anzubieten. Ausgeschaltet
+   betrifft das nur die Fachdaten: anordnen, Kanten umlenken und die Hierarchie
+   bleiben. „Zusatzattribute …" öffnet einen Dialog. */
 function pflegeSchalten(an){
   S.pflegeAn = !!an;
   if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
+  $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   renderObjectList(); renderDetails();
   writeStore();
   toast(S.pflegeAn ? 'Bearbeiten eingeschaltet' : 'Bearbeiten ausgeschaltet');
 }
 
-$('btnEinst').addEventListener('click', e=>{ e.stopPropagation(); einstellungenAuf(); });
-$('einstZu').addEventListener('click', einstellungenZu);
-$('einstDlg').addEventListener('click', e=>{ if(e.target === $('einstDlg')) einstellungenZu(); });
-$('einstPflege').addEventListener('change', e=> pflegeSchalten(e.target.checked));
+/* Zusatzattribute: angeboten wird, was das Modell an unbekannten Schlüsseln
+   mitbringt. Eingeschaltet erscheinen sie im Formular und in den Details;
+   ausgeschaltet bleiben sie in der Datei unberührt stehen. */
+function zusatzAuf(){
+  closeMenus();
+  const z = S.model.zusatz;
+  const gruppe = (ebene, titel, einheit)=>{
+    const liste = [...z[ebene]];
+    return `<div class="grouphead">${titel}</div>` + (liste.length
+      ? liste.map(([k, n])=>`<label class="einst"><input type="checkbox" data-ebene="${ebene}" data-k="${esc(k)}"${S.zusatzAn[ebene].includes(k) ? ' checked' : ''}>
+          <span><strong>${esc(k)}</strong>an ${n} ${einheit}</span></label>`).join('')
+      : '<div class="empty">keine</div>');
+  };
+  $('zusatzListe').innerHTML =
+    `<div class="empty">Übernommen wird jeder Schlüssel aus der YAML, den die App nicht selbst auswertet.
+       Eingeschaltete Felder lassen sich beim Bearbeiten pflegen und stehen in den Details.</div>`
+    + gruppe('objekt', 'AN GESCHÄFTSOBJEKTEN', 'Objekten')
+    + gruppe('attribut', 'AN ATTRIBUTEN', 'Attributen');
+  $('zusatzListe').querySelectorAll('input[data-ebene]').forEach(c=>
+    c.addEventListener('change', ()=> zusatzSchalten(c.dataset.ebene, c.dataset.k, c.checked)));
+  $('zusatzDlg').hidden = false;
+}
+function zusatzZu(){ $('zusatzDlg').hidden = true; }
+
+/* Wie der Pflegeschalter keine Aktion am Modell: gemerkt, aber nicht im
+   Verlauf. Ein offenes Formular behält, was schon getippt ist. */
+function zusatzSchalten(ebene, k, an){
+  pfLesen();
+  const liste = S.zusatzAn[ebene].filter(x => x !== k);
+  if(an) liste.push(k);
+  S.zusatzAn = Object.assign({}, S.zusatzAn, {[ebene]: liste});
+  if(pfEntwurf && ebene === 'objekt'){
+    const o = S.model.objects[S.pflege.slice(2)], alt = pfEntwurf.extra;
+    pfEntwurf.extra = Object.fromEntries(liste.map(x =>
+      [x, x in alt ? alt[x] : (o && x in o.extra ? o.extra[x] : '')]));
+  }
+  renderDetails();
+  writeStore();
+}
+
+$('btnEinst').addEventListener('click', ()=> $('optPflege').setAttribute('aria-checked', String(S.pflegeAn)));
+$('optPflege').addEventListener('click', ()=> pflegeSchalten(!S.pflegeAn));
+$('optZusatz').addEventListener('click', zusatzAuf);
+$('zusatzZu').addEventListener('click', zusatzZu);
+$('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });

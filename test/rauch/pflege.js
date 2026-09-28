@@ -293,15 +293,15 @@ console.log('== Einstellung: Bearbeiten ist zunächst aus ==');
   t('auch über die Schnittstelle geht nichts', (api.pflegeObjektNeu('Heimlich'), !S.model.objects.Heimlich));
 
   dispatch($('btnEinst'), 'click', {});
-  t('der Knopf in der Kopfzeile öffnet den Dialog', $('einstDlg').hidden === false);
-  t('der Schalter steht auf dem gemerkten Stand', $('einstPflege').checked === false);
-  $('einstPflege').checked = true;
-  dispatch($('einstPflege'), 'change', {});
-  t('Umlegen schaltet die Pflege ein', S.pflegeAn === true);
+  t('der Knopf in der Kopfzeile öffnet das Menü', $('einstMenu').classList.contains('open'));
+  t('der Haken steht auf dem gemerkten Stand', $('optPflege').getAttribute('aria-checked') === 'false');
+  dispatch($('optPflege'), 'click', {});
+  t('der Menüpunkt schaltet die Pflege ein', S.pflegeAn === true);
+  t('und setzt den Haken', $('optPflege').getAttribute('aria-checked') === 'true');
   t('„＋ Objekt" ist jetzt da', $('objNew').hidden === false);
   t('die Details zeigen „Bearbeiten"', !!detail().querySelector('[data-edit]'));
-  dispatch($('einstZu'), 'click', {});
-  t('„Schließen" schließt den Dialog', $('einstDlg').hidden === true);
+  dispatch($('btnEinst'), 'click', {});
+  t('ein zweiter Klick auf den Knopf schließt das Menü', !$('einstMenu').classList.contains('open'));
 
   // Die Einstellung ist keine Aktion am Modell: Strg+Z darf sie nicht mitnehmen.
   api.undo(); api.undo();
@@ -313,13 +313,11 @@ console.log('== Ausschalten schließt ein offenes Formular ==');
 {
   formularOeffnen('o:Bestellung');
   dispatch($('btnEinst'), 'click', {});
-  $('einstPflege').checked = false;
-  dispatch($('einstPflege'), 'change', {});
+  dispatch($('optPflege'), 'click', {});
   t('das Formular ist zu', !$('pfName'));
   t('und der „Bearbeiten"-Knopf verschwunden', !detail().querySelector('[data-edit]'));
-  $('einstPflege').checked = true;
-  dispatch($('einstPflege'), 'change', {});
-  dispatch($('einstZu'), 'click', {});
+  dispatch($('optPflege'), 'click', {});
+  dispatch($('btnEinst'), 'click', {});
   t('wieder eingeschaltet steht die Pflege bereit', !!detail().querySelector('[data-edit]'));
 }
 
@@ -622,6 +620,177 @@ console.log('== Bedienweg: Business Keys in einem Feld „BusinessKeys" ==');
   t('geschrieben wird in das vorhandene Feld',
     /\n {4}BusinessKeys:\n {4}- KelleID\n {4}- Kellennummer\n/.test(S.yamlText), S.yamlText);
   t('und kein zweites Feld daneben', !/business_keys/.test(S.yamlText), S.yamlText);
+}
+
+/* Entwurf wie im Formular, aber ohne Oberfläche: `extra` sind die
+   eingeschalteten Zusatzattribute des Objekts. */
+const entwurfAus = (o, aenderung)=> Object.assign({
+  name:o.name, domain:o.domain || '', desc:o.desc || '', keys:o.keys.slice(), sources:o.sources.slice(),
+  extra:{},
+  attrs:o.attrs.map(a => Object.assign({}, a, {extra:Object.assign({}, a.extra), _alt:a})),
+  rels:o.rels.map(r => Object.assign({}, r, {_alt:r}))
+}, aenderung || {});
+const willibald = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'willibald-attr.yaml'), 'utf8');
+const block = (text, name)=>{
+  const m = text.match(new RegExp('\\n  ' + name + ':\\n([\\s\\S]*?)(?=\\n  [^\\s]|$)'));
+  return m ? m[1] : '';
+};
+const anzahl = (text, re)=> (text.match(re) || []).length;
+
+console.log('== Lesen/Schreiben: Bestellung und Bestellung_VRS ==');
+{
+  const vorher = anzahl(willibald, /schema\.org:/g);
+  const M = api.buildModel(willibald), o = M.objects.Bestellung;
+  t('gelesen: genau die beiden Quellen', JSON.stringify(o.sources) === '["Bestellung","Bestellung_VRS"]',
+    JSON.stringify(o.sources));
+  t('„schema.org" steht als Zusatzattribut, nicht in den Quellen', o.extra['schema.org'] === ''
+    && !o.sources.some(s => /schema/.test(s)), JSON.stringify(o.extra));
+
+  t('unverändert gespeichert bleibt der Text Zeichen für Zeichen gleich',
+    api.goObjektAendern(willibald, 'Bestellung', entwurfAus(o), o) === willibald);
+
+  const pruefe = (titel, quellen)=>{
+    const text = api.goObjektAendern(willibald, 'Bestellung', entwurfAus(o, {sources:quellen}), o);
+    const neu = api.buildModel(text).objects.Bestellung;
+    t(titel + ': gelesen wird, was geschrieben wurde', JSON.stringify(neu.sources) === JSON.stringify(quellen),
+      JSON.stringify(neu.sources));
+    t(titel + ': „schema.org" bleibt', anzahl(text, /schema\.org:/g) === vorher
+      && /\n {4}schema\.org:/.test(block(text, 'Bestellung')), block(text, 'Bestellung'));
+    t(titel + ': „schema.org" wird kein Quelleneintrag', neu.extra['schema.org'] === '');
+    return text;
+  };
+  pruefe('Bestellung_VRS entfernt', ['Bestellung']);
+  pruefe('Bestellung entfernt', ['Bestellung_VRS']);
+  const leer = pruefe('beide entfernt', []);
+  t('beide entfernt: kein „sources" mehr', !/sources:/.test(block(leer, 'Bestellung')), block(leer, 'Bestellung'));
+  const dazu = pruefe('Bestellung_Neu ergänzt', ['Bestellung', 'Bestellung_VRS', 'Bestellung_Neu']);
+  t('die neue Quelle steht vor „schema.org", nicht dahinter',
+    /- Bestellung_VRS\n {4}- Bestellung_Neu\n {4}schema\.org:/.test(block(dazu, 'Bestellung')), block(dazu, 'Bestellung'));
+}
+
+const sonder = [
+  'BusinessObjects:',
+  '  A:',
+  '    Domain: D',
+  '    dq-regel: nie leer',
+  '    quelle/system: SAP',
+  '    fach_owner: Meier',
+  '    schema.org: https://schema.org/Thing',
+  '    sources:',
+  '    - Q1',
+  '    attributes:',
+  '    - name: AID',
+  '      type: int',
+  '      schema.org: https://schema.org/identifier',
+  '      herkunft:',
+  '      - Q1',
+  ''
+].join('\n');
+
+console.log('== Zusatzattribute: Sonderzeichen in Feldnamen ==');
+{
+  const M = api.buildModel(sonder), o = M.objects.A;
+  t('alle vier Schlüssel sind als Zusatzattribute erkannt',
+    [...M.zusatz.objekt.keys()].join(',') === 'dq-regel,quelle/system,fach_owner,schema.org',
+    [...M.zusatz.objekt.keys()].join(','));
+  t('die Werte sind gelesen', o.extra['quelle/system'] === 'SAP' && o.extra['schema.org'] === 'https://schema.org/Thing',
+    JSON.stringify(o.extra));
+  t('am Attribut ebenso, eine Liste wird nicht angeboten',
+    [...M.zusatz.attribut.keys()].join(',') === 'schema.org', [...M.zusatz.attribut.keys()].join(','));
+
+  const extra = {'dq-regel':'nie leer', 'quelle/system':'SAP ERP', fach_owner:'Meier', 'schema.org':'https://schema.org/Thing'};
+  const text = api.goObjektAendern(sonder, 'A', entwurfAus(o, {extra}), o);
+  t('geändert wird genau die eine Zeile', text === sonder.replace('quelle/system: SAP', 'quelle/system: SAP ERP'), text);
+
+  const geleert = api.goObjektAendern(sonder, 'A', entwurfAus(o, {extra:Object.assign({}, extra, {fach_owner:''})}), o);
+  t('geleert bleibt der Schlüssel als Platzhalter', /\n {4}fach_owner:\n/.test(geleert), geleert);
+
+  const neu = api.goObjektAendern(sonder, 'A', entwurfAus(o, {extra:{'neu-feld':'x'}}), o);
+  t('ein fehlendes Feld kommt ans Blockende', /\n {6}- Q1\n {4}neu-feld: x\n$/.test(neu), neu);
+}
+
+console.log('== Zusatzattribute: bleiben beim Neuschreiben eines Attributs ==');
+{
+  const o = api.buildModel(sonder).objects.A;
+  const e = entwurfAus(o);
+  e.attrs[0].type = 'bigint';
+  const text = api.goObjektAendern(sonder, 'A', e, o);
+  t('der Typ ist geändert', /type: bigint/.test(text), text);
+  t('„schema.org" am Attribut bleibt (auch ausgeschaltet)', /\n {6}schema\.org: https:\/\/schema\.org\/identifier/.test(text), text);
+  t('die Liste „herkunft" am Attribut ebenso', /\n {6}herkunft:\n {6}- Q1\n$/.test(text), text);
+}
+
+console.log('== Bedienweg: Zusatzattribute einschalten und pflegen ==');
+{
+  api.loadYaml(willibald, 'willibald-attr.yaml');
+  api.setMode('komplett'); api.setView(1);
+  if(!S.pflegeAn) S.pflegeAn = true;
+  S.zusatzAn = {objekt:[], attribut:[]};
+
+  dispatch($('btnEinst'), 'click', {});
+  dispatch($('optZusatz'), 'click', {});
+  t('„Zusatzattribute …" öffnet den Dialog', $('zusatzDlg').hidden === false);
+  t('und schließt das Menü', !$('einstMenu').classList.contains('open'));
+  const box = $('zusatzListe').querySelector('input[data-ebene="objekt"]');
+  t('„schema.org" wird mit Anzahl angeboten', !!box && box.dataset.k === 'schema.org'
+    && /an 11 Objekten/.test($('zusatzListe').textContent), $('zusatzListe').textContent);
+  t('zunächst ausgeschaltet', box && !box.checked);
+  box.checked = true;
+  dispatch(box, 'change', {});
+  t('Anhaken schaltet es ein', S.zusatzAn.objekt.join(',') === 'schema.org');
+  dispatch($('zusatzZu'), 'click', {});
+  t('„Schließen" schließt den Dialog', $('zusatzDlg').hidden === true);
+
+  t('das Formular lässt sich öffnen', formularOeffnen('o:Bestellung'));
+  const feld = detail().querySelector('.pfo-extra');
+  t('es hat ein Feld „schema.org"', !!feld && feld.value === '');
+  feld.value = 'https://schema.org/Order';
+  dispatch($('pfSave'), 'click', {});
+  t('der Wert steht im Modell', S.model.objects.Bestellung.extra['schema.org'] === 'https://schema.org/Order');
+  t('und an seiner Stelle im Modelltext',
+    /- Bestellung_VRS\n {4}schema\.org: https:\/\/schema\.org\/Order\n {4}attributes:/.test(block(S.yamlText, 'Bestellung')),
+    block(S.yamlText, 'Bestellung'));
+  t('die übrigen Platzhalter bleiben', anzahl(S.yamlText, /schema\.org:\s*\n/g) === 10);
+  t('die Details zeigen den Wert', /https:\/\/schema\.org\/Order/.test(detail().textContent));
+
+  const gemerkt = JSON.parse(win.localStorage.getItem('sitzung'));
+  t('die Einstellung wird gemerkt', gemerkt.zusatzfelder && gemerkt.zusatzfelder.objekt.join(',') === 'schema.org');
+  api.undo();
+  t('Rückgängig nimmt die Bearbeitung zurück', !S.model.objects.Bestellung.extra['schema.org']);
+  t('aber nicht die Einstellung', S.zusatzAn.objekt.join(',') === 'schema.org');
+  api.redo();
+
+  dispatch($('optZusatz'), 'click', {});
+  const aus = $('zusatzListe').querySelector('input[data-k="schema.org"]');
+  aus.checked = false;
+  dispatch(aus, 'change', {});
+  dispatch($('zusatzZu'), 'click', {});
+  formularOeffnen('o:Bestellung');
+  t('ausgeschaltet verschwindet das Feld aus dem Formular', !detail().querySelector('.pfo-extra'));
+  dispatch($('pfSave'), 'click', {});
+  t('der Wert bleibt in der Datei', /schema\.org: https:\/\/schema\.org\/Order/.test(S.yamlText));
+}
+
+console.log('== Bedienweg: Zusatzattribut an einem Attribut ==');
+{
+  api.loadYaml(sonder, 'sonder.yaml');
+  api.setMode('komplett'); api.setView(1);
+  S.zusatzAn = {objekt:[], attribut:[]};
+  dispatch($('optZusatz'), 'click', {});
+  const box = $('zusatzListe').querySelector('input[data-ebene="attribut"]');
+  t('am Attribut wird „schema.org" angeboten', !!box && box.dataset.k === 'schema.org');
+  box.checked = true;
+  dispatch(box, 'change', {});
+  dispatch($('zusatzZu'), 'click', {});
+  formularOeffnen('o:A');
+  const feld = detail().querySelector('.pfa-extra');
+  t('die Attributzeile hat das Feld, vorbelegt', !!feld && feld.value === 'https://schema.org/identifier');
+  feld.value = 'https://schema.org/productID';
+  dispatch($('pfSave'), 'click', {});
+  t('geschrieben wird am Attribut',
+    /\n {6}schema\.org: https:\/\/schema\.org\/productID\n/.test(S.yamlText), S.yamlText);
+  t('eine Liste am Attribut bleibt mit ihren Zeilen stehen', /\n {6}herkunft:\n {6}- Q1/.test(S.yamlText), S.yamlText);
+  t('die Details zeigen den Wert', /productID/.test(detail().textContent));
 }
 
 finish();

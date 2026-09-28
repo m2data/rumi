@@ -20,8 +20,9 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen. Im Baum
   lassen sich Diagramme per Ziehen umsortieren und umhängen (obere/untere Kante =
   davor/danach, Mitte = als Unterdiagramm).
-- **Pflegen** – zunächst **ausgeschaltet**: über „Einstellungen" in der
-  Kopfzeile einschalten. Dann lassen sich Geschäftsobjekte und ihre Beziehungen
+- **Pflegen** – zunächst **ausgeschaltet**: im Menü „Einstellungen" der
+  Kopfzeile über „Geschäftsobjekte bearbeiten" einschalten. Dann lassen sich
+  Geschäftsobjekte und ihre Beziehungen
   im Reiter „Details"
   bearbeiten: Name, Domain, Beschreibung, Business Keys, Quellen, Attribute
   (Typ, nullable, PK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
@@ -36,6 +37,11 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
   dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und
   die Hierarchie bleiben davon unberührt.
+- **Zusatzattribute** – jeder Schlüssel an einem Objekt oder Attribut, den die
+  App nicht selbst auswertet (etwa `schema.org:`), wird übernommen.
+  „Einstellungen → Zusatzattribute …" schaltet je Feld ein, ob es im Formular
+  gepflegt und in den Details gezeigt wird; ausgeschaltete bleiben in der Datei
+  unberührt stehen.
 - **Anordnen**: hierarchisch, orthogonal, organisch, kreisförmig; Kanten von
   Hand umlenken, Anschlusspunkte und Selbstbezüge verschieben (Doppelklick auf
   eine Kante löscht alle ihre Stützpunkte und wählt die kürzeste Verbindung).
@@ -136,6 +142,7 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
     sources:                                # Quellsysteme/-tabellen
     - Bestellung
     - Bestellung_VRS
+    schema.org: https://schema.org/Order    # Zusatzattribut (frei wählbar)
     attributes:
     - name: BestellungID
       type: bigint
@@ -158,6 +165,9 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
   englisch (`Domain`/`domain`, `desc`/`beschreibung`, …), und Beziehungen dürfen
   in mehreren Schreibweisen notiert sein. Mehrzeilige Texte gehen auch als
   Blockskalar (`desc: |-` bzw. `>`).
+- **Zusatzattribute:** Jeder weitere Schlüssel mit Einzelwert an einem Objekt
+  oder Attribut (Buchstaben, Ziffern, `_ - / .`) wird mitgeführt und lässt
+  sich über „Einstellungen → Zusatzattribute …" zur Pflege einschalten.
 - **Kardinalitäten:** `exactly_one`, `zero_or_one`, `zero_or_many`,
   `one_or_many`, `many`.
 - Die App prüft das Modell und meldet Auffälligkeiten (unbekanntes Ziel,

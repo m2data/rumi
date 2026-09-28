@@ -81,7 +81,15 @@
       </div>
     </div>
     <button class="btn" id="btnFit">Einpassen</button>
-    <button class="btn" id="btnEinst" aria-haspopup="dialog" aria-expanded="false">Einstellungen</button>
+    <div class="menu-wrap">
+      <button class="btn" id="btnEinst" aria-haspopup="true" aria-expanded="false">Einstellungen ▾</button>
+      <div class="menu" id="einstMenu" role="menu">
+        <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
+                title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+        <button id="optZusatz" aria-haspopup="dialog"
+                title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
+      </div>
+    </div>
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
@@ -197,18 +205,13 @@
      (welche Einträge gelten, hängt an Auswahl und Pflegeschalter). -->
 <div class="menu ctx" id="ctxMenu" role="menu" aria-label="Objektaktionen"></div>
 
-<div class="modal" id="einstDlg" hidden>
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="einstTitel">
-    <h2 id="einstTitel">Einstellungen</h2>
-    <label class="einst">
-      <input type="checkbox" id="einstPflege">
-      <span><strong>Geschäftsobjekte bearbeiten</strong>
-        Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet
-        bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie
-        gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen
-        mitgegeben.</span>
-    </label>
-    <div class="modal-tools"><button class="hd-btn ok" id="einstZu">Schließen</button></div>
+<!-- Zusatzattribute: der Inhalt entsteht beim Öffnen aus den Schlüsseln, die
+     das geladene Modell mitbringt. -->
+<div class="modal" id="zusatzDlg" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="zusatzTitel">
+    <h2 id="zusatzTitel">Zusatzattribute</h2>
+    <div id="zusatzListe"></div>
+    <div class="modal-tools"><button class="hd-btn ok" id="zusatzZu">Schließen</button></div>
   </div>
 </div>
 

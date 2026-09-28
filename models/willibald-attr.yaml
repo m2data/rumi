@@ -14,6 +14,7 @@ BusinessObjects:
     sources:
     - Bestellung
     - Bestellung_VRS
+    schema.org: 
     attributes:
     - name: BestellungID
       type: bigint
@@ -51,6 +52,7 @@ BusinessObjects:
     - KatID
     sources:
     - Kategorie
+    schema.org: 
     attributes:
     - name: KatID
       type: varchar(50)
@@ -82,6 +84,7 @@ BusinessObjects:
     - KundeID
     sources:
     - Kunde
+    schema.org: 
     attributes:
     - name: KundeID
       type: char(13)
@@ -150,6 +153,7 @@ BusinessObjects:
     - LieferDienstID
     sources:
     - LieferDienst
+    schema.org: 
     attributes:
     - name: LieferDienstID
       type: varchar(30)
@@ -196,6 +200,7 @@ BusinessObjects:
     - LieferAdrID
     sources:
     - Lieferadresse
+    schema.org: 
     attributes:
     - name: LieferAdrID
       type: int
@@ -251,6 +256,7 @@ BusinessObjects:
     - LieferDienstID
     sources:
     - Lieferung
+    schema.org: 
     attributes:
     - name: BestellungID
       type: bigint
@@ -289,6 +295,7 @@ BusinessObjects:
     sources:
     - Position
     - Position_VRS
+    schema.org: 
     attributes:
     - name: BestellungID
       type: bigint
@@ -329,6 +336,7 @@ BusinessObjects:
     - ProduktID
     sources:
     - Produkt
+    schema.org: 
     attributes:
     - name: ProduktID
       type: int
@@ -371,6 +379,7 @@ BusinessObjects:
     - VereinsPartnerID
     sources:
     - VereinsPartner
+    schema.org: 
     attributes:
     - name: VereinsPartnerID
       type: varchar(30)
@@ -409,6 +418,7 @@ BusinessObjects:
     - KundeID
     sources:
     - Wohnort
+    schema.org: 
     attributes:
     - name: KundeID
       type: char(13)
@@ -449,4 +459,5 @@ BusinessObjects:
     - Anzahl_Tage_bis
     sources:
     - href_termintreue
+    schema.org: 
     attributes: []
