@@ -267,7 +267,7 @@ console.log('== Export: Markdown in der Diagramm-Beschreibung wird formatiert ==
   t('Export: kursiv als eigenes tspan', /font-style="italic"/.test(out));
   t('Export: Code in Monospace', /IBM Plex Mono, monospace/.test(out));
   t('Export: Listenpunkt mit Aufzählungszeichen', out.includes('•'));
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
 }
 
 console.log('== Werkzeugleiste über dem Baum ==');
@@ -379,7 +379,7 @@ console.log('== Baum: klappen, wählen, per Ziehen umhängen ==');
   ziehen('Alpha', 'Alpha', 400);
   t('auf sich selbst gezogen bleibt alles, wie es war', ids().join('|') === vorher,
     ids().join(' | '));
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
 }
 
 console.log('== Das Objekt selbst kommt unter die vorhandenen ==');
@@ -458,7 +458,7 @@ console.log('== Export: Link und Zeilenumbruch in der Beschreibung ==');
   t('dabei geht kein Wort verloren',
     lang.split(/\s+/).every(w => out.includes(w.replace(/[.,]$/, ''))),
     lang.split(/\s+/).find(w => !out.includes(w.replace(/[.,]$/, ''))));
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
 }
 
 finish();

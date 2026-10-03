@@ -15,6 +15,8 @@
 .n-sep{stroke:#DDE4EA;stroke-width:1}
 .node.source .n-box{fill:#FFF6E4;stroke:#8A5B00;stroke-width:1.2;stroke-dasharray:5 3}
 .node.source .n-head{fill:#8A5B00}
+.node.domain .n-box{fill:#EAF4EE;stroke:#2E6B4A;stroke-width:1.2;stroke-dasharray:5 3}
+.node.domain .n-head{fill:#2E6B4A}
 .node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
 .node.selected .n-head{fill:#B4145F}
 .node.faded{opacity:.16}
@@ -26,6 +28,9 @@
 .eg.quelle .e-path{stroke:#8A5B00;stroke-dasharray:6 4}
 .eg.quelle .e-mk{stroke:#8A5B00}
 .eg.quelle .e-dot{stroke:#8A5B00}
+.eg.domaene .e-path{stroke:#2E6B4A;stroke-dasharray:6 4}
+.eg.domaene .e-mk{stroke:#2E6B4A}
+.eg.domaene .e-dot{stroke:#2E6B4A}
 .eg .e-hit{fill:none;stroke:transparent;stroke-width:15;cursor:pointer;pointer-events:stroke}
 .eg.picked .e-path{stroke:#B4145F;stroke-width:2.2}
 .eg.picked .e-mk{stroke:#B4145F}
@@ -45,6 +50,7 @@
 .gh.ortho{cursor:cell}
 .elbl .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .elbl.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
+.elbl.domaene .e-lbl{fill:#2E6B4A;letter-spacing:.06em}
 .elbl .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
 .elbl .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded,.elbl.faded{opacity:.1}

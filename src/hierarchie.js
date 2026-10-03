@@ -305,10 +305,13 @@ function platziereNeue(neu, platziert){
   neu.forEach(n=>{ n.x = Math.round(x); n.y = Math.round(y); x += n.w + 30; });
 }
 
-/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unterbringen. */
+/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unterbringen,
+   ihre Anhängsel rechts daneben. */
 function hierPlaceFresh(){
   const saved = S.hierSaved[S.hierSel] || {};
-  platziereNeue(visNodes().filter(n => !saved[n.id]), visNodes().filter(n => saved[n.id]));
+  const neu = visNodes().filter(n => !saved[n.id]);
+  platziereNeue(neu.filter(n => !n.eltern), visNodes().filter(n => saved[n.id]));
+  platziereAnhaengsel(S.graph, neu);
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -321,12 +324,13 @@ function selectDiagram(id){
   if(node) showDiagram(node);
 }
 
-/* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. Eine einmal
-   von Hand gelegte Anordnung des Diagramms wird wiederhergestellt; sonst wird
-   automatisch angeordnet und diese Erstanordnung gemerkt. Über die Objektliste
-   je Diagramm ausgeblendete Objekte bleiben verborgen. */
+/* Nur die Objekte des Knotens zeigen, Darstellung wie die Komplettansicht
+   (Inhalt und Elemente gelten in beiden Modi). Eine einmal von Hand gelegte
+   Anordnung des Diagramms wird wiederhergestellt; sonst wird automatisch
+   angeordnet und diese Erstanordnung gemerkt. Über die Objektliste je
+   Diagramm ausgeblendete Objekte bleiben verborgen, mit ihnen ihre Anhängsel. */
 function showDiagram(node){
-  S.graph = makeGraph(S.model, 1);
+  S.graph = makeGraph(S.model);
   const shown = S.hierShown[node.id]
     ? new Set(S.hierShown[node.id])
     : new Set(node.objekte.map(o => 'o:' + o));
@@ -335,13 +339,24 @@ function showDiagram(node){
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
   const known = vis.filter(n => saved[n.id]);
+  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern);
   if(known.length === vis.length && known.length){
     S.graph.nodes.forEach(n=>{ if(saved[n.id]){ n.x = saved[n.id].x; n.y = saved[n.id].y; } });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
+  } else if(known.length && !neuObj.length){
+    // Nur Anhängsel sind neu (Quelle/Domäne eingeschaltet): Gelegtes bleibt
+    // samt Kantenzügen liegen, die neuen Kästen kommen rechts ans Objekt.
+    known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
+    applyRoutesFrom(S.hierRoutes[node.id] || {});
+    platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
+    hierPersist();
   } else {
     applyAutoLayout(S.graph);
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
-    if(known.length) separate(vis);
+    if(known.length){
+      separate(vis.filter(n => !n.eltern));
+      platziereAnhaengsel(S.graph, vis);          // zurückgeholte Objekte nehmen ihre Anhängsel mit
+    }
     hierPersist();
   }
   draw();
@@ -371,7 +386,7 @@ function setMode(mode){
     // die nur in der Hierarchie sinnvolle „Beschreibung“ nicht in der Komplettsicht stehen lassen
     const aktiv = (document.querySelector('.sidetab[aria-selected="true"]') || {}).dataset;
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
-    setView(S.view);
+    setView();
   }
 }
 

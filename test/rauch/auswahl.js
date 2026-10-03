@@ -53,7 +53,7 @@ console.log('== Klick markiert und behält die Auswahl ==');
 
 console.log('== Rückgängig / Wiederherstellen ==');
 {
-  api.setView(1);
+  api.setView();
   const id = S.graph.nodes.find(x => !x.hidden).id;
   const ox = S.graph.byId.get(id).x, oy = S.graph.byId.get(id).y;
   const nn = S.graph.byId.get(id);
@@ -72,7 +72,7 @@ console.log('== Rückgängig / Wiederherstellen ==');
 
 console.log('== Verlauf reicht 20 Aktionen zurück ==');
 {
-  api.setView(1);
+  api.setView();
   const n = S.graph.nodes.find(x => !x.hidden);
   const start = n.x;
   for(let i = 1; i <= 25; i++){ n.x = start + i; api.persist(); }   // 25 Aktionen
@@ -92,7 +92,7 @@ console.log('== Verlauf reicht 20 Aktionen zurück ==');
 
 console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert ist ==');
 {
-  api.setView(1);
+  api.setView();
   const ids = ['o:LieferDienst', 'o:Lieferung', 'o:Position'].filter(id => S.graph.byId.get(id));
   const sel = new Set(ids);
   // Auswahl absichtlich übereinanderlegen, damit das Anordnen sie trennen muss
@@ -117,7 +117,7 @@ console.log('== Verfahren wirkt nur auf die Auswahl, wenn ein Bereich markiert i
 
 console.log('== Kanten neu ziehen respektiert die Auswahl ==');
 {
-  api.setView(1);
+  api.setView();
   S.graph.edges.forEach(e=>{ e.bends = [{x:-999, y:-999}]; });   // Sentinel: „nicht neu gezogen"
   const someEdge = S.graph.edges.find(e=>{
     const A = S.graph.byId.get(e.from), B = S.graph.byId.get(e.to);
@@ -139,7 +139,7 @@ console.log('== Kanten neu ziehen respektiert die Auswahl ==');
 
 console.log('== Pfeiltasten verschieben, Entf blendet aus ==');
 {
-  api.setView(1);
+  api.setView();
   const taste = (key, opts={}) => dispatch(document.getElementById('canvas'), 'keydown', {key, ...opts});
   const a = S.graph.nodes.find(n => !n.hidden), b = S.graph.nodes.filter(n => !n.hidden)[1];
   api.setSelection([a.id, b.id]);
@@ -211,12 +211,15 @@ console.log('== Pfeiltasten verschieben, Entf blendet aus ==');
 
 console.log('== Kurztasten greifen nicht in Eingabefeldern ==');
 {
-  api.setView(1);
-  dispatch(document.getElementById('search'), 'keydown', {key:'2'});
-  t('Ziffer im Suchfeld wechselt die Ansicht nicht', S.view === 1, 'view=' + S.view);
-  dispatch(document.getElementById('canvas'), 'keydown', {key:'2'});
-  t('Ziffer außerhalb eines Feldes wechselt die Ansicht', S.view === 2, 'view=' + S.view);
-  api.setView(1);
+  api.setView();
+  const o = S.graph.nodes.find(n => !n.hidden && !n.eltern);
+  api.setSelection([o.id]);
+  dispatch(document.getElementById('search'), 'keydown', {key:'Delete'});
+  t('Entf im Suchfeld blendet nichts aus', S.graph.byId.get(o.id).hidden === false);
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'Delete'});
+  t('Entf außerhalb eines Feldes blendet aus', S.graph.byId.get(o.id).hidden === true);
+  api.undo();
+  api.setView();
 }
 
 console.log('== Ausrichten und Verteilen über die Leiste ==');
@@ -405,7 +408,7 @@ console.log('== Mehrfachauswahl mit dem Zeiger ziehen ==');
   /* Für die Pfeiltasten ist oben geprüft, dass ein Kantenzug innerhalb der
      Auswahl starr mitwandert. Das Ziehen mit dem Zeiger läuft durch anderen
      Code und war ungeprüft. */
-  api.setView(1);
+  api.setView();
   const paar = S.graph.edges.find(e => e.from !== e.to
     && !S.graph.byId.get(e.from).hidden && !S.graph.byId.get(e.to).hidden);
   t('eine Kante zwischen zwei sichtbaren Kästen gefunden', !!paar);
@@ -439,7 +442,7 @@ console.log('== Mehrfachauswahl mit dem Zeiger ziehen ==');
 
 console.log('== Kontextmenü am Objekt ==');
 {
-  api.setView(1);
+  api.setView();
   const ctx = ()=> document.getElementById('ctxMenu');
   const eintraege = ()=> ctx().querySelectorAll('[data-ctx]').map(b => b.dataset.ctx).join(',');
   const kastenVon = id => [...document.getElementById('nodes').querySelectorAll('.node')]

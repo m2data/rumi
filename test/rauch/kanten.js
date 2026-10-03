@@ -165,7 +165,7 @@ console.log('== Kantenzüge überleben Ansichtswechsel ==');
   const e = S.graph.edges.find(x => x.manual && x.bends);
   if(e){
     const key = api.edgeKey(e), snap = JSON.stringify(e.bends);
-    api.setView(2); api.setView(1);
+    api.setView();
     const back = S.graph.edges.find(x => api.edgeKey(x) === key);
     t('Von Hand gelegter Zug ist wieder da', back && back.bends && back.bends.length > 0);
   } else t('Von Hand gelegter Zug ist wieder da', false, 'keine manuelle Kante gefunden');
@@ -173,7 +173,7 @@ console.log('== Kantenzüge überleben Ansichtswechsel ==');
 
 console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
 {
-  api.setView(1);
+  api.setView();
   const e = S.graph.edges.find(x=>{
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
@@ -215,7 +215,7 @@ console.log('== Doppelklick auf eine Kante löscht ihre Stützpunkte ==');
 
 console.log('== Manuelle Kante folgt dem gewählten Verfahren (eckig/rund) ==');
 {
-  api.setView(1);
+  api.setView();
   const pick = ()=> S.graph.edges.find(x=>{
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
@@ -237,7 +237,7 @@ console.log('== Manuelle Kante folgt dem gewählten Verfahren (eckig/rund) ==');
 
 console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig ==');
 {
-  api.setView(1);
+  api.setView();
   const e = S.graph.edges.find(x=>{
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
@@ -275,7 +275,7 @@ console.log('== Ortho: Direktlinie ziehen -> 2 Punkte, Löschen bleibt eckig =='
 
 console.log('== Weiche Führung: lange Traversen bleiben Geraden (keine Kringel) ==');
 {
-  api.setView(1);
+  api.setView();
   // Zug mit langer Quertraverse zwischen zwei kurzen Stichen — der Muster-Fall
   // aus dem kombinierten Modell (willibald + crm + sap-finanz), in dem weich
   // verschliffene Kanten wie Kreise um fremde Kästen wirkten. Der Bogen von
@@ -313,7 +313,7 @@ console.log('== Weiche Führung: lange Traversen bleiben Geraden (keine Kringel)
 console.log('== Zweiter Weg: Kante aus dem Detailbereich ==');
 {
   S.selEdge = null;
-  api.setView(1);
+  api.setView();
   const nb = document.getElementById('objectList').querySelectorAll('button[data-id]')
     .find(b => b.dataset.id === 'o:Kunde');
   if(nb) dispatch(nb, 'click', {});
@@ -328,7 +328,7 @@ console.log('== Zweiter Weg: Kante aus dem Detailbereich ==');
 
 console.log('== Selbstbezug verschiebbar ==');
 {
-  S.selEdge = null; api.setView(1);
+  S.selEdge = null; api.setView();
   const e = S.graph.edges.find(x => x.from === x.to);
   t('Selbstbezug-Kante vorhanden', !!e, e ? e.from : 'keine');
   if(e){
@@ -389,7 +389,7 @@ console.log('== Ortho: Direktlinie bei waagrechter Flussrichtung ==');
      nach rechts und links hinaus statt nach unten und oben. Der Zweig war
      bisher ungeprüft — die Kante wäre schräg aus dem Kasten gelaufen, ohne dass
      ein Test es gemerkt hätte. */
-  api.setView(1);
+  api.setView();
   const e = S.graph.edges.find(x=>{
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
@@ -430,7 +430,7 @@ console.log('== Anschlusspunkt an einer Ortho-Kante mit Knicken ==');
      die Achse des Anschlusses ein (alignStub). Das greift nur bei einer
      rechtwinkligen Kante, die schon Knicke hat — die bisherigen Ziehversuche
      trafen weiche oder knickfreie Kanten, der Zweig lief durch keinen Test. */
-  api.setView(1);
+  api.setView();
   [...document.getElementById('layoutMenu').querySelectorAll('[data-algo]')]
     .filter(b => b.dataset.algo === 'ortho').forEach(b => b.onclick && b.onclick());
   const e = S.graph.edges.find(x => x.ortho && x.bends && x.bends.length && x.from !== x.to);

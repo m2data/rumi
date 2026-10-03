@@ -64,7 +64,7 @@ console.log('== Hinweise gruppieren und aufklappen ==');
 
 console.log('== Klick auf einen Hinweis springt zum Objekt ==');
 {
-  api.setView(1);
+  api.setView();
   const prev = S.model.messages;
   const kunde = S.graph.byId.get('o:Kunde'), best = S.graph.byId.get('o:Bestellung');
   S.model.messages = [
@@ -106,7 +106,7 @@ console.log('== Klick auf einen Hinweis springt zum Objekt ==');
 
 console.log('== Domänen zusammenklappen ==');
 {
-  api.setView(1);
+  api.setView();
   const before = document.getElementById('objectList').querySelectorAll('li.row').length;
   const caret = document.getElementById('objectList').querySelector('.gcaret');
   t('Domänen-Kopf hat einen Klapp-Pfeil', !!caret);
@@ -137,7 +137,7 @@ console.log('== Domänen zusammenklappen ==');
 
 console.log('== Suche greift über den Objektnamen hinaus ==');
 {
-  api.setView(1);
+  api.setView();
   api.setSelection([]);                       // sonst blendet die Nachbarschaft aus
   const suche = q =>{
     const el = document.getElementById('search');
@@ -176,14 +176,19 @@ console.log('== Suche greift über den Objektnamen hinaus ==');
   t('Datentypen werden nicht durchsucht', suche('bigint').length === 0, suche('bigint').join(','));
   t('ohne Treffer bleibt alles blass', suche('gibtesnicht').length === 0);
 
-  // Ansicht 3: ein Quellenkasten trifft über die Objekte, die ihn nutzen
-  api.setView(3);
-  const q3 = suche('kunde');
-  t('Quellenkasten trifft über die nutzenden Objekte', q3.length > 0 && q3.some(n => n !== 'Kunde'),
-    q3.join(','));
+  // Quelle als eigener Kasten: trifft über sein Objekt, nicht über fremde
+  api.setMode('komplett');
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+  suche('pflanzabstand');
+  const hell = [...document.getElementById('nodes').querySelectorAll('.node')]
+    .filter(g => !(g.getAttribute('class') || '').includes('faded'))
+    .map(g => S.graph.byId.get(g.dataset.id));
+  const q3 = hell.filter(n => n.eltern);
+  t('Quellenkasten trifft über sein Objekt', q3.length > 0 && q3.every(n => n.eltern === 'o:Produkt'),
+    q3.map(n => n.id).join(','));
 
   suche('');                                   // Filter zurücksetzen
-  api.setView(1);
+  dispatch(document.getElementById('optQuelle'), 'click', {});
 
   // Die Suche gehört nicht mehr in den Reiter „Objekte": sie wirkt aufs
   // Diagramm und muss aus jedem Reiter erreichbar bleiben.
@@ -235,7 +240,7 @@ console.log('== Kein Text klebt am Kastenrand ==');
   kombis.forEach(([name, c])=>{
     S.content[1] = Object.assign({desc:false,domain:false,keys:false,sources:false,attrs:false,keysOnly:false,types:true},
       Object.fromEntries(Object.entries(c).map(([k,v])=>[k,!!v])));
-    api.setView(1);
+    api.setView();
     S.graph.nodes.filter(n=>n.kind!=='source').forEach(n=>{
       const d = tief(n);
       if(d < schlimmster){ schlimmster = d; wo = name + '/' + n.name; }
@@ -243,7 +248,7 @@ console.log('== Kein Text klebt am Kastenrand ==');
   });
   t('Abstand Text zu Kastenrand mindestens 5 px', schlimmster >= 5, schlimmster + ' px bei ' + wo);
   S.content[1] = {};
-  api.setView(1);
+  api.setView();
 }
 
 console.log('== Herkunft: Metadaten gelesen, aber nicht angezeigt ==');
@@ -254,28 +259,40 @@ console.log('== Herkunft: Metadaten gelesen, aber nicht angezeigt ==');
   t('Herkunft nicht in der Seitenleiste angezeigt', box.hidden === true && box.textContent === '');
 }
 
-console.log('== Details einer Quelle (Ansicht 3) ==');
+console.log('== Details einer Quelle und einer Domäne als eigener Kasten ==');
 {
-  /* In Ansicht 3 stehen die Quellen als eigene Kästen — der Detailbereich zeigt
-     dann nicht ein Geschäftsobjekt, sondern wer aus der Quelle versorgt wird. */
-  api.setView(3);
+  /* Steht Quelle bzw. Domäne als eigener Kasten, zeigt der Detailbereich nicht
+     ein Geschäftsobjekt, sondern wer aus der Quelle versorgt wird bzw. welche
+     Objekte in der Domäne liegen. */
+  api.setMode('komplett');
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+  dispatch(document.getElementById('optDomaene'), 'click', {});
   const q = S.graph.nodes.find(n => n.kind === 'source' && !n.hidden);
-  t('Ansicht 3 zeigt Quellen als eigene Kästen', !!q, q && q.name);
+  const d = S.graph.nodes.find(n => n.kind === 'domain' && !n.hidden);
+  t('Quellen stehen als eigene Kästen', !!q, q && q.name);
+  t('Domänen stehen als eigene Kästen', !!d, d && d.name);
   if(q){
     api.setSelection([q.id]);
     const html = document.getElementById('detailBody').innerHTML;
     t('der Detailbereich weist sie als Quelle aus', /QUELLE/.test(html));
     t('und listet, wen sie versorgt', /VERSORGT/.test(html) && /data-goto="o:/.test(html));
   }
+  if(d){
+    api.setSelection([d.id]);
+    const html = document.getElementById('detailBody').innerHTML;
+    t('der Detailbereich weist sie als Domäne aus', /DOMÄNE/.test(html));
+    t('und listet ihre Objekte', (html.match(/data-goto="o:/g) || []).length === 11);
+  }
   api.setSelection([]);
-  api.setView(1);
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+  dispatch(document.getElementById('optDomaene'), 'click', {});
 }
 
 console.log('== Zweiter Klick in der Objektliste hebt die Auswahl auf ==');
 {
   /* Über den Kasten läuft das Abwählen durch endPointer, über die Liste durch
      select() — ein eigener Zweig, der bisher durch keinen Test lief. */
-  api.setView(1);
+  api.setView();
   api.setSelection([]);
   const zeile = id => [...document.getElementById('objectList').querySelectorAll('button[data-id]')]
     .find(b => b.dataset.id === id);

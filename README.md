@@ -10,10 +10,10 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
 
 ## Was das Tool kann
 
-- **Komplettansicht** mit drei Ansichten:
-  - Ansicht 1 – Geschäftsobjektmodell
-  - Ansicht 2 – Geschäftsobjektquellen
-  - Ansicht 3 – Quellenbezogene Sicht
+- **Komplettansicht** – das ganze Geschäftsobjektmodell. Unter
+  „Einstellungen" lassen sich **Quellen** und **Domäne** als eigene Kästen
+  rechts neben jedes Objekt stellen (verbunden über „quelle" bzw. „Domäne");
+  das gilt auch in der Hierarchie.
 - **Hierarchie** – redaktionell gestaltete Diagramme: ein Baum aus Diagrammen
   (Übersicht → Domänen → Themen), jedes zeigt nur einen Ausschnitt der Objekte
   und hat einen Beschreibungstext (leichtes Markdown). Diagramme sind frei
@@ -58,7 +58,7 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   **Rückgängig/Wiederherstellen** der letzten 20 Aktionen mit
   Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z); auch ein eingespieltes
   Delta-Modell lässt sich so wieder herausnehmen.
-- **Inhalt**: je Ansicht wählen, was im Kasten steht (Beschreibung, Domain,
+- **Inhalt**: wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Suchen**: das Feld über den Reitern der Seitenleiste — also aus jedem
   Reiter erreichbar — hebt passende Objekte im Diagramm hervor und blendet den

@@ -8,7 +8,7 @@ Dateien siehe den [Anhang](#anhang-die-dateien) am Ende.
 
 - [1. Loslegen](#1-loslegen)
 - [2. Der Bildschirm](#2-der-bildschirm)
-- [3. Die drei Ansichten](#3-die-drei-ansichten)
+- [3. Quelle und Domäne als eigene Elemente](#3-quelle-und-domäne-als-eigene-elemente)
 - [4. Objekte finden und lesen](#4-objekte-finden-und-lesen)
 - [5. Suchen](#5-suchen)
 - [6. Im Diagramm bewegen](#6-im-diagramm-bewegen)
@@ -54,11 +54,10 @@ dauerhaft: Wer einen Stand aufheben oder weitergeben will, speichert ihn über
 | --- | --- |
 | Titel und Dateiname | welches Modell gerade geladen ist |
 | **Komplettansicht \| Hierarchie** | die beiden Arbeitsweisen (Kapitel 3 bzw. 11) |
-| **Ansicht 1 \| 2 \| 3** | die drei Sichten auf das Modell |
 | **Anordnen ▾** | Verfahren, Richtung, Kanten neu ziehen (Kapitel 8) |
 | **Inhalt ▾** | was in den Kästen steht (Kapitel 10) |
 | **Einpassen** | alles ins Bild rücken (Taste `F`) |
-| **Einstellungen** | Bearbeiten ein- und ausschalten, Zusatzattribute wählen (Kapitel 13) |
+| **Einstellungen** | Quelle und Domäne als eigene Elemente (Kapitel 3), Bearbeiten ein- und ausschalten, Zusatzattribute wählen (Kapitel 13) |
 | **Datei & Export** | Laden, Speichern, Export (Kapitel 14) |
 
 **Seitenleiste** links: oben das **Suchfeld** — es steht bewusst *über* den
@@ -79,36 +78,44 @@ sobald mindestens zwei Objekte markiert sind) und darunter eine Zeile mit den
 wichtigsten Kürzeln. Kurze Rückmeldungen („12 Objekte geladen", „Kante
 gewählt") blendet das Werkzeug unten links ein.
 
-## 3. Die drei Ansichten
+## 3. Quelle und Domäne als eigene Elemente
 
-Die Komplettansicht zeigt das ganze Modell in drei Sichten. Umschalten über die
-Kopfzeile oder die Tasten `1`, `2`, `3`.
+Die Komplettansicht zeigt das ganze Modell: die Objekte und ihre fachlichen
+Beziehungen. Die Kästen tragen ab Werk nur den Objektnamen; Domain, Business
+Keys, Quellen, Attribute und Beschreibung lassen sich über „Inhalt" dazunehmen
+(Kapitel 10).
 
-- **Ansicht 1 — Geschäftsobjektmodell.** Die Objekte und ihre fachlichen
-  Beziehungen. Die Kästen tragen ab Werk nur den Objektnamen; Attribute,
-  Schlüssel und Beschreibung lassen sich über „Inhalt" dazunehmen.
-- **Ansicht 2 — Geschäftsobjektquellen.** Wie Ansicht 1, aber die Kästen zeigen
-  zusätzlich Domain, Business Keys und die Quellsysteme.
-- **Ansicht 3 — Quellenbezogene Sicht.** Jede Quelle wird zu einem **eigenen
-  Kasten**, und von jedem Objekt führt eine Linie zu den Quellen, aus denen es
-  gespeist wird. Diese Linien tragen keine Kardinalität — eine Quellzuordnung
-  ist keine fachliche Beziehung. Der Menüpunkt „Quellen" im Inhalt-Menü ist
-  hier gesperrt, die Quellen stehen ja als Knoten da.
+Unter **Einstellungen → Als eigenes Element** lassen sich zwei Angaben aus dem
+Kasten herausnehmen und als **eigener Kasten** daneben stellen:
 
-**Jede Ansicht hat ihr eigenes Gedächtnis:** Anordnung, Kantenzüge und
-Kasteninhalte gelten je Ansicht. Wer in Ansicht 2 umräumt, findet Ansicht 1
-unverändert wieder. Gemeinsam sind nur das gewählte Verfahren und die
-ausgeblendeten Objekte.
+- **Quellen** — jede Quelle eines Objekts wird ein eigener Kasten, verbunden
+  über eine Linie mit der Beschriftung „quelle".
+- **Domäne** — die Domäne eines Objekts wird ein eigener Kasten, verbunden über
+  eine Linie mit der Beschriftung „Domäne".
+
+Beide Haken sind unabhängig und gelten in der Komplettansicht **und** in der
+Hierarchie. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
+Objekte dieselbe Quelle oder Domäne haben. So läuft keine Linie quer durchs
+Diagramm zu einem gemeinsamen Knoten. Die Linien tragen keine Kardinalität,
+denn eine Zuordnung ist keine fachliche Beziehung. Ist ein Element
+eingeschaltet, ist der passende Punkt im Inhalt-Menü gesperrt.
+
+Die Kästen stehen **neben ihrem Objekt**. Bei einer Anordnung nach unten oder
+oben (und bei „Organisch" und „Kreisförmig") stehen sie rechts davon, bei einer
+Anordnung nach links oder rechts darunter. Schaltet man ein Element ohne
+Neuanordnung ein, kommen die neuen Kästen rechts neben ihr Objekt. Die übrigen
+Kästen bleiben liegen. Wird ein Objekt ausgeblendet, verschwinden seine Kästen
+mit; einzeln aus- und einblenden lassen sie sich nicht.
 
 ## 4. Objekte finden und lesen
 
 ### Die Objektliste
 
 Der Reiter **Objekte** listet alle Objekte des Modells, gruppiert nach ihrer
-**Domain** (Objekte ohne Domain unter „Ohne Domain", in Ansicht 3 zusätzlich
-die Gruppe „Quellen"). Zu jedem Eintrag steht rechts eine Kurzbilanz:
-`3 BK · 12 A · 4 B` — Business Keys, Attribute, Beziehungen; bei einer Quelle
-steht dort, von wie vielen Objekten sie genutzt wird.
+**Domain** (Objekte ohne Domain unter „Ohne Domain"). Zu jedem Eintrag steht
+rechts eine Kurzbilanz: `3 BK · 12 A · 4 B` — Business Keys, Attribute,
+Beziehungen. Quellen- und Domänenkästen (Kapitel 3) stehen nicht in der Liste,
+sie gehören zu ihrem Objekt.
 
 - **Klick auf den Namen** wählt das Objekt aus, zentriert es und schaltet auf
   den Reiter „Details". Strg- oder Umschalt-Klick nimmt es zur Auswahl hinzu
@@ -141,8 +148,8 @@ verbundenen Objekte ein und legt sie um das gewählte herum: Nachbarn, zu denen
 Bereits sichtbare Objekte bleiben, wo sie sind. So baut man sich Schritt für
 Schritt einen Ausschnitt auf, statt mit allen Objekten anzufangen.
 
-Ist eine **Quelle** gewählt (Ansicht 3), zeigt der Reiter, welche Objekte sie
-versorgt. Sind **mehrere Objekte** gewählt, zeigt er die Liste der Auswahl.
+Ist ein **Quellenkasten** gewählt, zeigt der Reiter, welche Objekte die
+Quelle versorgt; bei einem **Domänenkasten** alle Objekte der Domäne. Sind **mehrere Objekte** gewählt, zeigt er die Liste der Auswahl.
 
 ### Umgebung hervorheben
 
@@ -158,8 +165,8 @@ rechts daneben steht die Trefferzahl (`4/37`).
 
 Gesucht wird in allem, was ein Objekt beschreibt: **Objektname, Domain,
 Business Keys, Quellen, Attributnamen samt Verweisziel und Beziehungsnamen**.
-„KundeID" zeigt also auch, wer darauf verweist. Ein Quellenkasten in Ansicht 3
-wird zusätzlich über die Objekte gefunden, die ihn nutzen.
+„KundeID" zeigt also auch, wer darauf verweist. Ein Quellen- oder
+Domänenkasten wird zusätzlich über sein Objekt gefunden.
 
 **Datentypen bleiben außen vor** — „int" träfe sonst fast jedes Objekt.
 
@@ -174,7 +181,6 @@ verlässt das Feld.
 | Schwenken | auf den Hintergrund fassen und ziehen |
 | Zoomen | Mausrad, oder `−` / `+` unten rechts (15 % bis 300 %) |
 | Alles ins Bild | Schaltfläche **Einpassen** oder Taste `F` |
-| Ansicht wechseln | `1`, `2`, `3` |
 
 ## 7. Auswählen, verschieben, ausrichten
 
@@ -278,12 +284,13 @@ Ein **Klick auf eine Kante** wählt sie aus; erst dann erscheinen ihre Griffe.
 ## 10. Was im Kasten steht
 
 Das Menü **Inhalt ▾** bestimmt, welche Bestandteile eines Objekts im Kasten
-erscheinen — **je Ansicht getrennt** (die Überschrift nennt die Ansicht):
+erscheinen. Die Auswahl gilt für die Komplettansicht und die Hierarchie
+gleichermaßen:
 
 - Beschreibung
-- Domain
+- Domain *(gesperrt, solange die Domäne als eigenes Element steht)*
 - Business Keys
-- Quellen *(in Ansicht 3 gesperrt — dort sind Quellen eigene Kästen)*
+- Quellen *(gesperrt, solange die Quellen als eigene Elemente stehen)*
 - Attribute
   - nur Schlüsselattribute *(zeigt nur PK und FK)*
   - Datentypen zeigen
@@ -334,8 +341,9 @@ damit die bestehende Anordnung liegen bleibt. Auch „Verknüpfte Objekte ins
 Diagramm holen" (Reiter Details) arbeitet hier je Diagramm.
 
 Anordnen, Kanten umlenken und die Suche funktionieren wie in der
-Komplettansicht; die Darstellung entspricht Ansicht 1, und das Inhalt-Menü
-steuert entsprechend deren Kasteninhalte.
+Komplettansicht. Das Inhalt-Menü und die Elemente aus Kapitel 3 gelten hier
+genauso; Quellen- und Domänenkästen erscheinen nur an den Objekten, die das
+Diagramm zeigt.
 
 ## 12. Prüfung
 
@@ -440,7 +448,6 @@ Das Einspielen ist eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
 
 | Taste | Wirkung |
 | --- | --- |
-| `1` `2` `3` | Ansicht 1 / 2 / 3 |
 | `F` | Einpassen |
 | Strg+A | alle sichtbaren Objekte wählen |
 | Pfeiltasten | Auswahl fein verschieben |
@@ -465,8 +472,7 @@ Modellen läuft der Browserspeicher über. Den Stand über „Datei & Export →
 Positionsinformationen (JSON)" sichern und bei Bedarf wieder laden.
 
 **„… kommt in dieser Ansicht nicht vor"** — der Sprung aus der Prüfliste
-zielt auf ein Objekt, das es in der aktuellen Ansicht nicht gibt (etwa eine
-Quelle außerhalb von Ansicht 3). Ansicht wechseln.
+zielt auf ein Objekt, das es im Diagramm nicht gibt.
 
 **Objekte sind verschwunden.** Vermutlich mit `Entf` ausgeblendet: im Reiter
 Objekte das Häkchen wieder setzen oder `Anzeigen: alle` wählen. Strg+Z geht
@@ -684,9 +690,10 @@ Sie enthält:
 | Feld | Inhalt |
 | --- | --- |
 | `verfahren` | gewähltes Anordnungsverfahren, Richtung, Beziehungsnamen an/aus |
-| `ansichten` | die Lage jedes Kastens, je Ansicht |
-| `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen, je Ansicht |
-| `inhalt` | was in den Kästen steht, je Ansicht |
+| `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
+| `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
+| `inhalt` | was in den Kästen steht |
+| `elemente` | ob Quelle und Domäne als eigene Elemente stehen |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
 | `uebersichtText` | die Hierarchiebeschreibung |

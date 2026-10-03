@@ -61,6 +61,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   in einem Zug, der schon Knicke hat.
 - **`anzeige.js`** — Seitenleiste und Kästen: Inhaltsauswahl, Prüfliste
   (Gruppen, Sprung zum Objekt), Objektliste, Kastengeometrie.
+- **`elemente.js`** — Quelle und Domäne als eigene Elemente (Einstellungen):
+  je Objekt eigene Kästen rechts daneben, gesperrter Inhalt-Eintrag, Ein- und
+  Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie.
 - **`hierarchie.js`** — Hierarchie-Modus: Baum, Ausschnitte, Beschreibung,
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
 - **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
@@ -79,8 +82,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
   (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel),
   Anschlüsse zeigen dorthin, wohin ihr Zug läuft (Knickwinkel). Der letzte
-  Abschnitt deckelt zusätzlich **Ansicht 2 mit den echten Kastenmaßen** in
-  allen vier Richtungen und beiden Verfahren — die Ansicht der Praxis, deren
+  Abschnitt deckelt zusätzlich **Kästen mit Domain, Business Keys und Quellen
+  in echten Maßen** (der Inhalt der früheren Ansicht 2) in allen vier
+  Richtungen und beiden Verfahren — die Darstellung der Praxis, deren
   Geometrie sich von der vereinheitlichten deutlich unterscheidet.
 - **`ortho.js`** — rechtwinklige Führung im dichten Modell `verquer_bo.yaml`:
   keine Haken weit außerhalb des Anschluss-Intervalls, parallele Beziehungen

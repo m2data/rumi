@@ -38,18 +38,6 @@
     <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
   </div>
 
-  <div class="views" role="tablist" aria-label="Ansichten">
-    <button class="view-btn" role="tab" data-view="1" aria-selected="true">
-      <span class="num">ANSICHT 1</span><span class="lbl">Geschäftsobjektmodell</span>
-    </button>
-    <button class="view-btn" role="tab" data-view="2" aria-selected="false">
-      <span class="num">ANSICHT 2</span><span class="lbl">Geschäftsobjektquellen</span>
-    </button>
-    <button class="view-btn" role="tab" data-view="3" aria-selected="false">
-      <span class="num">ANSICHT 3</span><span class="lbl">Quellenbezogene Sicht</span>
-    </button>
-  </div>
-
   <div class="tools">
     <div class="menu-wrap">
       <button class="btn" id="btnLayout" aria-haspopup="true" aria-expanded="false">Anordnen ▾</button>
@@ -86,6 +74,12 @@
       <div class="menu" id="einstMenu" role="menu">
         <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
                 title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+        <div class="head">ALS EIGENES ELEMENT</div>
+        <button class="opt" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
+                title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in Komplettansicht und Hierarchie.">Quellen<span class="tick">✓</span></button>
+        <button class="opt" id="optDomaene" role="menuitemcheckbox" aria-checked="false"
+                title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in Komplettansicht und Hierarchie.">Domäne<span class="tick">✓</span></button>
+        <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
                 title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
       </div>

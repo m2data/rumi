@@ -140,7 +140,7 @@ function buildModel(text){
   for(const o of Object.values(objects)){
     if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
-    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. In Ansicht 3 bleibt es unverbunden.'});
+    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
@@ -227,8 +227,9 @@ const F_TAGS  = '500 8.5px "IBM Plex Mono", monospace';
 const F_DESC  = '400 10.5px "Space Grotesk", sans-serif';
 const DESC_LH = 13, DESC_PAD = 7, MAX_W = 430;
 
-/* Welche Bestandteile eines Geschäftsobjekts im Kasten stehen — je Ansicht.
-   Die Vorgaben bilden die bisherigen Ansichten unverändert ab. */
+/* Welche Bestandteile eines Geschäftsobjekts im Kasten stehen. Es gibt nur
+   noch einen Satz; der Schlüssel 1 bleibt, damit ältere Positionsdateien
+   (inhalt[1]) unverändert gelten. */
 const CONTENT_FIELDS = [
   {k:'desc',     label:'Beschreibung'},
   {k:'domain',   label:'Domain'},
@@ -238,12 +239,8 @@ const CONTENT_FIELDS = [
   {k:'keysOnly', label:'nur Schlüsselattribute', sub:'attrs'},
   {k:'types',    label:'Datentypen zeigen',      sub:'attrs'}
 ];
-const CONTENT_DEFAULT = {
-  1:{desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true},
-  2:{desc:false, domain:true,  keys:true,  sources:true,  attrs:false, keysOnly:false, types:true},
-  3:{desc:false, domain:true,  keys:true,  sources:false, attrs:false, keysOnly:false, types:true}
-};
-const contentOf = v => Object.assign({}, CONTENT_DEFAULT[v], S.content && S.content[v]);
+const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true};
+const contentOf = ()=> Object.assign({}, CONTENT_DEFAULT, S.content && S.content[1]);
 
 function wrapText(text, maxW, font){
   const words = String(text).split(/\s+/).filter(Boolean);
@@ -266,15 +263,16 @@ function attrText(a, showType){
   };
 }
 
-function makeGraph(model, view){
+function makeGraph(model){
   const nodes = [], edges = [];
   const byId = new Map();
 
-  const C = contentOf(view);
+  const C = contentOf();
+  const E = S.elemente || {};
   for(const o of Object.values(model.objects)){
     const rows = [];
     if(C.keys) o.keys.forEach(k => rows.push({kind:'key', text:k}));
-    if(C.sources && view !== 3 && o.sources.length){
+    if(C.sources && !E.quelle && o.sources.length){
       if(rows.length) rows.push({kind:'sep'});
       o.sources.forEach(s => rows.push({kind:'src', text:s}));
     }
@@ -285,7 +283,7 @@ function makeGraph(model, view){
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
       }
     }
-    const showSub = C.domain && o.domain;
+    const showSub = C.domain && !E.domaene && o.domain;
     const showDesc = C.desc && !!o.desc;
 
     let rowW = 0;
@@ -323,31 +321,31 @@ function makeGraph(model, view){
     nodes.push(n); byId.set(n.id, n);
   }
 
-  if(view === 3){
-    const made = new Map();
-    for(const o of Object.values(model.objects)){
-      for(const s of o.sources){
-        let id = made.get(s);
-        if(!id){
-          id = 's:'+s;
-          const n = {id, kind:'source', name:s, sub:null, rows:[],
-                     w: Math.max(126, Math.round(measure(s, F_TITLE) + PAD_X*2 + 8)),
-                     h: HEAD_ONLY_H, x:0, y:0, ref:{name:s, users:[]}};
-          nodes.push(n); byId.set(id, n); made.set(s, id);
-        }
-        byId.get(id).ref.users.push(o.name);
-        // Quellzuordnung ist keine fachliche Beziehung, daher ohne Kardinalität
-        edges.push({from:'o:'+o.name, to:id, kind:'quelle', label:'quelle',
-                    fromCard:null, toCard:null});
-      }
-    }
-  }
-
   for(const o of Object.values(model.objects))
     for(const r of o.rels)
       if(byId.has('o:'+r.to))
         edges.push({from:'o:'+o.name, to:'o:'+r.to, kind:'rel',
                     label:r.name || null, fromCard:r.from, toCard:r.toCard});
+
+  /* Quelle und Domäne als eigene Kästen (Einstellungen). Jedes Objekt bekommt
+     seine eigenen, auch wenn sich der Name wiederholt: ein gemeinsamer Knoten
+     zöge die Kanten aller Objekte einer Domäne zusammen (crm.yaml: 2 → 27
+     geroutete Kreuzungen). Als Anhängsel stehen sie neben ihrem Objekt und
+     sind genau dann sichtbar, wenn es das Objekt ist. */
+  const anhaengsel = (o, id, kind, name, ekind, label)=>{
+    const eltern = byId.get('o:'+o.name);
+    const n = {id, kind, name, sub:null, rows:[],
+               w: Math.max(126, Math.round(measure(name, F_TITLE) + PAD_X*2 + 8)),
+               h: HEAD_ONLY_H, x:0, y:0, ref:{name}, eltern:eltern.id,
+               get hidden(){ return eltern.hidden; }, set hidden(_){}};
+    nodes.push(n); byId.set(id, n);
+    // Zuordnung ist keine fachliche Beziehung, daher ohne Kardinalität
+    edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
+  };
+  for(const o of Object.values(model.objects)){
+    if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
+    if(E.quelle) o.sources.forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+  }
 
   // Mehrfachkanten zwischen demselben Paar auffächern.
   // Der Versatz wird gegen eine feste Referenzrichtung (alphabetisch) gerechnet,

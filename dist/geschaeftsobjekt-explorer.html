@@ -53,19 +53,6 @@ header{
 .brand h1{font-size:14px;font-weight:600;letter-spacing:-.01em;margin:0;white-space:nowrap}
 .brand .file{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
 
-.views{display:flex;align-items:stretch}
-.view-btn{
-  appearance:none;background:none;border:0;border-right:1px solid var(--hair-soft);
-  padding:0 16px;cursor:pointer;font-family:var(--ui);text-align:left;
-  display:flex;flex-direction:column;justify-content:center;gap:1px;color:var(--muted);
-  border-bottom:2px solid transparent;transition:background .12s,color .12s;
-}
-.view-btn:hover{background:var(--obj-soft)}
-.view-btn .num{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em}
-.view-btn .lbl{font-size:12.5px;font-weight:500;white-space:nowrap}
-.view-btn[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--obj);background:var(--obj-soft)}
-.view-btn:focus-visible{outline:2px solid var(--hot);outline-offset:-2px}
-
 .modes{display:flex;align-items:center;gap:5px;padding:0 12px;border-right:1px solid var(--hair-soft)}
 .mode-btn{
   appearance:none;font-family:var(--ui);font-size:11.5px;font-weight:600;
@@ -75,8 +62,6 @@ header{
 .mode-btn:hover{background:var(--obj-soft)}
 .mode-btn[aria-selected="true"]{background:var(--obj);color:#fff;border-color:var(--obj)}
 .mode-btn:focus-visible{outline:2px solid var(--hot);outline-offset:1px}
-/* Im Hierarchie-Modus tragen die Ansicht-Tabs nichts bei */
-body.modus-hierarchie .views{display:none}
 
 .tools{margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 12px}
 .btn{
@@ -512,18 +497,6 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
   </div>
 
-  <div class="views" role="tablist" aria-label="Ansichten">
-    <button class="view-btn" role="tab" data-view="1" aria-selected="true">
-      <span class="num">ANSICHT 1</span><span class="lbl">Geschäftsobjektmodell</span>
-    </button>
-    <button class="view-btn" role="tab" data-view="2" aria-selected="false">
-      <span class="num">ANSICHT 2</span><span class="lbl">Geschäftsobjektquellen</span>
-    </button>
-    <button class="view-btn" role="tab" data-view="3" aria-selected="false">
-      <span class="num">ANSICHT 3</span><span class="lbl">Quellenbezogene Sicht</span>
-    </button>
-  </div>
-
   <div class="tools">
     <div class="menu-wrap">
       <button class="btn" id="btnLayout" aria-haspopup="true" aria-expanded="false">Anordnen ▾</button>
@@ -560,6 +533,12 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
       <div class="menu" id="einstMenu" role="menu">
         <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
                 title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+        <div class="head">ALS EIGENES ELEMENT</div>
+        <button class="opt" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
+                title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in Komplettansicht und Hierarchie.">Quellen<span class="tick">✓</span></button>
+        <button class="opt" id="optDomaene" role="menuitemcheckbox" aria-checked="false"
+                title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in Komplettansicht und Hierarchie.">Domäne<span class="tick">✓</span></button>
+        <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
                 title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
       </div>
@@ -988,7 +967,7 @@ function buildModel(text){
   for(const o of Object.values(objects)){
     if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
-    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. In Ansicht 3 bleibt es unverbunden.'});
+    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
@@ -1075,8 +1054,9 @@ const F_TAGS  = '500 8.5px "IBM Plex Mono", monospace';
 const F_DESC  = '400 10.5px "Space Grotesk", sans-serif';
 const DESC_LH = 13, DESC_PAD = 7, MAX_W = 430;
 
-/* Welche Bestandteile eines Geschäftsobjekts im Kasten stehen — je Ansicht.
-   Die Vorgaben bilden die bisherigen Ansichten unverändert ab. */
+/* Welche Bestandteile eines Geschäftsobjekts im Kasten stehen. Es gibt nur
+   noch einen Satz; der Schlüssel 1 bleibt, damit ältere Positionsdateien
+   (inhalt[1]) unverändert gelten. */
 const CONTENT_FIELDS = [
   {k:'desc',     label:'Beschreibung'},
   {k:'domain',   label:'Domain'},
@@ -1086,12 +1066,8 @@ const CONTENT_FIELDS = [
   {k:'keysOnly', label:'nur Schlüsselattribute', sub:'attrs'},
   {k:'types',    label:'Datentypen zeigen',      sub:'attrs'}
 ];
-const CONTENT_DEFAULT = {
-  1:{desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true},
-  2:{desc:false, domain:true,  keys:true,  sources:true,  attrs:false, keysOnly:false, types:true},
-  3:{desc:false, domain:true,  keys:true,  sources:false, attrs:false, keysOnly:false, types:true}
-};
-const contentOf = v => Object.assign({}, CONTENT_DEFAULT[v], S.content && S.content[v]);
+const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true};
+const contentOf = ()=> Object.assign({}, CONTENT_DEFAULT, S.content && S.content[1]);
 
 function wrapText(text, maxW, font){
   const words = String(text).split(/\s+/).filter(Boolean);
@@ -1114,15 +1090,16 @@ function attrText(a, showType){
   };
 }
 
-function makeGraph(model, view){
+function makeGraph(model){
   const nodes = [], edges = [];
   const byId = new Map();
 
-  const C = contentOf(view);
+  const C = contentOf();
+  const E = S.elemente || {};
   for(const o of Object.values(model.objects)){
     const rows = [];
     if(C.keys) o.keys.forEach(k => rows.push({kind:'key', text:k}));
-    if(C.sources && view !== 3 && o.sources.length){
+    if(C.sources && !E.quelle && o.sources.length){
       if(rows.length) rows.push({kind:'sep'});
       o.sources.forEach(s => rows.push({kind:'src', text:s}));
     }
@@ -1133,7 +1110,7 @@ function makeGraph(model, view){
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
       }
     }
-    const showSub = C.domain && o.domain;
+    const showSub = C.domain && !E.domaene && o.domain;
     const showDesc = C.desc && !!o.desc;
 
     let rowW = 0;
@@ -1171,31 +1148,31 @@ function makeGraph(model, view){
     nodes.push(n); byId.set(n.id, n);
   }
 
-  if(view === 3){
-    const made = new Map();
-    for(const o of Object.values(model.objects)){
-      for(const s of o.sources){
-        let id = made.get(s);
-        if(!id){
-          id = 's:'+s;
-          const n = {id, kind:'source', name:s, sub:null, rows:[],
-                     w: Math.max(126, Math.round(measure(s, F_TITLE) + PAD_X*2 + 8)),
-                     h: HEAD_ONLY_H, x:0, y:0, ref:{name:s, users:[]}};
-          nodes.push(n); byId.set(id, n); made.set(s, id);
-        }
-        byId.get(id).ref.users.push(o.name);
-        // Quellzuordnung ist keine fachliche Beziehung, daher ohne Kardinalität
-        edges.push({from:'o:'+o.name, to:id, kind:'quelle', label:'quelle',
-                    fromCard:null, toCard:null});
-      }
-    }
-  }
-
   for(const o of Object.values(model.objects))
     for(const r of o.rels)
       if(byId.has('o:'+r.to))
         edges.push({from:'o:'+o.name, to:'o:'+r.to, kind:'rel',
                     label:r.name || null, fromCard:r.from, toCard:r.toCard});
+
+  /* Quelle und Domäne als eigene Kästen (Einstellungen). Jedes Objekt bekommt
+     seine eigenen, auch wenn sich der Name wiederholt: ein gemeinsamer Knoten
+     zöge die Kanten aller Objekte einer Domäne zusammen (crm.yaml: 2 → 27
+     geroutete Kreuzungen). Als Anhängsel stehen sie neben ihrem Objekt und
+     sind genau dann sichtbar, wenn es das Objekt ist. */
+  const anhaengsel = (o, id, kind, name, ekind, label)=>{
+    const eltern = byId.get('o:'+o.name);
+    const n = {id, kind, name, sub:null, rows:[],
+               w: Math.max(126, Math.round(measure(name, F_TITLE) + PAD_X*2 + 8)),
+               h: HEAD_ONLY_H, x:0, y:0, ref:{name}, eltern:eltern.id,
+               get hidden(){ return eltern.hidden; }, set hidden(_){}};
+    nodes.push(n); byId.set(id, n);
+    // Zuordnung ist keine fachliche Beziehung, daher ohne Kardinalität
+    edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
+  };
+  for(const o of Object.values(model.objects)){
+    if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
+    if(E.quelle) o.sources.forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+  }
 
   // Mehrfachkanten zwischen demselben Paar auffächern.
   // Der Versatz wird gegen eine feste Referenzrichtung (alphabetisch) gerechnet,
@@ -1232,9 +1209,71 @@ function makeGraph(model, view){
 const ALGOS = {
   hier:  {name:'Hierarchisch', dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, false)},
   ortho: {name:'Orthogonal',   dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, true)},
-  org:   {name:'Organisch',    dir:false, fn:(ns,es)=> organic(ns, es)},
-  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> circular(ns, es)}
+  org:   {name:'Organisch',    dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, organic)},
+  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, circular)}
 };
+
+/* Anhängsel (Quelle/Domäne als eigener Kasten, n.eltern gesetzt) stehen rechts
+   neben ihrem Objekt, mehrere untereinander. Das Ebenenverfahren erledigt das
+   selbst über seine Trabanten — es muss, weil die orthogonale Kantenführung
+   die endgültigen Kästen braucht. Für Organisch und Kreisförmig: Anhängsel
+   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen. */
+const ANH_GAP = 24, ANH_SEP = 14;
+function anhaengselJeObjekt(nodes){
+  const ids = new Set(nodes.map(n => n.id)), m = new Map();
+  nodes.forEach(n=>{
+    if(!n.eltern || !ids.has(n.eltern)) return;
+    if(!m.has(n.eltern)) m.set(n.eltern, []);
+    m.get(n.eltern).push(n);
+  });
+  return m;
+}
+
+/* Rechts neben das Objekt setzen, senkrecht um dessen Mitte; die Kante läuft
+   gerade von rechts nach links. */
+function setzeRechts(p, list, edges){
+  const lh = list.reduce((t,l)=> t + l.h + ANH_SEP, 0) - ANH_SEP;
+  let ly = p.y + (p.h - lh)/2;
+  list.forEach((l,i)=>{
+    l.x = Math.round(p.x + p.w + ANH_GAP); l.y = Math.round(ly); ly += l.h + ANH_SEP;
+    const e = edges.find(x => x.from === p.id && x.to === l.id);
+    if(!e) return;
+    e.bends = null; e.ortho = false;
+    e.portFrom = {side:'R', t:(i + 1) / (list.length + 1)};
+    e.portTo   = {side:'L', t:0.5};
+  });
+}
+
+function mitAnhaengseln(nodes, edges, fn){
+  const anh = anhaengselJeObjekt(nodes);
+  if(!anh.size){ fn(nodes, edges); return; }
+  const weg = new Set([...anh.values()].flat().map(n => n.id));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const alt = new Map();
+  for(const [pid, list] of anh){
+    const p = byId.get(pid);
+    alt.set(pid, {w:p.w, h:p.h});
+    p.w = p.w + ANH_GAP + Math.max(...list.map(l => l.w));
+    p.h = Math.max(p.h, list.reduce((s,l)=> s + l.h + ANH_SEP, 0) - ANH_SEP);
+  }
+  fn(nodes.filter(n => !weg.has(n.id)), edges.filter(e => !weg.has(e.from) && !weg.has(e.to)));
+  for(const [pid, list] of anh){
+    const p = byId.get(pid), s = alt.get(pid);
+    p.y = Math.round(p.y + (p.h - s.h)/2);
+    p.w = s.w; p.h = s.h;
+    setzeRechts(p, list, edges);
+  }
+}
+
+/* Anhängsel ohne gemerkte Lage an ein schon gelegtes Objekt setzen (Einstellung
+   eingeschaltet, Objekt eingeblendet). Ist eines davon neu, rücken alle
+   Anhängsel dieses Objekts neu an, sonst lägen sie übereinander. Kein
+   separate(): gelegte Objekte sollen nicht verrutschen. */
+function platziereAnhaengsel(g, neu){
+  const eltern = new Set(neu.filter(n => n.eltern).map(n => n.eltern));
+  for(const pid of eltern)
+    setzeRechts(g.byId.get(pid), g.nodes.filter(n => n.eltern === pid), g.edges);
+}
 
 function adjacency(nodes, edges){
   const idx = new Map(nodes.map((n,i)=>[n.id,i]));
@@ -1305,43 +1344,67 @@ function layered(nodes, edges, dir, ortho){
   const allNodes = nodes;
   if(!nodes.length) return;
 
-  /* 0 — Quellknoten als Trabanten an ihr Geschäftsobjekt binden.
-     Eine Quelle ist eine Sackgasse. Bleibt sie in der Ebenenrechnung, schiebt
-     sie sich zwischen die Objekte und zerschneidet den fachlichen Fluss. */
+  /* 0 — Trabanten: Kästen, die neben einem anderen stehen statt in einer
+     eigenen Ebene. Zwei Arten:
+     - Anhängsel (Quelle, Domäne) an ihrem Geschäftsobjekt. Ein Anhängsel ist
+       eine Sackgasse; bliebe es in der Ebenenrechnung, schöbe es sich
+       zwischen die Objekte und zerschnitte den fachlichen Fluss.
+     - Ein 1:1-Blatt an seinem Gegenüber. Ob ein Objekt Blatt ist, entscheiden
+       nur die fachlichen Kanten: zählten die Anhängsel mit, verlöre jedes
+       Objekt mit Quelle seinen Platz neben dem Gegenüber (Willibald: 0 → 3
+       geroutete Kreuzungen).
+     Hat ein 1:1-Trabant selbst Anhängsel, ist er Anker für sie: er wird um
+     sie vergrößert, bevor er seinen eigenen Anker vergrößert, und setzt sie
+     nach seiner eigenen Platzierung an. */
+  const nodeAll = new Map(nodes.map(n=>[n.id, n]));
   const deg = new Map(), inc = new Map();
   nodes.forEach(n=>{ deg.set(n.id, 0); inc.set(n.id, []); });
   edges.forEach(e=>{
     if(e.from === e.to || !deg.has(e.from) || !deg.has(e.to)) return;
+    if(nodeAll.get(e.from).eltern || nodeAll.get(e.to).eltern) return;   // Anhängsel zählen nicht
     deg.set(e.from, deg.get(e.from)+1); deg.set(e.to, deg.get(e.to)+1);
     inc.get(e.from).push(e); inc.get(e.to).push(e);
   });
-  const nodeAll = new Map(nodes.map(n=>[n.id, n]));
-  const sat = new Map(), isSat = new Set();
+  const sat = new Map(), isSat = new Set(), satEdge = new Map();
+  const zuAnker = (pid, n, e)=>{
+    if(!sat.has(pid)) sat.set(pid, []);
+    sat.get(pid).push(n);
+    isSat.add(n.id); satEdge.set(n.id, e);
+  };
   const isOne = c => c === 'exactly_one' || c === 'zero_or_one';
   const oneToOne = e => isOne(e.fromCard) && isOne(e.toCard);   // beide ausdrücklich „eins"
   nodes.forEach(n=>{
-    if(deg.get(n.id) !== 1) return;
+    if(n.eltern || deg.get(n.id) !== 1) return;
     const e = inc.get(n.id)[0];
     const pid = e.from === n.id ? e.to : e.from;
-    const is11 = n.kind !== 'source' && oneToOne(e);
-    if(n.kind !== 'source' && !is11) return;                 // 1:n-Blatt bleibt in der Hierarchie (unten)
-    if(n.kind === 'source' && deg.get(pid) <= 1) return;     // Paar aus zwei Quell-Sackgassen bleibt
-    if(is11 && deg.get(pid) === 1 && n.id < pid) return;     // reines 1:1-Paar: der „kleinere" bleibt Anker
+    if(!oneToOne(e)) return;                                 // 1:n-Blatt bleibt in der Hierarchie (unten)
+    if(deg.get(pid) === 1 && n.id < pid) return;             // reines 1:1-Paar: der „kleinere" bleibt Anker
     if(isSat.has(pid)) return;                               // nicht an einen Trabanten hängen
-    if(!sat.has(pid)) sat.set(pid, []);
-    sat.get(pid).push(n);
-    isSat.add(n.id);
+    zuAnker(pid, n, e);
+  });
+  // Anhängsel nach den 1:1-Trabanten: so steht ein Trabant als Anker seiner
+  // Anhängsel in der Reihenfolge hinter seinem eigenen Anker.
+  edges.forEach(e=>{
+    const n = nodeAll.get(e.to);
+    if(n && n.eltern === e.from && nodeAll.has(e.from)) zuAnker(e.from, n, e);
   });
 
-  const shrunk = new Map();
-  for(const [pid, list] of sat){
+  /* Mit Anhängseln wird der Anker nach BEIDEN Seiten vergrößert, sodass seine
+     Mitte bleibt: Spalten, Stützpunkte und Anschlüsse rechnet das Verfahren auf
+     die Mitte des vergrößerten Kastens. Einseitig vergrößert, rückte die echte
+     Mitte beim Verkleinern zur Seite, und seine Kanten kreuzten sich
+     (Willibald: 0 → 3 geroutete Kreuzungen). */
+  const shrunk = new Map(), mittig = new Set();
+  for(const [pid, list] of [...sat].reverse()){              // innere Anker zuerst vergrößern
     const p = nodeAll.get(pid);
     shrunk.set(pid, {w:p.w, h:p.h});
+    const k = list.some(l => l.eltern) ? 2 : 1;
+    if(k === 2) mittig.add(pid);
     if(vertical){                    // Fluss nach unten: Trabanten nach rechts
-      p.w = p.w + SAT_GAP + Math.max(...list.map(l=>l.w));
+      p.w = p.w + k * (SAT_GAP + Math.max(...list.map(l=>l.w)));
       p.h = Math.max(p.h, list.reduce((s,l)=> s + l.h + SAT_SEP, 0) - SAT_SEP);
     } else {                         // Fluss nach rechts: Trabanten nach unten
-      p.h = p.h + SAT_GAP + Math.max(...list.map(l=>l.h));
+      p.h = p.h + k * (SAT_GAP + Math.max(...list.map(l=>l.h)));
       p.w = Math.max(p.w, list.reduce((s,l)=> s + l.w + SAT_SEP, 0) - SAT_SEP);
     }
   }
@@ -1353,23 +1416,25 @@ function layered(nodes, edges, dir, ortho){
   if(!N){ placeSatellites(); return; }
 
   function placeSatellites(){
-    for(const [pid, list] of sat){
+    for(const [pid, list] of sat){                           // äußere Anker zuerst setzen
       const p = nodeAll.get(pid), s = shrunk.get(pid);
       const bx = p.x, by = p.y, bw = p.w, bh = p.h;
       p.w = s.w; p.h = s.h;
       if(vertical){
-        p.x = bx; p.y = Math.round(by + (bh - s.h)/2);
+        p.x = mittig.has(pid) ? Math.round(bx + (bw - s.w)/2) : bx;
+        p.y = Math.round(by + (bh - s.h)/2);
         const lh = list.reduce((t,l)=> t + l.h + SAT_SEP, 0) - SAT_SEP;
         let ly = by + (bh - lh)/2;
-        list.forEach(l=>{ l.x = Math.round(bx + s.w + SAT_GAP); l.y = Math.round(ly); ly += l.h + SAT_SEP; });
+        list.forEach(l=>{ l.x = Math.round(p.x + s.w + SAT_GAP); l.y = Math.round(ly); ly += l.h + SAT_SEP; });
       } else {
-        p.x = Math.round(bx + (bw - s.w)/2); p.y = by;
+        p.x = Math.round(bx + (bw - s.w)/2);
+        p.y = mittig.has(pid) ? Math.round(by + (bh - s.h)/2) : by;
         const lw = list.reduce((t,l)=> t + l.w + SAT_SEP, 0) - SAT_SEP;
         let lx = bx + (bw - lw)/2;
-        list.forEach(l=>{ l.x = Math.round(lx); l.y = Math.round(by + s.h + SAT_GAP); lx += l.w + SAT_SEP; });
+        list.forEach(l=>{ l.x = Math.round(lx); l.y = Math.round(p.y + s.h + SAT_GAP); lx += l.w + SAT_SEP; });
       }
       list.forEach((l,i)=>{
-        const e = inc.get(l.id)[0];
+        const e = satEdge.get(l.id);
         const fromParent = e.from === pid;
         const t = (i + 1) / (list.length + 1);
         const pSide = vertical ? 'R' : 'B', lSide = vertical ? 'L' : 'T';
@@ -2646,6 +2711,8 @@ const SVG_CSS = `
 .n-sep{stroke:#DDE4EA;stroke-width:1}
 .node.source .n-box{fill:#FFF6E4;stroke:#8A5B00;stroke-width:1.2;stroke-dasharray:5 3}
 .node.source .n-head{fill:#8A5B00}
+.node.domain .n-box{fill:#EAF4EE;stroke:#2E6B4A;stroke-width:1.2;stroke-dasharray:5 3}
+.node.domain .n-head{fill:#2E6B4A}
 .node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
 .node.selected .n-head{fill:#B4145F}
 .node.faded{opacity:.16}
@@ -2657,6 +2724,9 @@ const SVG_CSS = `
 .eg.quelle .e-path{stroke:#8A5B00;stroke-dasharray:6 4}
 .eg.quelle .e-mk{stroke:#8A5B00}
 .eg.quelle .e-dot{stroke:#8A5B00}
+.eg.domaene .e-path{stroke:#2E6B4A;stroke-dasharray:6 4}
+.eg.domaene .e-mk{stroke:#2E6B4A}
+.eg.domaene .e-dot{stroke:#2E6B4A}
 .eg .e-hit{fill:none;stroke:transparent;stroke-width:15;cursor:pointer;pointer-events:stroke}
 .eg.picked .e-path{stroke:#B4145F;stroke-width:2.2}
 .eg.picked .e-mk{stroke:#B4145F}
@@ -2676,6 +2746,7 @@ const SVG_CSS = `
 .gh.ortho{cursor:cell}
 .elbl .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .elbl.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
+.elbl.domaene .e-lbl{fill:#2E6B4A;letter-spacing:.06em}
 .elbl .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
 .elbl .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded,.elbl.faded{opacity:.1}
@@ -3474,10 +3545,12 @@ const DEFAULT_UEBERSICHT = `# Hierarchie der redaktionellen Diagramme.
 `;
 
 const S = {
-  model:null, view:1, graph:null, yamlText:'',
-  saved:{1:{}, 2:{}, 3:{}},
-  routes:{1:{}, 2:{}, 3:{}},
-  content:{1:{}, 2:{}, 3:{}},
+  model:null, graph:null, yamlText:'',
+  view:1,                   // fester Ablageschlüssel: früher gab es drei Ansichten
+  saved:{1:{}},
+  routes:{1:{}},
+  content:{1:{}},
+  elemente:{quelle:false, domaene:false},   // Einstellung: Quelle/Domäne als eigener Kasten
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -3534,14 +3607,14 @@ const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e
    Verweisziel (references) und Beziehungsnamen. Fragen wie „wo ist KundeID
    referenziert?" oder „welche Objekte hängen an Position_VRS?" beantwortet die
    Suche sonst nicht. Bewusst NICHT durchsucht: Datentypen — „int" oder „uuid"
-   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellenkasten
-   (Ansicht 3) trifft zusätzlich über die Objekte, die ihn nutzen. */
+   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellen- oder
+   Domänenkasten trifft zusätzlich über sein Objekt. */
 function matchesFilter(n, q){
   if(!q) return true;
   const hat = v => !!v && String(v).toLowerCase().includes(q);
   if(hat(n.name)) return true;
+  if(n.eltern) return matchesFilter(S.graph.byId.get(n.eltern), q);
   const r = n.ref || {};
-  if(n.kind === 'source') return (r.users || []).some(hat);
   if(hat(r.domain)) return true;
   if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
@@ -4826,10 +4899,13 @@ function platziereNeue(neu, platziert){
   neu.forEach(n=>{ n.x = Math.round(x); n.y = Math.round(y); x += n.w + 30; });
 }
 
-/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unterbringen. */
+/* Neu ins Diagramm geholte Objekte (noch ohne gemerkte Lage) unterbringen,
+   ihre Anhängsel rechts daneben. */
 function hierPlaceFresh(){
   const saved = S.hierSaved[S.hierSel] || {};
-  platziereNeue(visNodes().filter(n => !saved[n.id]), visNodes().filter(n => saved[n.id]));
+  const neu = visNodes().filter(n => !saved[n.id]);
+  platziereNeue(neu.filter(n => !n.eltern), visNodes().filter(n => saved[n.id]));
+  platziereAnhaengsel(S.graph, neu);
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -4842,12 +4918,13 @@ function selectDiagram(id){
   if(node) showDiagram(node);
 }
 
-/* Nur die Objekte des Knotens zeigen, Darstellung wie Ansicht 1. Eine einmal
-   von Hand gelegte Anordnung des Diagramms wird wiederhergestellt; sonst wird
-   automatisch angeordnet und diese Erstanordnung gemerkt. Über die Objektliste
-   je Diagramm ausgeblendete Objekte bleiben verborgen. */
+/* Nur die Objekte des Knotens zeigen, Darstellung wie die Komplettansicht
+   (Inhalt und Elemente gelten in beiden Modi). Eine einmal von Hand gelegte
+   Anordnung des Diagramms wird wiederhergestellt; sonst wird automatisch
+   angeordnet und diese Erstanordnung gemerkt. Über die Objektliste je
+   Diagramm ausgeblendete Objekte bleiben verborgen, mit ihnen ihre Anhängsel. */
 function showDiagram(node){
-  S.graph = makeGraph(S.model, 1);
+  S.graph = makeGraph(S.model);
   const shown = S.hierShown[node.id]
     ? new Set(S.hierShown[node.id])
     : new Set(node.objekte.map(o => 'o:' + o));
@@ -4856,13 +4933,24 @@ function showDiagram(node){
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
   const known = vis.filter(n => saved[n.id]);
+  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern);
   if(known.length === vis.length && known.length){
     S.graph.nodes.forEach(n=>{ if(saved[n.id]){ n.x = saved[n.id].x; n.y = saved[n.id].y; } });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
+  } else if(known.length && !neuObj.length){
+    // Nur Anhängsel sind neu (Quelle/Domäne eingeschaltet): Gelegtes bleibt
+    // samt Kantenzügen liegen, die neuen Kästen kommen rechts ans Objekt.
+    known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
+    applyRoutesFrom(S.hierRoutes[node.id] || {});
+    platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
+    hierPersist();
   } else {
     applyAutoLayout(S.graph);
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
-    if(known.length) separate(vis);
+    if(known.length){
+      separate(vis.filter(n => !n.eltern));
+      platziereAnhaengsel(S.graph, vis);          // zurückgeholte Objekte nehmen ihre Anhängsel mit
+    }
     hierPersist();
   }
   draw();
@@ -4892,7 +4980,7 @@ function setMode(mode){
     // die nur in der Hierarchie sinnvolle „Beschreibung“ nicht in der Komplettsicht stehen lassen
     const aktiv = (document.querySelector('.sidetab[aria-selected="true"]') || {}).dataset;
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
-    setView(S.view);
+    setView();
   }
 }
 
@@ -5355,7 +5443,7 @@ function uebersichtObjekt(text, alt, neu){
    vergessen und mit ihr jeder von Hand gezogene Kantenzug. */
 function pfIdsUmbenennen(altId, neuId){
   const um = m => { if(m && m[altId] !== undefined){ m[neuId] = m[altId]; delete m[altId]; } };
-  [1,2,3].forEach(v => um(S.saved[v]));
+  um(S.saved[1]);
   Object.values(S.hierSaved).forEach(um);
   if(S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
   Object.keys(S.hierShown).forEach(k=>{
@@ -5373,7 +5461,7 @@ function pfIdsUmbenennen(altId, neuId){
     Object.keys(m || {}).forEach(k => { out[schluessel(k)] = m[k]; });
     return out;
   };
-  [1,2,3].forEach(v => { S.routes[v] = routen(S.routes[v]); });
+  S.routes[1] = routen(S.routes[1]);
   Object.keys(S.hierRoutes).forEach(k => { S.hierRoutes[k] = routen(S.hierRoutes[k]); });
 }
 
@@ -5392,7 +5480,7 @@ function pfUebernehmen(text, selId, meldung){
   renderMessages(); syncLayoutMenu();
   if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
   else { S.sel = new Set(); S.selected = null; }
-  setView(S.view, {autoFit:false});
+  setView({autoFit:false});
   if(S.mode === 'hierarchie') setMode('hierarchie');
   toast(meldung);
   return true;
@@ -5680,33 +5768,57 @@ function zusatzSchalten(ebene, k, an){
   writeStore();
 }
 
-$('btnEinst').addEventListener('click', ()=> $('optPflege').setAttribute('aria-checked', String(S.pflegeAn)));
+/* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
+   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt, aber
+   nicht im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen setzt
+   der Aufbau rechts neben ihr Objekt. */
+function elementSchalten(k){
+  S.elemente = Object.assign({}, S.elemente, {[k]: !S.elemente[k]});
+  syncEinstMenu();
+  neuAufbauen();
+  writeStore();
+}
+function syncEinstMenu(){
+  $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
+  $('optQuelle').setAttribute('aria-checked', String(!!S.elemente.quelle));
+  $('optDomaene').setAttribute('aria-checked', String(!!S.elemente.domaene));
+}
+
+$('btnEinst').addEventListener('click', syncEinstMenu);
 $('optPflege').addEventListener('click', ()=> pflegeSchalten(!S.pflegeAn));
+$('optQuelle').addEventListener('click', ()=> elementSchalten('quelle'));
+$('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
 $('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });
 /* =====================================================================
    7 — Ansicht wechseln, Anordnung merken
    ===================================================================== */
-function setView(v, {autoFit = true} = {}){
-  S.view = v;
-  document.querySelectorAll('.view-btn').forEach(b=> b.setAttribute('aria-selected', String(+b.dataset.view === v)));
-  S.graph = makeGraph(S.model, v);
+/* Die Komplettansicht (neu) aufbauen. Früher gab es drei Ansichten; die
+   Ablagen behalten den Schlüssel 1 (S.view), damit ältere Dateien gelten. */
+function setView({autoFit = true} = {}){
+  S.graph = makeGraph(S.model);
   S.graph.nodes.forEach(n=>{ n.hidden = S.hidden.has(n.id); });
-  const saved = S.saved[v] || {};
+  const saved = S.saved[S.view] || {};
   const known = S.graph.nodes.filter(n => saved[n.id]);
   if(known.length === S.graph.nodes.length && known.length){
     S.graph.nodes.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutes();
   } else if(known.length){
-    // Nur einzelne Kästen sind neu (Objekt angelegt, Delta eingespielt): das
-    // Gelegte bleibt liegen — samt Kantenzügen. Ein volles Auto-Layout warf
-    // hier jeden von Hand gezogenen Zug weg, weil applyAutoLayout die Knicke
-    // löscht und persist() gleich darauf den leeren Stand merkt.
+    // Nur einzelne Kästen sind neu (Objekt angelegt, Delta eingespielt,
+    // Quelle/Domäne eingeschaltet): das Gelegte bleibt liegen — samt
+    // Kantenzügen. Ein volles Auto-Layout warf hier jeden von Hand gezogenen
+    // Zug weg, weil applyAutoLayout die Knicke löscht und persist() gleich
+    // darauf den leeren Stand merkt. Anhängsel kommen rechts an ihr Objekt.
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutes();
-    platziereNeue(S.graph.nodes.filter(n => !saved[n.id] && !n.hidden), known);
-    separate(visNodes());
+    const neu = S.graph.nodes.filter(n => !saved[n.id]);
+    const neuObj = neu.filter(n => !n.eltern && !n.hidden);
+    if(neuObj.length){
+      platziereNeue(neuObj, known);
+      separate(visNodes().filter(n => !n.eltern));
+    }
+    platziereAnhaengsel(S.graph, neu);
     persist();
   } else {
     applyAutoLayout(S.graph);
@@ -5769,6 +5881,7 @@ const layoutFile = ()=> ({
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
+  elemente: S.elemente,
   uebersichtText: S.outlineText,
   hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
 });
@@ -5776,20 +5889,22 @@ const layoutFile = ()=> ({
 function adoptLayoutFile(obj){
   if(!obj || typeof obj !== 'object') return false;
   const a = obj.ansichten || ((obj[1] || obj[2] || obj[3]) ? obj : null);
-  if(a) S.saved = {1:a[1]||{}, 2:a[2]||{}, 3:a[3]||{}};
+  if(a) S.saved = {1:a[1]||{}};               // Ansicht 2 und 3 älterer Dateien entfallen
   if(obj.verfahren && obj.verfahren.algo) S.layout = {
     algo: ALGOS[obj.verfahren.algo] ? obj.verfahren.algo : 'hier',
     dir: DIR_NAME[obj.verfahren.dir] ? obj.verfahren.dir : 'TB',
     labels: obj.verfahren.labels !== false
   };
-  if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}, 2:obj.kantenzuege[2]||{}, 3:obj.kantenzuege[3]||{}};
-  if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}, 2:obj.inhalt[2]||{}, 3:obj.inhalt[3]||{}};
+  if(obj.kantenzuege) S.routes = {1:obj.kantenzuege[1]||{}};
+  if(obj.inhalt) S.content = {1:obj.inhalt[1]||{}};
   if(Array.isArray(obj.ausgeblendet)) S.hidden = new Set(obj.ausgeblendet);
   if(typeof obj.pflegeAn === 'boolean') S.pflegeAn = obj.pflegeAn;
   if(obj.zusatzfelder && typeof obj.zusatzfelder === 'object') S.zusatzAn = {
     objekt:   Array.isArray(obj.zusatzfelder.objekt)   ? obj.zusatzfelder.objekt.slice()   : [],
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
+  if(obj.elemente && typeof obj.elemente === 'object')
+    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene};
   if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
   if(obj.hierarchie){
     S.hierSaved = obj.hierarchie.anordnung || {};
@@ -5811,7 +5926,7 @@ function writeStore(){
   const snap = JSON.stringify(blob);
   store.set('layouts:' + S.fileName, snap);
   const sitzung = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, blob));
+    Object.assign({fileName:S.fileName, yaml:S.yamlText}, blob));
   store.set('sitzung', sitzung);
   // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
@@ -5827,6 +5942,7 @@ function histStand(){
   const b = layoutFile();
   delete b.pflegeAn;
   delete b.zusatzfelder;
+  delete b.elemente;
   return b;
 }
 
@@ -5869,7 +5985,7 @@ function restoreHistory(snap){
       }
       if(S.hierSel) selectDiagram(S.hierSel); else draw();
     }
-    else setView(S.view, {autoFit:false});
+    else setView({autoFit:false});
     syncLayoutMenu();
     writeStore();
   } finally { restoringHistory = false; }
@@ -5907,8 +6023,9 @@ function hierPersist(){
    ===================================================================== */
 /* Die Objektliste zeigt in beiden Modi alle Objekte des Modells: in der
    Hierarchie sind die im Diagramm sichtbaren angehakt, die übrigen lassen sich
-   dort hinzuholen. */
-function listedNodes(){ return S.graph.nodes; }
+   dort hinzuholen. Anhängsel (Quelle/Domäne) gehören zu ihrem Objekt und
+   stehen nicht in der Liste. */
+function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern); }
 
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
@@ -5917,7 +6034,7 @@ function renderObjectList(){
   const ul = $('objectList');
   const groups = new Map();
   listedNodes().forEach(n=>{
-    const g = n.kind === 'source' ? 'Quellen' : (n.ref.domain || 'Ohne Domain');
+    const g = n.ref.domain || 'Ohne Domain';
     if(!groups.has(g)) groups.set(g, []);
     groups.get(g).push(n);
   });
@@ -5935,9 +6052,7 @@ function renderObjectList(){
       <button data-gi="${gi}" data-on="0">keine</button></span></li>`;
     if(collapsed) continue;
     list.sort((a,b)=> a.name.localeCompare(b.name, 'de')).forEach(n=>{
-      const meta = n.kind === 'source'
-        ? `${n.ref.users.length}×`
-        : `${n.ref.keys.length} BK · ${n.ref.attrs.length} A · ${n.ref.rels.length} B`;
+      const meta = `${n.ref.keys.length} BK · ${n.ref.attrs.length} A · ${n.ref.rels.length} B`;
       html += `<li class="row${n.hidden ? ' off' : ''}">
         <input type="checkbox" class="ochk" data-id="${esc(n.id)}" ${n.hidden ? '' : 'checked'}
                aria-label="${esc(n.name)} im Diagramm anzeigen">
@@ -6026,7 +6141,7 @@ function addRelated(id){
     else if(e.to === id){ nb = e.from; card = e.fromCard; }
     else return;
     const node = S.graph.byId.get(nb);
-    if(!node) return;
+    if(!node || node.eltern) return;                  // Quelle/Domäne ist kein verknüpftes Objekt
     const many = /many/.test(card || '');
     const cur = neigh.get(nb);
     neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
@@ -6066,6 +6181,8 @@ function addRelated(id){
   };
   place(neu.filter(v => !v.many), oneSign);                 // „zu 1" an den Anfang
   place(neu.filter(v => v.many), -oneSign);                 // „zu n" ans Ende
+  const bewegt = new Set(neu.map(v => v.node.id).concat(selbst ? [A.id] : []));
+  platziereAnhaengsel(S.graph, S.graph.nodes.filter(n => bewegt.has(n.eltern)));
 
   S.selEdge = null;
   draw(); renderObjectList(); renderDetails(); updateAlignBar(); persist();
@@ -6097,12 +6214,16 @@ function renderDetails(){
 
   if(S.pflege === n.id){ pflegeFormular(box); return; }
 
-  if(n.kind === 'source'){
+  if(n.eltern){
+    // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
+    const quelle = n.kind === 'source';
+    const nutzer = Object.values(S.model.objects)
+      .filter(o => quelle ? o.sources.includes(n.name) : o.domain === n.name).map(o => o.name);
     box.innerHTML =
-      `<div class="grouphead">QUELLE</div>
+      `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
-       <div class="grouphead">VERSORGT</div>` +
-      n.ref.users.map(u=>`<div class="rel"><span class="arrow">←</span>
+       <div class="grouphead">${quelle ? 'VERSORGT' : 'GESCHÄFTSOBJEKTE'}</div>` +
+      nutzer.map(u=>`<div class="rel"><span class="arrow">←</span>
         <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
   } else {
     const o = n.ref;
@@ -6252,8 +6373,10 @@ function renderLegend(){
     row('zero_or_many', 'null bis viele') +
     row('one_or_many', 'eins bis viele') +
     row('zero_or_one', 'null oder eins');
-  if(S.view === 3) html += `<div><svg width="66" height="22" viewBox="0 0 66 22" aria-hidden="true">
-      <g class="eg quelle"><path class="e-path" d="M4 11H60"/></g></svg>Quelle, ohne Kardinalität</div>`;
+  const ohne = (k, txt)=> `<div><svg width="66" height="22" viewBox="0 0 66 22" aria-hidden="true">
+      <g class="eg ${k}"><path class="e-path" d="M4 11H60"/></g></svg>${txt}, ohne Kardinalität</div>`;
+  if(S.elemente.quelle)  html += ohne('quelle', 'Quelle');
+  if(S.elemente.domaene) html += ohne('domaene', 'Domäne');
   $('legend').innerHTML = html;
 }
 
@@ -6361,34 +6484,33 @@ function alignSelection(mode){
 
 $('alignBar').querySelectorAll('button').forEach(b=> b.onclick = ()=> alignSelection(b.dataset.al));
 
-/* Welche Ansicht steuert den Kasteninhalt: in der Hierarchie stets Ansicht 1
-   (showDiagram baut den Ausschnitt wie Ansicht 1), sonst die aktuelle Ansicht. */
-function contentView(){ return S.mode === 'hierarchie' ? 1 : S.view; }
-
 function renderContentMenu(){
-  const view = contentView();
-  const C = contentOf(view);
-  $('contentHead').textContent = S.mode === 'hierarchie' ? 'IM KASTEN ZEIGEN' : ('IM KASTEN ZEIGEN — ANSICHT ' + view);
+  const C = contentOf();
+  // Steht Quelle bzw. Domäne als eigener Kasten daneben, fehlt sie im Kasten
+  const gesperrt = {sources: !!S.elemente.quelle, domain: !!S.elemente.domaene};
   let html = '';
   CONTENT_FIELDS.forEach(f=>{
-    const locked = f.k === 'sources' && view === 3;
+    const locked = !!gesperrt[f.k];
     const off = (f.sub && !C[f.sub]) || locked;
     html += `<button class="opt${f.sub ? ' indent' : ''}${off ? ' off' : ''}" data-content="${f.k}"
       role="menuitemcheckbox" aria-checked="${!locked && !!C[f.k]}">${esc(f.label)}<span class="tick">✓</span></button>`;
   });
-  if(view === 3) html += `<div class="note">Quellen stehen in dieser Ansicht als eigene Knoten.</div>`;
+  if(gesperrt.sources || gesperrt.domain)
+    html += `<div class="note">${[gesperrt.domain && 'Domäne', gesperrt.sources && 'Quellen'].filter(Boolean).join(' und ')}
+      stehen als eigene Elemente neben dem Objekt (Einstellungen).</div>`;
   $('contentList').innerHTML = html;
   $('contentList').querySelectorAll('[data-content]').forEach(b=> b.onclick = ()=>{
     if(b.classList.contains('off')) return;
     const k = b.dataset.content;
-    const cur = contentOf(view);
-    S.content[view] = Object.assign({}, cur, {[k]: !cur[k]});
+    const cur = contentOf();
+    S.content[1] = Object.assign({}, cur, {[k]: !cur[k]});
     applyContent();
   });
 }
 
-/* Inhalt geändert: Kästen neu vermessen, Lagen der Knoten behalten */
-function applyContent(){
+/* Diagramm neu aufbauen, Lagen der Knoten behalten: nach geändertem Inhalt
+   (Kästen neu vermessen) oder umgeschalteten Elementen (Einstellungen). */
+function neuAufbauen(){
   if(S.mode === 'hierarchie'){
     // Ausschnitt behalten: nur die Lagen der sichtbaren Knoten sichern und das
     // Diagramm neu aufbauen (showDiagram misst die Kästen neu). NICHT setView,
@@ -6402,9 +6524,13 @@ function applyContent(){
     const keep = {};
     S.graph.nodes.forEach(n=>{ keep[n.id] = {x:n.x, y:n.y}; });
     S.saved[S.view] = Object.assign({}, S.saved[S.view], keep);
-    setView(S.view, {autoFit:false});
+    setView({autoFit:false});
   }
   renderContentMenu();
+}
+
+function applyContent(){
+  neuAufbauen();
   toast('Inhalt geändert — bei Bedarf neu anordnen');
 }
 
@@ -6446,7 +6572,7 @@ document.addEventListener('keydown', ev=>{
   }
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
-  // z. B. die Taste „1" ein setView() aus und zeigte plötzlich alle Objekte.
+  // z. B. die Taste „f" ein Einpassen aus.
   const editable = ev.target.matches
     && (ev.target.matches('input, textarea, select') || ev.target.isContentEditable);
   if(editable){ if(ev.key === 'Escape') ev.target.blur(); return; }
@@ -6477,14 +6603,14 @@ document.addEventListener('keydown', ev=>{
   }
   // Entf blendet die markierten Objekte aus (Strg+Z holt sie zurück)
   if(ev.key === 'Delete'){
-    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
+    // Anhängsel (Quelle/Domäne) gehen mit ihrem Objekt, nicht allein
+    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden && !n.eltern);
     if(!list.length) return;
     ev.preventDefault();
     setGroupVisible(list, false);
     toast(list.length + (list.length === 1 ? ' Objekt ausgeblendet' : ' Objekte ausgeblendet'));
     return;
   }
-  if(ev.key >= '1' && ev.key <= '3') setView(+ev.key);
   if(ev.key === 'f' || ev.key === 'F') fit();
 });
 
@@ -6539,7 +6665,6 @@ function moveSelection(dx, dy){
 /* =====================================================================
    10 — Kopfzeile und Menü
    ===================================================================== */
-document.querySelectorAll('.view-btn').forEach(b=> b.onclick = ()=> setView(+b.dataset.view));
 document.querySelectorAll('.sidetab').forEach(t=> t.onclick = ()=> setSidePane(t.dataset.pane));
 $('btnFit').onclick = fit;
 
@@ -6768,11 +6893,10 @@ function ctxMenuOeffnen(n, x, y){
   if(r.bottom > window.innerHeight) m.style.top = Math.max(0, y - r.height) + 'px';
 }
 
-const VIEW_NAME = {1:'Geschäftsobjektmodell', 2:'Geschäftsobjektquellen', 3:'Quellenbezogene Sicht'};
 const slug = s => String(s).toLowerCase()
   .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-const diagramName = ()=> slug(S.fileName.replace(/\.[^.]+$/, '')) + '-' + slug(VIEW_NAME[S.view]);
+const diagramName = ()=> slug(S.fileName.replace(/\.[^.]+$/, '')) + '-geschaeftsobjektmodell';
 // Der Hierarchie-Export heißt wie die Geschäftsobjekt-Datei plus „-hierarchie".
 const uebersichtName = ()=> S.fileName.replace(/\.[^.]+$/, '') + '-hierarchie.yaml';
 
@@ -7038,7 +7162,7 @@ function loadDelta(text){
   renderMessages(); syncLayoutMenu();
   // Kein resetHistory: die Verlaufsstände tragen den Modelltext mit, ein Delta
   // ist damit eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
-  setView(S.view);                       // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
+  setView();                             // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
   if(S.mode === 'hierarchie') setMode('hierarchie');
   toast(`Delta: ${merged.added} neu, ${merged.merged} zusammengeführt`);
 }
@@ -7047,7 +7171,7 @@ $('layoutInput').addEventListener('change', e=>{
   f.text().then(t=>{
     try{
       adoptLayoutFile(JSON.parse(t));
-      syncLayoutMenu(); setView(S.view);
+      syncLayoutMenu(); setView();
       if(S.mode === 'hierarchie') setMode('hierarchie');
       toast('Positionsinformationen übernommen');
     }
@@ -7113,7 +7237,7 @@ async function loadYaml(text, name, preset){
     $('fileLabel').textContent = S.fileName;
     renderMessages();
     syncLayoutMenu();
-    setView(preset && preset.view ? preset.view : S.view);
+    setView();
     if(S.mode === 'hierarchie') setMode('hierarchie');
     resetHistory();                       // geladener Stand ist der Anfang des Verlaufs
     const bad = model.messages.filter(m => m.level !== 'info').length;
@@ -7133,7 +7257,7 @@ function standAlsHtml(){
   const el = $('bakedState');
   const before = el.textContent;
   el.textContent = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText, view:S.view}, layoutFile())
+    Object.assign({fileName:S.fileName, yaml:S.yamlText}, layoutFile())
   ).replace(/</g, '\\u003c');
 
   // Generierte Bereiche leeren, damit die Datei klein bleibt
@@ -7233,7 +7357,7 @@ window.addEventListener('resize', ()=> applyTransform());
 function nachSchriftMessen(){
   if(!S.graph) return;
   if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); }
-  else setView(S.view);
+  else setView();
 }
 document.fonts && document.fonts.ready.then(nachSchriftMessen);
 

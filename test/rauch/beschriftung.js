@@ -12,7 +12,7 @@ api.setMode('komplett');
 
 console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
 {
-  api.setView(1);
+  api.setView();
   const e = S.graph.edges.find(x=>{
     const A = S.graph.byId.get(x.from), B = S.graph.byId.get(x.to);
     return A && B && !A.hidden && !B.hidden && x.from !== x.to;
@@ -35,7 +35,7 @@ console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
 
     // Position und Manuell-Kennzeichen überleben den Ansichtswechsel
     const gemerkt = e.labelT;
-    api.persist(); api.setView(2); api.setView(1);
+    api.persist(); api.setView();
     const back = S.graph.edges.find(x => x.from === e.from && x.to === e.to && (x.ord||0) === (e.ord||0));
     t('manuelle Label-Position überlebt den Ansichtswechsel',
       back && Math.abs(back.labelT - gemerkt) < 1e-6 && back.labelManual === true,
@@ -47,7 +47,7 @@ console.log('== Beziehungs-Label frei entlang der Kante verschiebbar ==');
 
 console.log('== Selbstbezug-Label ist auf der Schleife verschiebbar ==');
 {
-  api.setView(1);
+  api.setView();
   const e = S.graph.edges.find(x => x.from === x.to && x.label);
   t('Selbstbezug mit Beschriftung vorhanden', !!e, e ? e.from : 'keiner');
   if(e){
@@ -80,7 +80,7 @@ console.log('== Selbstbezug-Label ist auf der Schleife verschiebbar ==');
 
 console.log('== Beschriftungen liegen über allen Kantenlinien ==');
 {
-  api.setView(1);
+  api.setView();
   // Alle Beschriftungsgruppen müssen im DOM NACH allen Kantengruppen stehen —
   // sonst streicht eine später gezeichnete Kante durch den hellen Hintergrund
   // eines früheren Labels (dichte Bündel bei waagrechtem Fluss).
@@ -101,7 +101,7 @@ console.log('== Beschriftungen liegen über allen Kantenlinien ==');
 
 console.log('== Beschriftung weicht Kästen aus ==');
 {
-  api.setView(1);
+  api.setView();
   // Kante von A nach B, deren Mitte genau unter dem Kasten C liegt: das Label
   // darf nicht auf C sitzen bleiben, die Kante bietet links und rechts Platz.
   const e = S.graph.edges.find(x => x.label && x.from !== x.to);
@@ -121,7 +121,7 @@ console.log('== Beschriftung weicht Kästen aus ==');
 
 console.log('== Auto-Layout entzerrt überlappende Beziehungs-Labels ==');
 {
-  api.setView(1);
+  api.setView();
   // Zwei beschriftete Kanten mit vier verschiedenen Knoten auf identische, lange
   // Gerade zwingen -> ihre Labels liegen bei Mitte übereinander.
   const chosen = []; const used = new Set();

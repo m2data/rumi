@@ -334,7 +334,7 @@ function uebersichtObjekt(text, alt, neu){
    vergessen und mit ihr jeder von Hand gezogene Kantenzug. */
 function pfIdsUmbenennen(altId, neuId){
   const um = m => { if(m && m[altId] !== undefined){ m[neuId] = m[altId]; delete m[altId]; } };
-  [1,2,3].forEach(v => um(S.saved[v]));
+  um(S.saved[1]);
   Object.values(S.hierSaved).forEach(um);
   if(S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
   Object.keys(S.hierShown).forEach(k=>{
@@ -352,7 +352,7 @@ function pfIdsUmbenennen(altId, neuId){
     Object.keys(m || {}).forEach(k => { out[schluessel(k)] = m[k]; });
     return out;
   };
-  [1,2,3].forEach(v => { S.routes[v] = routen(S.routes[v]); });
+  S.routes[1] = routen(S.routes[1]);
   Object.keys(S.hierRoutes).forEach(k => { S.hierRoutes[k] = routen(S.hierRoutes[k]); });
 }
 
@@ -371,7 +371,7 @@ function pfUebernehmen(text, selId, meldung){
   renderMessages(); syncLayoutMenu();
   if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
   else { S.sel = new Set(); S.selected = null; }
-  setView(S.view, {autoFit:false});
+  setView({autoFit:false});
   if(S.mode === 'hierarchie') setMode('hierarchie');
   toast(meldung);
   return true;
@@ -659,8 +659,26 @@ function zusatzSchalten(ebene, k, an){
   writeStore();
 }
 
-$('btnEinst').addEventListener('click', ()=> $('optPflege').setAttribute('aria-checked', String(S.pflegeAn)));
+/* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
+   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt, aber
+   nicht im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen setzt
+   der Aufbau rechts neben ihr Objekt. */
+function elementSchalten(k){
+  S.elemente = Object.assign({}, S.elemente, {[k]: !S.elemente[k]});
+  syncEinstMenu();
+  neuAufbauen();
+  writeStore();
+}
+function syncEinstMenu(){
+  $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
+  $('optQuelle').setAttribute('aria-checked', String(!!S.elemente.quelle));
+  $('optDomaene').setAttribute('aria-checked', String(!!S.elemente.domaene));
+}
+
+$('btnEinst').addEventListener('click', syncEinstMenu);
 $('optPflege').addEventListener('click', ()=> pflegeSchalten(!S.pflegeAn));
+$('optQuelle').addEventListener('click', ()=> elementSchalten('quelle'));
+$('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
 $('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });

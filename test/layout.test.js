@@ -12,7 +12,7 @@ const t = (name, cond, info)=>{
 };
 
 // render.js kommt dazu: das orthogonale Verfahren nutzt portPoint() daraus.
-const {api} = load(['yaml.js', 'model.js', 'layout.js', 'render.js'],
+const {api, S} = load(['yaml.js', 'model.js', 'layout.js', 'render.js'],
   ['buildModel', 'makeGraph', 'ALGOS', 'separate', 'portPoint']);
 const {buildModel, makeGraph, ALGOS, separate, portPoint} = api;
 
@@ -550,6 +550,55 @@ console.log('== Alle vier Flussrichtungen sind gleichwertig ==');
         routedCrossings(g, portPoint) <= 1, routedCrossings(g, portPoint) + ' Kreuzungen');
     } else console.log('  (crm-Teil übersprungen: models/crm.yaml fehlt)');
   }
+}
+
+console.log('== Quelle und Domäne als eigene Kästen stehen neben ihrem Objekt ==');
+{
+  /* Jedes Objekt hat seine eigenen Anhängsel. Sie stehen quer zum Fluss dicht
+     neben ihm — bei ↓/↑ und den richtungslosen Verfahren rechts, bei →/←
+     darunter — und überlappen nichts. Mehrere stapeln sich um die Mitte des
+     Objekts, ein Stapel darf also über das Objekt hinausragen.
+
+     Kreuzungen: Deckel aus der Messung bei Einführung. Fast alles Zusätzliche
+     sind fachliche Kanten, weil die Objekte mit ihren Anhängseln breiter werden —
+     verquer_bo hierarchisch ↓ kreuzt allein durch breitere Kästen 70 → 104,
+     ganz ohne Anhängsel. (Die frühere Ansicht 3 mit gemeinsamen
+     Quellknoten lag dort bei 101.) */
+  const neben = (n, p, rechts)=> rechts
+    ? n.x - (p.x + p.w) >= 0 && n.x - (p.x + p.w) <= 30 && Math.abs((n.y + n.h/2) - (p.y + p.h/2)) <= 200
+    : n.y - (p.y + p.h) >= 0 && n.y - (p.y + p.h) <= 30 && Math.abs((n.x + n.w/2) - (p.x + p.w/2)) <= 400;
+  const DECKEL = {
+    'willibald-attr.yaml': {hier:[1,1,1,1], ortho:[0,0,0,0]},
+    'crm.yaml':            {hier:[4,4,2,2], ortho:[1,1,1,1]},
+    'sap-finanz.yaml':     {hier:[1,1,1,1], ortho:[1,1,1,1]},
+    'verquer_bo.yaml':     {hier:[122,123,87,91], ortho:[73,73,63,67]}
+  };
+  for(const f of ['willibald-attr.yaml', 'crm.yaml', 'sap-finanz.yaml', 'verquer_bo.yaml']){
+    const fixture = path.join(__dirname, '..', 'models', f);
+    if(!fs.existsSync(fixture)) continue;
+    const m = buildModel(fs.readFileSync(fixture, 'utf8'));
+    for(const k of Object.keys(ALGOS)) for(const dir of ALGOS[k].dir ? ['TB','BT','LR','RL'] : ['TB']){
+      S.elemente = {quelle:true, domaene:true};
+      const g = makeGraph(m);
+      ALGOS[k].fn(g.nodes, g.edges, dir);
+      const anh = g.nodes.filter(n => n.eltern);
+      const rechts = !ALGOS[k].dir || dir === 'TB' || dir === 'BT';
+      const falsch = anh.filter(n => !neben(n, g.byId.get(n.eltern), rechts));
+      const wo = `${f} ${k} ${dir}`;
+      t(`${wo}: alle ${anh.length} Anhängsel neben ihrem Objekt`, anh.length > 0 && !falsch.length,
+        falsch.slice(0, 3).map(n => n.id).join(', '));
+      let bad = 0;
+      for(let i = 0; i < g.nodes.length; i++) for(let j = i + 1; j < g.nodes.length; j++)
+        if(overlaps(g.nodes[i], g.nodes[j])) bad++;
+      t(`${wo}: keine Überlappungen`, bad === 0, bad + ' Überlappungen');
+      if(k === 'hier' || k === 'ortho'){
+        const max = DECKEL[f][k][['TB','BT','LR','RL'].indexOf(dir)];
+        const r = routedCrossings(g, portPoint);
+        t(`${wo}: höchstens ${max} geroutete Kreuzungen`, r <= max, r + ' Kreuzungen');
+      }
+    }
+  }
+  S.elemente = {};
 }
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`

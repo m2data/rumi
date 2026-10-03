@@ -24,7 +24,10 @@ if(!fs.existsSync(fixture)){
    gemeldeten Falls zuvor gescheitert. */
 await api.loadYaml(fs.readFileSync(fixture, 'utf8').replace(/\r\n?/g, '\n'), 'verquer_bo.yaml');
 document.getElementById('showAll').onclick();
-api.setView(2);                       // Domain und Quellen sichtbar, wie im Bericht
+// Domain, Business Keys und Quellen im Kasten — der Inhalt der früheren
+// Ansicht 2, wie im Bericht
+S.content[1] = {desc:false, domain:true, keys:true, sources:true, attrs:false, keysOnly:false, types:true};
+api.setView();
 
 /* Anders als in fuehrung.js werden die Kastenmaße hier NICHT vereinheitlicht.
    Der gemeldete Fall hängt daran: mit 152×38 fallen die Kästen anders aus, die

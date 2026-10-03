@@ -5,10 +5,12 @@
 /* einsetzen: uebersicht willibald-übersicht.yaml */
 
 const S = {
-  model:null, view:1, graph:null, yamlText:'',
-  saved:{1:{}, 2:{}, 3:{}},
-  routes:{1:{}, 2:{}, 3:{}},
-  content:{1:{}, 2:{}, 3:{}},
+  model:null, graph:null, yamlText:'',
+  view:1,                   // fester Ablageschlüssel: früher gab es drei Ansichten
+  saved:{1:{}},
+  routes:{1:{}},
+  content:{1:{}},
+  elemente:{quelle:false, domaene:false},   // Einstellung: Quelle/Domäne als eigener Kasten
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -65,14 +67,14 @@ const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e
    Verweisziel (references) und Beziehungsnamen. Fragen wie „wo ist KundeID
    referenziert?" oder „welche Objekte hängen an Position_VRS?" beantwortet die
    Suche sonst nicht. Bewusst NICHT durchsucht: Datentypen — „int" oder „uuid"
-   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellenkasten
-   (Ansicht 3) trifft zusätzlich über die Objekte, die ihn nutzen. */
+   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellen- oder
+   Domänenkasten trifft zusätzlich über sein Objekt. */
 function matchesFilter(n, q){
   if(!q) return true;
   const hat = v => !!v && String(v).toLowerCase().includes(q);
   if(hat(n.name)) return true;
+  if(n.eltern) return matchesFilter(S.graph.byId.get(n.eltern), q);
   const r = n.ref || {};
-  if(n.kind === 'source') return (r.users || []).some(hat);
   if(hat(r.domain)) return true;
   if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;

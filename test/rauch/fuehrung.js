@@ -4,8 +4,9 @@
    auftreten. Die Kastenmaße werden vereinheitlicht (152×38 wie im Browser),
    damit die Geometrie nicht an der Schriftmessung des Mini-DOM hängt.
 
-   Ausnahme ist der letzte Abschnitt: er misst Ansicht 2 mit den echten
-   Kastenmaßen — die Ansicht, in der wirklich gearbeitet wird. Dort sind die
+   Ausnahme ist der letzte Abschnitt: er misst Kästen mit Domain, Business
+   Keys und Quellen (den Inhalt der früheren Ansicht 2) in echten Maßen — die
+   Darstellung, in der wirklich gearbeitet wird. Dort sind die
    Kästen unterschiedlich hoch und breit, die Ebenenreihenfolge fällt anders
    aus, und die Zahlen hängen an measure() im Mini-DOM. */
 const fs = require('fs');
@@ -239,7 +240,7 @@ console.log('== Kein weicher Zug verlässt sein Anschluss-Intervall (Kringel) ==
   t('höchstens 2 Züge müssen ihr Intervall verlassen', raus.length <= 2, raus.length + ': ' + raus.join(', '));
 }
 
-console.log('== Ansicht 2 mit echten Kastenmaßen (die Ansicht der Praxis) ==');
+console.log('== Domain, Keys und Quellen in echten Kastenmaßen (die Darstellung der Praxis) ==');
 {
   /* Alles darüber vereinheitlicht die Kästen auf 152×38, damit die Geometrie
      nicht an der Schriftmessung des Mini-DOM hängt. Die Ansicht, in der
@@ -256,7 +257,9 @@ console.log('== Ansicht 2 mit echten Kastenmaßen (die Ansicht der Praxis) ==');
 
      Die Zahlen hängen an measure() im Mini-DOM. Ändert sich dessen
      Schriftmessung, sind sie neu zu eichen. */
-  api.setView(2);
+  // Inhalt der früheren Ansicht 2: Domain, Business Keys und Quellen im Kasten
+  S.content[1] = {desc:false, domain:true, keys:true, sources:true, attrs:false, keysOnly:false, types:true};
+  api.setView();
   const echt = (algo, dir)=>{
     S.layout.dir = dir;
     [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
@@ -329,7 +332,7 @@ console.log('== Ansicht 2 mit echten Kastenmaßen (die Ansicht der Praxis) ==');
     t(`${algo} ${dir}: kein auffälliges X am Kasten, kein Schnitt`,
       r.nah === 0 && r.schnitte === 0, `${r.nah} X, ${r.schnitte} Schnitte`);
   }
-  api.setView(1);
+  api.setView();
 }
 
 finish();

@@ -6,9 +6,71 @@
 const ALGOS = {
   hier:  {name:'Hierarchisch', dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, false)},
   ortho: {name:'Orthogonal',   dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, true)},
-  org:   {name:'Organisch',    dir:false, fn:(ns,es)=> organic(ns, es)},
-  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> circular(ns, es)}
+  org:   {name:'Organisch',    dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, organic)},
+  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, circular)}
 };
+
+/* Anhängsel (Quelle/Domäne als eigener Kasten, n.eltern gesetzt) stehen rechts
+   neben ihrem Objekt, mehrere untereinander. Das Ebenenverfahren erledigt das
+   selbst über seine Trabanten — es muss, weil die orthogonale Kantenführung
+   die endgültigen Kästen braucht. Für Organisch und Kreisförmig: Anhängsel
+   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen. */
+const ANH_GAP = 24, ANH_SEP = 14;
+function anhaengselJeObjekt(nodes){
+  const ids = new Set(nodes.map(n => n.id)), m = new Map();
+  nodes.forEach(n=>{
+    if(!n.eltern || !ids.has(n.eltern)) return;
+    if(!m.has(n.eltern)) m.set(n.eltern, []);
+    m.get(n.eltern).push(n);
+  });
+  return m;
+}
+
+/* Rechts neben das Objekt setzen, senkrecht um dessen Mitte; die Kante läuft
+   gerade von rechts nach links. */
+function setzeRechts(p, list, edges){
+  const lh = list.reduce((t,l)=> t + l.h + ANH_SEP, 0) - ANH_SEP;
+  let ly = p.y + (p.h - lh)/2;
+  list.forEach((l,i)=>{
+    l.x = Math.round(p.x + p.w + ANH_GAP); l.y = Math.round(ly); ly += l.h + ANH_SEP;
+    const e = edges.find(x => x.from === p.id && x.to === l.id);
+    if(!e) return;
+    e.bends = null; e.ortho = false;
+    e.portFrom = {side:'R', t:(i + 1) / (list.length + 1)};
+    e.portTo   = {side:'L', t:0.5};
+  });
+}
+
+function mitAnhaengseln(nodes, edges, fn){
+  const anh = anhaengselJeObjekt(nodes);
+  if(!anh.size){ fn(nodes, edges); return; }
+  const weg = new Set([...anh.values()].flat().map(n => n.id));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const alt = new Map();
+  for(const [pid, list] of anh){
+    const p = byId.get(pid);
+    alt.set(pid, {w:p.w, h:p.h});
+    p.w = p.w + ANH_GAP + Math.max(...list.map(l => l.w));
+    p.h = Math.max(p.h, list.reduce((s,l)=> s + l.h + ANH_SEP, 0) - ANH_SEP);
+  }
+  fn(nodes.filter(n => !weg.has(n.id)), edges.filter(e => !weg.has(e.from) && !weg.has(e.to)));
+  for(const [pid, list] of anh){
+    const p = byId.get(pid), s = alt.get(pid);
+    p.y = Math.round(p.y + (p.h - s.h)/2);
+    p.w = s.w; p.h = s.h;
+    setzeRechts(p, list, edges);
+  }
+}
+
+/* Anhängsel ohne gemerkte Lage an ein schon gelegtes Objekt setzen (Einstellung
+   eingeschaltet, Objekt eingeblendet). Ist eines davon neu, rücken alle
+   Anhängsel dieses Objekts neu an, sonst lägen sie übereinander. Kein
+   separate(): gelegte Objekte sollen nicht verrutschen. */
+function platziereAnhaengsel(g, neu){
+  const eltern = new Set(neu.filter(n => n.eltern).map(n => n.eltern));
+  for(const pid of eltern)
+    setzeRechts(g.byId.get(pid), g.nodes.filter(n => n.eltern === pid), g.edges);
+}
 
 function adjacency(nodes, edges){
   const idx = new Map(nodes.map((n,i)=>[n.id,i]));
@@ -79,43 +141,67 @@ function layered(nodes, edges, dir, ortho){
   const allNodes = nodes;
   if(!nodes.length) return;
 
-  /* 0 — Quellknoten als Trabanten an ihr Geschäftsobjekt binden.
-     Eine Quelle ist eine Sackgasse. Bleibt sie in der Ebenenrechnung, schiebt
-     sie sich zwischen die Objekte und zerschneidet den fachlichen Fluss. */
+  /* 0 — Trabanten: Kästen, die neben einem anderen stehen statt in einer
+     eigenen Ebene. Zwei Arten:
+     - Anhängsel (Quelle, Domäne) an ihrem Geschäftsobjekt. Ein Anhängsel ist
+       eine Sackgasse; bliebe es in der Ebenenrechnung, schöbe es sich
+       zwischen die Objekte und zerschnitte den fachlichen Fluss.
+     - Ein 1:1-Blatt an seinem Gegenüber. Ob ein Objekt Blatt ist, entscheiden
+       nur die fachlichen Kanten: zählten die Anhängsel mit, verlöre jedes
+       Objekt mit Quelle seinen Platz neben dem Gegenüber (Willibald: 0 → 3
+       geroutete Kreuzungen).
+     Hat ein 1:1-Trabant selbst Anhängsel, ist er Anker für sie: er wird um
+     sie vergrößert, bevor er seinen eigenen Anker vergrößert, und setzt sie
+     nach seiner eigenen Platzierung an. */
+  const nodeAll = new Map(nodes.map(n=>[n.id, n]));
   const deg = new Map(), inc = new Map();
   nodes.forEach(n=>{ deg.set(n.id, 0); inc.set(n.id, []); });
   edges.forEach(e=>{
     if(e.from === e.to || !deg.has(e.from) || !deg.has(e.to)) return;
+    if(nodeAll.get(e.from).eltern || nodeAll.get(e.to).eltern) return;   // Anhängsel zählen nicht
     deg.set(e.from, deg.get(e.from)+1); deg.set(e.to, deg.get(e.to)+1);
     inc.get(e.from).push(e); inc.get(e.to).push(e);
   });
-  const nodeAll = new Map(nodes.map(n=>[n.id, n]));
-  const sat = new Map(), isSat = new Set();
+  const sat = new Map(), isSat = new Set(), satEdge = new Map();
+  const zuAnker = (pid, n, e)=>{
+    if(!sat.has(pid)) sat.set(pid, []);
+    sat.get(pid).push(n);
+    isSat.add(n.id); satEdge.set(n.id, e);
+  };
   const isOne = c => c === 'exactly_one' || c === 'zero_or_one';
   const oneToOne = e => isOne(e.fromCard) && isOne(e.toCard);   // beide ausdrücklich „eins"
   nodes.forEach(n=>{
-    if(deg.get(n.id) !== 1) return;
+    if(n.eltern || deg.get(n.id) !== 1) return;
     const e = inc.get(n.id)[0];
     const pid = e.from === n.id ? e.to : e.from;
-    const is11 = n.kind !== 'source' && oneToOne(e);
-    if(n.kind !== 'source' && !is11) return;                 // 1:n-Blatt bleibt in der Hierarchie (unten)
-    if(n.kind === 'source' && deg.get(pid) <= 1) return;     // Paar aus zwei Quell-Sackgassen bleibt
-    if(is11 && deg.get(pid) === 1 && n.id < pid) return;     // reines 1:1-Paar: der „kleinere" bleibt Anker
+    if(!oneToOne(e)) return;                                 // 1:n-Blatt bleibt in der Hierarchie (unten)
+    if(deg.get(pid) === 1 && n.id < pid) return;             // reines 1:1-Paar: der „kleinere" bleibt Anker
     if(isSat.has(pid)) return;                               // nicht an einen Trabanten hängen
-    if(!sat.has(pid)) sat.set(pid, []);
-    sat.get(pid).push(n);
-    isSat.add(n.id);
+    zuAnker(pid, n, e);
+  });
+  // Anhängsel nach den 1:1-Trabanten: so steht ein Trabant als Anker seiner
+  // Anhängsel in der Reihenfolge hinter seinem eigenen Anker.
+  edges.forEach(e=>{
+    const n = nodeAll.get(e.to);
+    if(n && n.eltern === e.from && nodeAll.has(e.from)) zuAnker(e.from, n, e);
   });
 
-  const shrunk = new Map();
-  for(const [pid, list] of sat){
+  /* Mit Anhängseln wird der Anker nach BEIDEN Seiten vergrößert, sodass seine
+     Mitte bleibt: Spalten, Stützpunkte und Anschlüsse rechnet das Verfahren auf
+     die Mitte des vergrößerten Kastens. Einseitig vergrößert, rückte die echte
+     Mitte beim Verkleinern zur Seite, und seine Kanten kreuzten sich
+     (Willibald: 0 → 3 geroutete Kreuzungen). */
+  const shrunk = new Map(), mittig = new Set();
+  for(const [pid, list] of [...sat].reverse()){              // innere Anker zuerst vergrößern
     const p = nodeAll.get(pid);
     shrunk.set(pid, {w:p.w, h:p.h});
+    const k = list.some(l => l.eltern) ? 2 : 1;
+    if(k === 2) mittig.add(pid);
     if(vertical){                    // Fluss nach unten: Trabanten nach rechts
-      p.w = p.w + SAT_GAP + Math.max(...list.map(l=>l.w));
+      p.w = p.w + k * (SAT_GAP + Math.max(...list.map(l=>l.w)));
       p.h = Math.max(p.h, list.reduce((s,l)=> s + l.h + SAT_SEP, 0) - SAT_SEP);
     } else {                         // Fluss nach rechts: Trabanten nach unten
-      p.h = p.h + SAT_GAP + Math.max(...list.map(l=>l.h));
+      p.h = p.h + k * (SAT_GAP + Math.max(...list.map(l=>l.h)));
       p.w = Math.max(p.w, list.reduce((s,l)=> s + l.w + SAT_SEP, 0) - SAT_SEP);
     }
   }
@@ -127,23 +213,25 @@ function layered(nodes, edges, dir, ortho){
   if(!N){ placeSatellites(); return; }
 
   function placeSatellites(){
-    for(const [pid, list] of sat){
+    for(const [pid, list] of sat){                           // äußere Anker zuerst setzen
       const p = nodeAll.get(pid), s = shrunk.get(pid);
       const bx = p.x, by = p.y, bw = p.w, bh = p.h;
       p.w = s.w; p.h = s.h;
       if(vertical){
-        p.x = bx; p.y = Math.round(by + (bh - s.h)/2);
+        p.x = mittig.has(pid) ? Math.round(bx + (bw - s.w)/2) : bx;
+        p.y = Math.round(by + (bh - s.h)/2);
         const lh = list.reduce((t,l)=> t + l.h + SAT_SEP, 0) - SAT_SEP;
         let ly = by + (bh - lh)/2;
-        list.forEach(l=>{ l.x = Math.round(bx + s.w + SAT_GAP); l.y = Math.round(ly); ly += l.h + SAT_SEP; });
+        list.forEach(l=>{ l.x = Math.round(p.x + s.w + SAT_GAP); l.y = Math.round(ly); ly += l.h + SAT_SEP; });
       } else {
-        p.x = Math.round(bx + (bw - s.w)/2); p.y = by;
+        p.x = Math.round(bx + (bw - s.w)/2);
+        p.y = mittig.has(pid) ? Math.round(by + (bh - s.h)/2) : by;
         const lw = list.reduce((t,l)=> t + l.w + SAT_SEP, 0) - SAT_SEP;
         let lx = bx + (bw - lw)/2;
-        list.forEach(l=>{ l.x = Math.round(lx); l.y = Math.round(by + s.h + SAT_GAP); lx += l.w + SAT_SEP; });
+        list.forEach(l=>{ l.x = Math.round(lx); l.y = Math.round(p.y + s.h + SAT_GAP); lx += l.w + SAT_SEP; });
       }
       list.forEach((l,i)=>{
-        const e = inc.get(l.id)[0];
+        const e = satEdge.get(l.id);
         const fromParent = e.from === pid;
         const t = (i + 1) / (list.length + 1);
         const pSide = vertical ? 'R' : 'B', lSide = vertical ? 'L' : 'T';

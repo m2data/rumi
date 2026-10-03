@@ -542,7 +542,7 @@ console.log('== Umbenennen zieht den Hierarchie-Ausschnitt mit ==');
   api.addRelated('o:' + alt);          // ein- und ausblenden merkt den Ausschnitt
   t('das Diagramm merkt sich seine Objekte', (S.hierShown['Thema'] || []).includes('o:' + alt),
     JSON.stringify(S.hierShown['Thema']));
-  api.setMode('komplett'); api.setView(1);   // umbenannt wird in der Komplettansicht
+  api.setMode('komplett'); api.setView();   // umbenannt wird in der Komplettansicht
 
   t('das Formular lässt sich öffnen', formularOeffnen('o:' + alt));
   $('pfName').value = neu;
@@ -570,7 +570,7 @@ console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
     '    sources: []',
     ''
   ].join('\n'), 'inline.yaml');
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
   if(!S.pflegeAn) S.pflegeAn = true;
 
   t('das Objekt hat noch keine Quelle', S.model.objects.Topflappen.sources.length === 0);
@@ -602,7 +602,7 @@ console.log('== Bedienweg: Business Keys in einem Feld „BusinessKeys" ==');
     '    - Schublade',
     ''
   ].join('\n'), 'gross.yaml');
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
   if(!S.pflegeAn) S.pflegeAn = true;
 
   t('der vorhandene Business Key ist gelesen',
@@ -723,7 +723,7 @@ console.log('== Zusatzattribute: bleiben beim Neuschreiben eines Attributs ==');
 console.log('== Bedienweg: Zusatzattribute einschalten und pflegen ==');
 {
   api.loadYaml(willibald, 'willibald-attr.yaml');
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
   if(!S.pflegeAn) S.pflegeAn = true;
   S.zusatzAn = {objekt:[], attribut:[]};
 
@@ -774,7 +774,7 @@ console.log('== Bedienweg: Zusatzattribute einschalten und pflegen ==');
 console.log('== Bedienweg: Zusatzattribut an einem Attribut ==');
 {
   api.loadYaml(sonder, 'sonder.yaml');
-  api.setMode('komplett'); api.setView(1);
+  api.setMode('komplett'); api.setView();
   S.zusatzAn = {objekt:[], attribut:[]};
   dispatch($('optZusatz'), 'click', {});
   const box = $('zusatzListe').querySelector('input[data-ebene="attribut"]');
