@@ -61,6 +61,12 @@ function initSvg(){
 const isVisible = id => { const n = S.graph.byId.get(id); return n && !n.hidden; };
 const visNodes = ()=> S.graph.nodes.filter(n => !n.hidden);
 const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e.to));
+// Wer ein Objekt bewegt, bewegt seine Anhängsel (Quelle/Domäne) mit
+const samtAnhaengseln = ids => {
+  const s = new Set(ids);
+  S.graph.nodes.forEach(n=>{ if(n.eltern && s.has(n.eltern)) s.add(n.id); });
+  return s;
+};
 
 /* Suchtreffer. Gesucht wird nicht nur im Objektnamen, sondern in allem, was
    das Objekt beschreibt: Domain, Business Keys, Quellen, Attributnamen samt

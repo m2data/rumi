@@ -101,11 +101,18 @@ denn eine Zuordnung ist keine fachliche Beziehung. Ist ein Element
 eingeschaltet, ist der passende Punkt im Inhalt-Menü gesperrt.
 
 Die Kästen stehen **neben ihrem Objekt**. Bei einer Anordnung nach unten oder
-oben (und bei „Organisch" und „Kreisförmig") stehen sie rechts davon, bei einer
-Anordnung nach links oder rechts darunter. Schaltet man ein Element ohne
+oben (und bei „Organisch") stehen sie rechts davon, bei einer Anordnung nach
+links oder rechts darunter. Bei „Kreisförmig" stehen sie **außerhalb des
+Kreises**, als Reihe hinter ihrem Objekt. Schaltet man ein Element ohne
 Neuanordnung ein, kommen die neuen Kästen rechts neben ihr Objekt. Die übrigen
-Kästen bleiben liegen. Wird ein Objekt ausgeblendet, verschwinden seine Kästen
-mit; einzeln aus- und einblenden lassen sie sich nicht.
+Kästen bleiben liegen.
+
+Wird ein Objekt **verschoben** — mit der Maus, den Pfeiltasten, über die
+Ausrichten-Leiste oder durch Anordnen eines markierten Bereichs —, wandern
+seine Kästen mit. Ein Kasten lässt sich auch allein greifen und an eine andere
+Stelle ziehen; sein Objekt bleibt dabei liegen. Wird ein Objekt ausgeblendet,
+verschwinden seine Kästen mit; einzeln aus- und einblenden lassen sie sich
+nicht.
 
 ## 4. Objekte finden und lesen
 
@@ -217,8 +224,9 @@ von Hand bearbeiteten.
 Strg+Z nimmt die letzte Aktion zurück, Strg+Y (oder Strg+Umschalt+Z) stellt sie
 wieder her; bis zu 20 Schritte. Das gilt für alles am Modell: Anordnen,
 Ausblenden, Kanten umlenken, Bearbeiten — sogar ein eingespieltes Delta lässt
-sich so wieder herausnehmen. Nicht im Verlauf steht der Schalter „Bearbeiten":
-eine Einstellung ist keine Aktion.
+sich so wieder herausnehmen. Auch jede **Einstellung** ist ein Schritt im
+Verlauf: Quelle/Domäne als eigene Elemente, „Geschäftsobjekte bearbeiten" und
+die Auswahl der Zusatzattribute.
 
 ## 8. Anordnen
 
@@ -230,7 +238,7 @@ Das Menü **Anordnen ▾** hat drei Abschnitte.
   Datenmodelle.
 - **Orthogonal** — wie hierarchisch, aber mit rechtwinkligen Kantenzügen.
 - **Organisch** — kräftebasiert, ohne feste Richtung.
-- **Kreisförmig** — die Objekte auf einem Kreis.
+- **Kreisförmig** — die Objekte auf einem Kreis, auch unverbundene.
 
 **Richtung** — `↓ ↑ → ←` (oben nach unten, unten nach oben, links nach rechts,
 rechts nach links). Sie gilt nur für die beiden hierarchischen Verfahren und
@@ -407,7 +415,7 @@ Ausgeschaltete bleiben in der Datei unberührt stehen, auch wenn das Attribut
 daneben geändert wird. Ein geleertes Feld bleibt als Platzhalter (`schema.org:`)
 stehen, wenn es schon in der Datei stand. Angeboten werden nur Einzelwerte;
 Listen und Abbildungen bleiben unangetastet. Die Auswahl wird wie der
-Bearbeiten-Schalter gemerkt und mitgegeben, ist aber keine Aktion im Verlauf.
+Bearbeiten-Schalter gemerkt und mitgegeben; Strg+Z nimmt sie zurück.
 
 ## 14. Laden, Speichern, Weitergeben
 

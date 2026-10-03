@@ -582,11 +582,22 @@ console.log('== Quelle und Domäne als eigene Kästen stehen neben ihrem Objekt 
       const g = makeGraph(m);
       ALGOS[k].fn(g.nodes, g.edges, dir);
       const anh = g.nodes.filter(n => n.eltern);
-      const rechts = !ALGOS[k].dir || dir === 'TB' || dir === 'BT';
-      const falsch = anh.filter(n => !neben(n, g.byId.get(n.eltern), rechts));
       const wo = `${f} ${k} ${dir}`;
-      t(`${wo}: alle ${anh.length} Anhängsel neben ihrem Objekt`, anh.length > 0 && !falsch.length,
-        falsch.slice(0, 3).map(n => n.id).join(', '));
+      if(k === 'circ'){
+        // Kreis: außen, also weiter vom Mittelpunkt (Schwerpunkt der Objekte) als ihr Objekt
+        const obj = g.nodes.filter(n => !n.eltern);
+        const cx = obj.reduce((s,n)=> s + n.x + n.w/2, 0) / obj.length;
+        const cy = obj.reduce((s,n)=> s + n.y + n.h/2, 0) / obj.length;
+        const ab = n => Math.hypot(n.x + n.w/2 - cx, n.y + n.h/2 - cy);
+        const innen = anh.filter(n => ab(n) <= ab(g.byId.get(n.eltern)));
+        t(`${wo}: alle ${anh.length} Anhängsel außerhalb des Kreises`, anh.length > 0 && !innen.length,
+          innen.slice(0, 3).map(n => n.id).join(', '));
+      } else {
+        const rechts = !ALGOS[k].dir || dir === 'TB' || dir === 'BT';
+        const falsch = anh.filter(n => !neben(n, g.byId.get(n.eltern), rechts));
+        t(`${wo}: alle ${anh.length} Anhängsel neben ihrem Objekt`, anh.length > 0 && !falsch.length,
+          falsch.slice(0, 3).map(n => n.id).join(', '));
+      }
       let bad = 0;
       for(let i = 0; i < g.nodes.length; i++) for(let j = i + 1; j < g.nodes.length; j++)
         if(overlaps(g.nodes[i], g.nodes[j])) bad++;

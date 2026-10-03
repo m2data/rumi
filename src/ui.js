@@ -51,7 +51,7 @@ function applyAutoLayout(g){
   if(!nodes.length) return;
   g.edges.forEach(e=>{ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  runByComponent(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  anordnen(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo);
   spreadLabels();                          // überlappende Beziehungs-Labels entzerren
 }
 
@@ -139,29 +139,18 @@ function writeStore(){
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:histStand()}));
-}
-
-/* Der Verlaufsstand ist der gespeicherte ohne die Einstellungen: eine
-   Einstellung ist keine Aktion am Modell. Stünde sie im Schnappschuss, würde
-   Strg+Z nach ein paar Schritten das Bearbeiten wieder abschalten. */
-function histStand(){
-  const b = layoutFile();
-  delete b.pflegeAn;
-  delete b.zusatzfelder;
-  delete b.elemente;
-  return b;
+  recordHistory(JSON.stringify({yaml:S.yamlText, stand:layoutFile()}));
 }
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
    Schnappschuss-basiert: jede gespeicherte Aktion (Verschieben, Anordnen,
-   Kante umlenken, Ein-/Ausblenden, Inhalt, Delta-Geschäftsobjekte) legt einen
-   Stand aus Modelltext und layoutFile() ab. Das Modell gehört dazu, damit auch
+   Kante umlenken, Ein-/Ausblenden, Inhalt, Delta-Geschäftsobjekte, jede
+   Einstellung) legt einen Stand aus Modelltext und layoutFile() ab. Das Modell gehört dazu, damit auch
    ein eingespieltes Delta rückgängig geht. Es werden die letzten 20 Aktionen
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:histStand()})]; histPos = 0; }
+function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -182,6 +171,9 @@ function restoreHistory(snap){
     }
     const beforeOutline = S.outlineText;
     adoptLayoutFile(p.stand);
+    // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
+    if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }
+    syncEinstMenu();
     // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
     if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
     if(S.mode === 'hierarchie'){
@@ -657,6 +649,7 @@ function updateAlignBar(){
 function alignSelection(mode){
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
   if(list.length < 2) return;
+  const vorher = new Map(list.map(n => [n.id, {x:n.x, y:n.y}]));
   const x0 = Math.min(...list.map(n=>n.x)), x1 = Math.max(...list.map(n=>n.x+n.w));
   const y0 = Math.min(...list.map(n=>n.y)), y1 = Math.max(...list.map(n=>n.y+n.h));
   const move = (n, nx, ny)=>{ n.x = Math.round(nx); n.y = Math.round(ny); };
@@ -680,9 +673,17 @@ function alignSelection(mode){
     let c = y0;
     s.forEach(n=>{ n.y = Math.round(c); c += n.h + gap; });
   }
-  // Umgelenkte Kanten zwischen bewegten Knoten sind danach nicht mehr stimmig
+  // Anhängsel folgen ihrem Objekt um denselben Versatz — außer sie sind selbst markiert
+  S.graph.nodes.forEach(n=>{
+    const v = vorher.get(n.eltern), p = S.graph.byId.get(n.eltern);
+    if(!v || S.sel.has(n.id)) return;
+    n.x += p.x - v.x; n.y += p.y - v.y;
+  });
+  // Umgelenkte Kanten zwischen bewegten Knoten sind danach nicht mehr stimmig;
+  // die Kante zum mitgewanderten Anhängsel bleibt es
   S.graph.edges.forEach(e=>{
-    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual){
+    const mit = vorher.has(e.from) && S.graph.byId.get(e.to).eltern === e.from && !S.sel.has(e.to);
+    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual && !mit){
       e.bends = null; e.portFrom = null; e.portTo = null;
     }
   });
@@ -834,7 +835,7 @@ const PFEIL = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,
    Stützpunkte bleiben liegen — es ändert sich also von selbst nur das Stück am
    bewegten Objekt. Gibt false zurück, wenn nichts markiert ist. */
 function moveSelection(dx, dy){
-  const ids = new Set([...S.sel].filter(id => isVisible(id)));
+  const ids = samtAnhaengseln([...S.sel].filter(id => isVisible(id)));
   if(!ids.size) return false;
   S.graph.edges.forEach(e=>{
     if(ids.has(e.from) && ids.has(e.to) && e.bends)
@@ -937,9 +938,12 @@ function syncLayoutMenu(){
    Plan bleibt liegen: die Auswahl wird nach dem Anordnen an ihre alte Mitte
    zurückgeschoben. Kanten mit einem Ende in der Auswahl werden neu gezogen. */
 function arrangeSelection(){
-  const sel = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
-  if(sel.length < 2){ toast('Mindestens zwei Objekte markieren'); return; }
-  const ids = new Set(sel.map(n => n.id));
+  const markiert = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
+  if(markiert.length < 2){ toast('Mindestens zwei Objekte markieren'); return; }
+  // Anhängsel der markierten Objekte werden mit angeordnet, das Verfahren
+  // setzt sie wieder neben ihr Objekt
+  const ids = samtAnhaengseln(markiert.map(n => n.id));
+  const sel = [...ids].map(id => S.graph.byId.get(id));
   const sub = S.graph.edges.filter(e => ids.has(e.from) && ids.has(e.to));
   const bbox = list=>{
     const x0 = Math.min(...list.map(n=>n.x)), y0 = Math.min(...list.map(n=>n.y));
@@ -951,7 +955,7 @@ function arrangeSelection(){
     if(ids.has(e.from) || ids.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; e.manual = false; }
   });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  runByComponent(sel, sub, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  anordnen(sel, sub, algo.dir ? S.layout.dir : 'TB', algo);
   const after = bbox(sel);
   const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
   sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte
@@ -959,7 +963,7 @@ function arrangeSelection(){
   spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   S.selEdge = null; persist(); draw();
   const a = ALGOS[S.layout.algo] || ALGOS.hier;
-  toast(sel.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');
+  toast(markiert.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');
 }
 
 function relayout(announce){

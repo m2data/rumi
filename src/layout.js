@@ -7,14 +7,24 @@ const ALGOS = {
   hier:  {name:'Hierarchisch', dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, false)},
   ortho: {name:'Orthogonal',   dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, true)},
   org:   {name:'Organisch',    dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, organic)},
-  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, circular)}
+  circ:  {name:'Kreisförmig',  dir:false, ganz:true, fn:(ns,es)=> kreisMitAnhaengseln(ns, es)}
 };
+
+/* Ein Verfahren anwenden. Meist je Zusammenhangskomponente (runByComponent);
+   der Kreis aber über alle Objekte auf EINEM Kreis: nur so liegen auch die
+   Anhängsel eines unverbundenen Objekts außerhalb — als eigene Komponente
+   hätte es keinen Kreis, und seine Anhängsel fielen auf „rechts" zurück. */
+function anordnen(nodes, edges, dir, algo){
+  if(algo.ganz) algo.fn(nodes, edges, dir);
+  else runByComponent(nodes, edges, dir, algo.fn);
+}
 
 /* Anhängsel (Quelle/Domäne als eigener Kasten, n.eltern gesetzt) stehen rechts
    neben ihrem Objekt, mehrere untereinander. Das Ebenenverfahren erledigt das
    selbst über seine Trabanten — es muss, weil die orthogonale Kantenführung
    die endgültigen Kästen braucht. Für Organisch und Kreisförmig: Anhängsel
-   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen. */
+   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen —
+   beim Kreis nicht rechts, sondern außen (kreisMitAnhaengseln). */
 const ANH_GAP = 24, ANH_SEP = 14;
 function anhaengselJeObjekt(nodes){
   const ids = new Set(nodes.map(n => n.id)), m = new Map();
@@ -60,6 +70,57 @@ function mitAnhaengseln(nodes, edges, fn){
     p.w = s.w; p.h = s.h;
     setzeRechts(p, list, edges);
   }
+}
+
+/* Kreis: Anhängsel stehen außerhalb, als Reihe quer zum Strahl vom
+   Kreismittelpunkt (Schwerpunkt der Objekte) durch ihr Objekt. Vorab wird das
+   Objekt in der Breite auf seine Reihe verbreitert, damit der Kreis genug
+   Bogenlänge freihält; die Tiefe braucht keine Reserve, außen ist mehr Umfang.
+   Gemessen an vier Modellen: so 0 Überlappungen, ohne Reserve 2 bis 6.
+   Ragt die Reihe bei schrägem Strahl noch über eine Ecke des Objekts, rückt
+   sie weiter hinaus. */
+function kreisMitAnhaengseln(nodes, edges){
+  const anh = anhaengselJeObjekt(nodes);
+  if(!anh.size){ circular(nodes, edges); return; }
+  const weg = new Set([...anh.values()].flat().map(n => n.id));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const objekte = nodes.filter(n => !weg.has(n.id));
+  const alt = new Map();
+  for(const [pid, list] of anh){
+    const p = byId.get(pid);
+    alt.set(pid, p.w);
+    p.w = Math.max(p.w, list.reduce((s,l)=> s + l.w + ANH_SEP, -ANH_SEP));
+  }
+  circular(objekte, edges.filter(e => !weg.has(e.from) && !weg.has(e.to)));
+  for(const [pid, w] of alt){ const p = byId.get(pid); p.x = Math.round(p.x + (p.w - w)/2); p.w = w; }
+
+  const cx = objekte.reduce((s,n)=> s + n.x + n.w/2, 0) / objekte.length;
+  const cy = objekte.reduce((s,n)=> s + n.y + n.h/2, 0) / objekte.length;
+  // Abstand von der Kastenmitte zum Rand entlang der Richtung (ux, uy)
+  const rand = (n, ux, uy)=> Math.min(Math.abs(ux) > 1e-9 ? (n.w/2) / Math.abs(ux) : Infinity,
+                                      Math.abs(uy) > 1e-9 ? (n.h/2) / Math.abs(uy) : Infinity);
+  for(const [pid, list] of anh){
+    const p = byId.get(pid), px = p.x + p.w/2, py = p.y + p.h/2;
+    const d = Math.hypot(px - cx, py - cy);
+    const ux = d > 1e-6 ? (px - cx)/d : 1, uy = d > 1e-6 ? (py - cy)/d : 0;   // einzelnes Objekt: rechts
+    const tx = -uy, ty = ux;
+    const quer = list.map(l => 2 * rand(l, tx, ty));
+    const breit = quer.reduce((a,b)=> a + b + ANH_SEP, -ANH_SEP);
+    const setze = r=>{
+      let t = -breit/2;
+      list.forEach((l,i)=>{
+        const m = t + quer[i]/2;
+        l.x = Math.round(px + ux*r + tx*m - l.w/2); l.y = Math.round(py + uy*r + ty*m - l.h/2);
+        t += quer[i] + ANH_SEP;
+      });
+    };
+    const frei = ()=> list.every(l => !(l.x < p.x + p.w + ANH_GAP/2 && p.x - ANH_GAP/2 < l.x + l.w
+                                     && l.y < p.y + p.h + ANH_GAP/2 && p.y - ANH_GAP/2 < l.y + l.h));
+    let r = rand(p, ux, uy) + ANH_GAP + Math.max(...list.map(l => rand(l, ux, uy)));
+    setze(r);
+    while(!frei()){ r += 4; setze(r); }
+  }
+  edges.forEach(e=>{ if(weg.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; } });
 }
 
 /* Anhängsel ohne gemerkte Lage an ein schon gelegtes Objekt setzen (Einstellung

@@ -303,10 +303,12 @@ console.log('== Einstellung: Bearbeiten ist zunächst aus ==');
   dispatch($('btnEinst'), 'click', {});
   t('ein zweiter Klick auf den Knopf schließt das Menü', !$('einstMenu').classList.contains('open'));
 
-  // Die Einstellung ist keine Aktion am Modell: Strg+Z darf sie nicht mitnehmen.
-  api.undo(); api.undo();
-  t('Rückgängig schaltet die Pflege nicht wieder ab', S.pflegeAn === true);
-  api.redo(); api.redo();
+  // Strg+Z nimmt auch Einstellungen zurück, Strg+Y bringt sie wieder.
+  api.undo();
+  t('Rückgängig schaltet die Pflege wieder ab', S.pflegeAn === false);
+  t('und nimmt den „Bearbeiten"-Knopf mit', !detail().querySelector('[data-edit]'));
+  api.redo();
+  t('Wiederherstellen schaltet sie wieder ein', S.pflegeAn === true);
 }
 
 console.log('== Ausschalten schließt ein offenes Formular ==');
@@ -757,8 +759,12 @@ console.log('== Bedienweg: Zusatzattribute einschalten und pflegen ==');
   t('die Einstellung wird gemerkt', gemerkt.zusatzfelder && gemerkt.zusatzfelder.objekt.join(',') === 'schema.org');
   api.undo();
   t('Rückgängig nimmt die Bearbeitung zurück', !S.model.objects.Bestellung.extra['schema.org']);
-  t('aber nicht die Einstellung', S.zusatzAn.objekt.join(',') === 'schema.org');
-  api.redo();
+  t('zunächst nicht die Einstellung', S.zusatzAn.objekt.join(',') === 'schema.org');
+  api.undo();
+  t('ein Schritt weiter auch die Einstellung', S.zusatzAn.objekt.length === 0, S.zusatzAn.objekt.join(','));
+  api.redo(); api.redo();
+  t('Wiederherstellen bringt beides zurück', S.zusatzAn.objekt.join(',') === 'schema.org'
+    && S.model.objects.Bestellung.extra['schema.org'] === 'https://schema.org/Order');
 
   dispatch($('optZusatz'), 'click', {});
   const aus = $('zusatzListe').querySelector('input[data-k="schema.org"]');

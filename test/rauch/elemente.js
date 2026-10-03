@@ -63,6 +63,61 @@ console.log('== Komplettansicht: Domäne als eigenes Element ==');
   t('die Kante wird gezeichnet', /class="eg domaene/.test(document.getElementById('edges').innerHTML));
 }
 
+console.log('== Kreisförmig: Anhängsel außerhalb des Kreises ==');
+{
+  /* Über das Menü, also den Weg der App: unverbundene Objekte (href_termintreue)
+     liegen mit auf dem Kreis, sonst fielen ihre Anhängsel auf „rechts" zurück. */
+  const vorher = S.layout.algo;
+  [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
+    .find(b => b.dataset.algo === 'circ').onclick();
+  const obj = S.graph.nodes.filter(n => !n.eltern && !n.hidden);
+  const cx = obj.reduce((s,n)=> s + n.x + n.w/2, 0) / obj.length;
+  const cy = obj.reduce((s,n)=> s + n.y + n.h/2, 0) / obj.length;
+  const ab = n => Math.hypot(n.x + n.w/2 - cx, n.y + n.h/2 - cy);
+  const innen = anh().filter(n => ab(n) <= ab(S.graph.byId.get(n.eltern)));
+  t('alle Anhängsel liegen außen', anh().length > 0 && !innen.length, innen.map(n => n.id).join(', '));
+  [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
+    .find(b => b.dataset.algo === vorher).onclick();
+}
+
+console.log('== Ziehen: Anhängsel wandern mit, lassen sich aber allein ziehen ==');
+{
+  const svg = document.getElementById('canvas');
+  const kasten = id => [...document.getElementById('nodes').querySelectorAll('.node')].find(g => g.dataset.id === id);
+  const lage = id => { const n = S.graph.byId.get(id); return {x:n.x, y:n.y}; };
+  const ziehe = (id, dx, dy)=>{
+    dispatch(kasten(id), 'pointerdown', {clientX:0, clientY:0});
+    dispatch(svg, 'pointermove', {clientX:dx, clientY:dy});
+    dispatch(svg, 'pointerup', {clientX:dx, clientY:dy});
+  };
+  api.setSelection([]);
+  const id = 'o:Bestellung';
+  const eigene = anh().filter(n => n.eltern === id).map(n => n.id);
+  const objVor = lage(id), anhVor = eigene.map(lage);
+  ziehe(id, 60, 30);
+  const ddx = lage(id).x - objVor.x, ddy = lage(id).y - objVor.y;
+  t('das Objekt ist gewandert', ddx !== 0 || ddy !== 0);
+  t('seine Anhängsel um denselben Versatz', eigene.length > 0 &&
+    eigene.every((a, i)=> lage(a).x - anhVor[i].x === ddx && lage(a).y - anhVor[i].y === ddy),
+    eigene.map((a, i)=> (lage(a).x - anhVor[i].x) + '/' + (lage(a).y - anhVor[i].y)).join(' ') + ' statt ' + ddx + '/' + ddy);
+  t('markiert ist nur das Objekt', S.sel.size === 1 && S.sel.has(id));
+
+  api.setSelection([]);
+  const einer = eigene[0], objFest = lage(id), einerVor = lage(einer);
+  ziehe(einer, 40, 40);
+  t('ein Anhängsel lässt sich allein ziehen', lage(einer).x !== einerVor.x || lage(einer).y !== einerVor.y);
+  t('sein Objekt bleibt dabei liegen', lage(id).x === objFest.x && lage(id).y === objFest.y);
+
+  // Pfeiltasten: dasselbe
+  api.setSelection([id]);
+  const p0 = lage(id), a0 = eigene.map(lage);
+  dispatch(svg, 'keydown', {key:'ArrowRight'});
+  const px = lage(id).x - p0.x;
+  t('Pfeiltaste verschiebt das Objekt', px > 0);
+  t('und seine Anhängsel mit', eigene.every((a, i)=> lage(a).x - a0[i].x === px));
+  api.setSelection([]);
+}
+
 console.log('== Anhängsel gehen mit ihrem Objekt ==');
 {
   const id = 'o:Bestellung';
@@ -84,8 +139,21 @@ console.log('== Einstellung wird gemerkt ==');
   await api.loadYaml(S.yamlText, S.fileName, stand);
   t('ein geladener Stand bringt seine Einstellung mit',
     S.elemente.quelle === false && S.elemente.domaene === true && anh().every(n => n.kind === 'domain') && anh().length > 0);
-  api.undo();
-  t('Rückgängig schaltet die Einstellung nicht um', S.elemente.domaene === true);
+}
+
+console.log('== Strg+Z nimmt die Einstellung zurück ==');
+{
+  const vor = S.elemente.quelle;
+  haken('optQuelle');
+  t('umgeschaltet', S.elemente.quelle === !vor);
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'z', ctrlKey:true});
+  t('Strg+Z stellt den Haken zurück', S.elemente.quelle === vor);
+  t('die Kästen folgen', anh().some(n => n.kind === 'source') === vor);
+  t('und das Menü zeigt den alten Stand',
+    document.getElementById('optQuelle').getAttribute('aria-checked') === String(vor));
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'y', ctrlKey:true});
+  t('Strg+Y schaltet wieder um', S.elemente.quelle === !vor);
+  haken('optQuelle');                         // Ausgangsstand für die folgenden Abschnitte
 }
 
 console.log('== Hierarchie: dieselben Elemente, nur für sichtbare Objekte ==');

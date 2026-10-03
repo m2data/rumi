@@ -233,7 +233,9 @@ svg.addEventListener('pointerdown', ev=>{
     // Wird ein Knoten aus der Auswahl gegriffen, wandert die ganze Auswahl mit.
     // Bei additivem Klick nicht vorwählen — das erledigt select() beim Loslassen.
     if(!wasSel && !additive) setSelection([n.id]);
-    const moving = new Set(S.sel.size ? S.sel : [n.id]);
+    // Anhängsel der gegriffenen Objekte wandern mit, ohne markiert zu werden;
+    // ein allein gegriffenes Anhängsel nimmt nichts mit.
+    const moving = samtAnhaengseln(S.sel.size ? S.sel : [n.id]);
     const items = [...moving].map(id=>{
       const nn = S.graph.byId.get(id);
       return nn && !nn.hidden

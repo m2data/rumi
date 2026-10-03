@@ -57,7 +57,7 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   um ein Rasterfeld), **Entf** blendet sie aus.
   **Rückgängig/Wiederherstellen** der letzten 20 Aktionen mit
   Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z); auch ein eingespieltes
-  Delta-Modell lässt sich so wieder herausnehmen.
+  Delta-Modell und jede geänderte Einstellung lassen sich so zurücknehmen.
 - **Inhalt**: wählen, was im Kasten steht (Beschreibung, Domain,
   Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
 - **Suchen**: das Feld über den Reitern der Seitenleiste — also aus jedem

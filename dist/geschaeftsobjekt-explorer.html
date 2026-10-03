@@ -1210,14 +1210,24 @@ const ALGOS = {
   hier:  {name:'Hierarchisch', dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, false)},
   ortho: {name:'Orthogonal',   dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, true)},
   org:   {name:'Organisch',    dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, organic)},
-  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, circular)}
+  circ:  {name:'Kreisförmig',  dir:false, ganz:true, fn:(ns,es)=> kreisMitAnhaengseln(ns, es)}
 };
+
+/* Ein Verfahren anwenden. Meist je Zusammenhangskomponente (runByComponent);
+   der Kreis aber über alle Objekte auf EINEM Kreis: nur so liegen auch die
+   Anhängsel eines unverbundenen Objekts außerhalb — als eigene Komponente
+   hätte es keinen Kreis, und seine Anhängsel fielen auf „rechts" zurück. */
+function anordnen(nodes, edges, dir, algo){
+  if(algo.ganz) algo.fn(nodes, edges, dir);
+  else runByComponent(nodes, edges, dir, algo.fn);
+}
 
 /* Anhängsel (Quelle/Domäne als eigener Kasten, n.eltern gesetzt) stehen rechts
    neben ihrem Objekt, mehrere untereinander. Das Ebenenverfahren erledigt das
    selbst über seine Trabanten — es muss, weil die orthogonale Kantenführung
    die endgültigen Kästen braucht. Für Organisch und Kreisförmig: Anhängsel
-   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen. */
+   herausnehmen, das Objekt um sie verbreitern, anordnen, dann ansetzen —
+   beim Kreis nicht rechts, sondern außen (kreisMitAnhaengseln). */
 const ANH_GAP = 24, ANH_SEP = 14;
 function anhaengselJeObjekt(nodes){
   const ids = new Set(nodes.map(n => n.id)), m = new Map();
@@ -1263,6 +1273,57 @@ function mitAnhaengseln(nodes, edges, fn){
     p.w = s.w; p.h = s.h;
     setzeRechts(p, list, edges);
   }
+}
+
+/* Kreis: Anhängsel stehen außerhalb, als Reihe quer zum Strahl vom
+   Kreismittelpunkt (Schwerpunkt der Objekte) durch ihr Objekt. Vorab wird das
+   Objekt in der Breite auf seine Reihe verbreitert, damit der Kreis genug
+   Bogenlänge freihält; die Tiefe braucht keine Reserve, außen ist mehr Umfang.
+   Gemessen an vier Modellen: so 0 Überlappungen, ohne Reserve 2 bis 6.
+   Ragt die Reihe bei schrägem Strahl noch über eine Ecke des Objekts, rückt
+   sie weiter hinaus. */
+function kreisMitAnhaengseln(nodes, edges){
+  const anh = anhaengselJeObjekt(nodes);
+  if(!anh.size){ circular(nodes, edges); return; }
+  const weg = new Set([...anh.values()].flat().map(n => n.id));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const objekte = nodes.filter(n => !weg.has(n.id));
+  const alt = new Map();
+  for(const [pid, list] of anh){
+    const p = byId.get(pid);
+    alt.set(pid, p.w);
+    p.w = Math.max(p.w, list.reduce((s,l)=> s + l.w + ANH_SEP, -ANH_SEP));
+  }
+  circular(objekte, edges.filter(e => !weg.has(e.from) && !weg.has(e.to)));
+  for(const [pid, w] of alt){ const p = byId.get(pid); p.x = Math.round(p.x + (p.w - w)/2); p.w = w; }
+
+  const cx = objekte.reduce((s,n)=> s + n.x + n.w/2, 0) / objekte.length;
+  const cy = objekte.reduce((s,n)=> s + n.y + n.h/2, 0) / objekte.length;
+  // Abstand von der Kastenmitte zum Rand entlang der Richtung (ux, uy)
+  const rand = (n, ux, uy)=> Math.min(Math.abs(ux) > 1e-9 ? (n.w/2) / Math.abs(ux) : Infinity,
+                                      Math.abs(uy) > 1e-9 ? (n.h/2) / Math.abs(uy) : Infinity);
+  for(const [pid, list] of anh){
+    const p = byId.get(pid), px = p.x + p.w/2, py = p.y + p.h/2;
+    const d = Math.hypot(px - cx, py - cy);
+    const ux = d > 1e-6 ? (px - cx)/d : 1, uy = d > 1e-6 ? (py - cy)/d : 0;   // einzelnes Objekt: rechts
+    const tx = -uy, ty = ux;
+    const quer = list.map(l => 2 * rand(l, tx, ty));
+    const breit = quer.reduce((a,b)=> a + b + ANH_SEP, -ANH_SEP);
+    const setze = r=>{
+      let t = -breit/2;
+      list.forEach((l,i)=>{
+        const m = t + quer[i]/2;
+        l.x = Math.round(px + ux*r + tx*m - l.w/2); l.y = Math.round(py + uy*r + ty*m - l.h/2);
+        t += quer[i] + ANH_SEP;
+      });
+    };
+    const frei = ()=> list.every(l => !(l.x < p.x + p.w + ANH_GAP/2 && p.x - ANH_GAP/2 < l.x + l.w
+                                     && l.y < p.y + p.h + ANH_GAP/2 && p.y - ANH_GAP/2 < l.y + l.h));
+    let r = rand(p, ux, uy) + ANH_GAP + Math.max(...list.map(l => rand(l, ux, uy)));
+    setze(r);
+    while(!frei()){ r += 4; setze(r); }
+  }
+  edges.forEach(e=>{ if(weg.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; } });
 }
 
 /* Anhängsel ohne gemerkte Lage an ein schon gelegtes Objekt setzen (Einstellung
@@ -3601,6 +3662,12 @@ function initSvg(){
 const isVisible = id => { const n = S.graph.byId.get(id); return n && !n.hidden; };
 const visNodes = ()=> S.graph.nodes.filter(n => !n.hidden);
 const visEdges = ()=> S.graph.edges.filter(e => isVisible(e.from) && isVisible(e.to));
+// Wer ein Objekt bewegt, bewegt seine Anhängsel (Quelle/Domäne) mit
+const samtAnhaengseln = ids => {
+  const s = new Set(ids);
+  S.graph.nodes.forEach(n=>{ if(n.eltern && s.has(n.eltern)) s.add(n.id); });
+  return s;
+};
 
 /* Suchtreffer. Gesucht wird nicht nur im Objektnamen, sondern in allem, was
    das Objekt beschreibt: Domain, Business Keys, Quellen, Attributnamen samt
@@ -4382,7 +4449,9 @@ svg.addEventListener('pointerdown', ev=>{
     // Wird ein Knoten aus der Auswahl gegriffen, wandert die ganze Auswahl mit.
     // Bei additivem Klick nicht vorwählen — das erledigt select() beim Loslassen.
     if(!wasSel && !additive) setSelection([n.id]);
-    const moving = new Set(S.sel.size ? S.sel : [n.id]);
+    // Anhängsel der gegriffenen Objekte wandern mit, ohne markiert zu werden;
+    // ein allein gegriffenes Anhängsel nimmt nichts mit.
+    const moving = samtAnhaengseln(S.sel.size ? S.sel : [n.id]);
     const items = [...moving].map(id=>{
       const nn = S.graph.byId.get(id);
       return nn && !nn.hidden
@@ -5752,8 +5821,8 @@ function zusatzAuf(){
 }
 function zusatzZu(){ $('zusatzDlg').hidden = true; }
 
-/* Wie der Pflegeschalter keine Aktion am Modell: gemerkt, aber nicht im
-   Verlauf. Ein offenes Formular behält, was schon getippt ist. */
+/* Wie der Pflegeschalter gemerkt und ein Schritt im Verlauf. Ein offenes
+   Formular behält, was schon getippt ist. */
 function zusatzSchalten(ebene, k, an){
   pfLesen();
   const liste = S.zusatzAn[ebene].filter(x => x !== k);
@@ -5769,9 +5838,9 @@ function zusatzSchalten(ebene, k, an){
 }
 
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
-   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt, aber
-   nicht im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen setzt
-   der Aufbau rechts neben ihr Objekt. */
+   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt und
+   ein Schritt im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen
+   setzt der Aufbau rechts neben ihr Objekt. */
 function elementSchalten(k){
   S.elemente = Object.assign({}, S.elemente, {[k]: !S.elemente[k]});
   syncEinstMenu();
@@ -5844,7 +5913,7 @@ function applyAutoLayout(g){
   if(!nodes.length) return;
   g.edges.forEach(e=>{ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  runByComponent(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  anordnen(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo);
   spreadLabels();                          // überlappende Beziehungs-Labels entzerren
 }
 
@@ -5932,29 +6001,18 @@ function writeStore(){
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:histStand()}));
-}
-
-/* Der Verlaufsstand ist der gespeicherte ohne die Einstellungen: eine
-   Einstellung ist keine Aktion am Modell. Stünde sie im Schnappschuss, würde
-   Strg+Z nach ein paar Schritten das Bearbeiten wieder abschalten. */
-function histStand(){
-  const b = layoutFile();
-  delete b.pflegeAn;
-  delete b.zusatzfelder;
-  delete b.elemente;
-  return b;
+  recordHistory(JSON.stringify({yaml:S.yamlText, stand:layoutFile()}));
 }
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
    Schnappschuss-basiert: jede gespeicherte Aktion (Verschieben, Anordnen,
-   Kante umlenken, Ein-/Ausblenden, Inhalt, Delta-Geschäftsobjekte) legt einen
-   Stand aus Modelltext und layoutFile() ab. Das Modell gehört dazu, damit auch
+   Kante umlenken, Ein-/Ausblenden, Inhalt, Delta-Geschäftsobjekte, jede
+   Einstellung) legt einen Stand aus Modelltext und layoutFile() ab. Das Modell gehört dazu, damit auch
    ein eingespieltes Delta rückgängig geht. Es werden die letzten 20 Aktionen
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:histStand()})]; histPos = 0; }
+function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -5975,6 +6033,9 @@ function restoreHistory(snap){
     }
     const beforeOutline = S.outlineText;
     adoptLayoutFile(p.stand);
+    // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
+    if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }
+    syncEinstMenu();
     // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
     if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
     if(S.mode === 'hierarchie'){
@@ -6450,6 +6511,7 @@ function updateAlignBar(){
 function alignSelection(mode){
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
   if(list.length < 2) return;
+  const vorher = new Map(list.map(n => [n.id, {x:n.x, y:n.y}]));
   const x0 = Math.min(...list.map(n=>n.x)), x1 = Math.max(...list.map(n=>n.x+n.w));
   const y0 = Math.min(...list.map(n=>n.y)), y1 = Math.max(...list.map(n=>n.y+n.h));
   const move = (n, nx, ny)=>{ n.x = Math.round(nx); n.y = Math.round(ny); };
@@ -6473,9 +6535,17 @@ function alignSelection(mode){
     let c = y0;
     s.forEach(n=>{ n.y = Math.round(c); c += n.h + gap; });
   }
-  // Umgelenkte Kanten zwischen bewegten Knoten sind danach nicht mehr stimmig
+  // Anhängsel folgen ihrem Objekt um denselben Versatz — außer sie sind selbst markiert
+  S.graph.nodes.forEach(n=>{
+    const v = vorher.get(n.eltern), p = S.graph.byId.get(n.eltern);
+    if(!v || S.sel.has(n.id)) return;
+    n.x += p.x - v.x; n.y += p.y - v.y;
+  });
+  // Umgelenkte Kanten zwischen bewegten Knoten sind danach nicht mehr stimmig;
+  // die Kante zum mitgewanderten Anhängsel bleibt es
   S.graph.edges.forEach(e=>{
-    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual){
+    const mit = vorher.has(e.from) && S.graph.byId.get(e.to).eltern === e.from && !S.sel.has(e.to);
+    if((S.sel.has(e.from) || S.sel.has(e.to)) && !e.manual && !mit){
       e.bends = null; e.portFrom = null; e.portTo = null;
     }
   });
@@ -6627,7 +6697,7 @@ const PFEIL = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,
    Stützpunkte bleiben liegen — es ändert sich also von selbst nur das Stück am
    bewegten Objekt. Gibt false zurück, wenn nichts markiert ist. */
 function moveSelection(dx, dy){
-  const ids = new Set([...S.sel].filter(id => isVisible(id)));
+  const ids = samtAnhaengseln([...S.sel].filter(id => isVisible(id)));
   if(!ids.size) return false;
   S.graph.edges.forEach(e=>{
     if(ids.has(e.from) && ids.has(e.to) && e.bends)
@@ -6730,9 +6800,12 @@ function syncLayoutMenu(){
    Plan bleibt liegen: die Auswahl wird nach dem Anordnen an ihre alte Mitte
    zurückgeschoben. Kanten mit einem Ende in der Auswahl werden neu gezogen. */
 function arrangeSelection(){
-  const sel = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
-  if(sel.length < 2){ toast('Mindestens zwei Objekte markieren'); return; }
-  const ids = new Set(sel.map(n => n.id));
+  const markiert = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden);
+  if(markiert.length < 2){ toast('Mindestens zwei Objekte markieren'); return; }
+  // Anhängsel der markierten Objekte werden mit angeordnet, das Verfahren
+  // setzt sie wieder neben ihr Objekt
+  const ids = samtAnhaengseln(markiert.map(n => n.id));
+  const sel = [...ids].map(id => S.graph.byId.get(id));
   const sub = S.graph.edges.filter(e => ids.has(e.from) && ids.has(e.to));
   const bbox = list=>{
     const x0 = Math.min(...list.map(n=>n.x)), y0 = Math.min(...list.map(n=>n.y));
@@ -6744,7 +6817,7 @@ function arrangeSelection(){
     if(ids.has(e.from) || ids.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; e.manual = false; }
   });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  runByComponent(sel, sub, algo.dir ? S.layout.dir : 'TB', algo.fn);
+  anordnen(sel, sub, algo.dir ? S.layout.dir : 'TB', algo);
   const after = bbox(sel);
   const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
   sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte
@@ -6752,7 +6825,7 @@ function arrangeSelection(){
   spreadLabels(S.graph.edges.filter(e => ids.has(e.from) || ids.has(e.to)));
   S.selEdge = null; persist(); draw();
   const a = ALGOS[S.layout.algo] || ALGOS.hier;
-  toast(sel.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');
+  toast(markiert.length + ' Objekte angeordnet (' + (a.dir ? a.name + ', ' + DIR_NAME[S.layout.dir] : a.name) + ')');
 }
 
 function relayout(announce){

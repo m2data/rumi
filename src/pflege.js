@@ -643,8 +643,8 @@ function zusatzAuf(){
 }
 function zusatzZu(){ $('zusatzDlg').hidden = true; }
 
-/* Wie der Pflegeschalter keine Aktion am Modell: gemerkt, aber nicht im
-   Verlauf. Ein offenes Formular behält, was schon getippt ist. */
+/* Wie der Pflegeschalter gemerkt und ein Schritt im Verlauf. Ein offenes
+   Formular behält, was schon getippt ist. */
 function zusatzSchalten(ebene, k, an){
   pfLesen();
   const liste = S.zusatzAn[ebene].filter(x => x !== k);
@@ -660,9 +660,9 @@ function zusatzSchalten(ebene, k, an){
 }
 
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
-   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt, aber
-   nicht im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen setzt
-   der Aufbau rechts neben ihr Objekt. */
+   Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt und
+   ein Schritt im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen
+   setzt der Aufbau rechts neben ihr Objekt. */
 function elementSchalten(k){
   S.elemente = Object.assign({}, S.elemente, {[k]: !S.elemente[k]});
   syncEinstMenu();
