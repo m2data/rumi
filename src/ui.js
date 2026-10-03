@@ -51,7 +51,7 @@ function applyAutoLayout(g){
   if(!nodes.length) return;
   g.edges.forEach(e=>{ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  anordnen(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo);
+  runByComponent(nodes, edges, algo.dir ? S.layout.dir : 'TB', algo.fn);
   spreadLabels();                          // überlappende Beziehungs-Labels entzerren
 }
 
@@ -955,7 +955,7 @@ function arrangeSelection(){
     if(ids.has(e.from) || ids.has(e.to)){ e.bends = null; e.ortho = false; e.portFrom = null; e.portTo = null; e.manual = false; }
   });
   const algo = ALGOS[S.layout.algo] || ALGOS.hier;
-  anordnen(sel, sub, algo.dir ? S.layout.dir : 'TB', algo);
+  runByComponent(sel, sub, algo.dir ? S.layout.dir : 'TB', algo.fn);
   const after = bbox(sel);
   const dx = Math.round(before.cx - after.cx), dy = Math.round(before.cy - after.cy);
   sel.forEach(n=>{ n.x += dx; n.y += dy; });    // zurück an die alte Mitte

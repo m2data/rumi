@@ -103,7 +103,8 @@ eingeschaltet, ist der passende Punkt im Inhalt-Menü gesperrt.
 Die Kästen stehen **neben ihrem Objekt**. Bei einer Anordnung nach unten oder
 oben (und bei „Organisch") stehen sie rechts davon, bei einer Anordnung nach
 links oder rechts darunter. Bei „Kreisförmig" stehen sie **außerhalb des
-Kreises**, als Reihe hinter ihrem Objekt. Schaltet man ein Element ohne
+Kreises**, als Reihe hinter ihrem Objekt; ein unverbundenes Objekt steht
+neben dem Kreis, seine Kästen rechts davon. Schaltet man ein Element ohne
 Neuanordnung ein, kommen die neuen Kästen rechts neben ihr Objekt. Die übrigen
 Kästen bleiben liegen.
 
@@ -238,7 +239,7 @@ Das Menü **Anordnen ▾** hat drei Abschnitte.
   Datenmodelle.
 - **Orthogonal** — wie hierarchisch, aber mit rechtwinkligen Kantenzügen.
 - **Organisch** — kräftebasiert, ohne feste Richtung.
-- **Kreisförmig** — die Objekte auf einem Kreis, auch unverbundene.
+- **Kreisförmig** — die Objekte auf einem Kreis.
 
 **Richtung** — `↓ ↑ → ←` (oben nach unten, unten nach oben, links nach rechts,
 rechts nach links). Sie gilt nur für die beiden hierarchischen Verfahren und

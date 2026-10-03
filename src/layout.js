@@ -7,17 +7,8 @@ const ALGOS = {
   hier:  {name:'Hierarchisch', dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, false)},
   ortho: {name:'Orthogonal',   dir:true,  fn:(ns,es,dir)=> layered(ns, es, dir, true)},
   org:   {name:'Organisch',    dir:false, fn:(ns,es)=> mitAnhaengseln(ns, es, organic)},
-  circ:  {name:'Kreisförmig',  dir:false, ganz:true, fn:(ns,es)=> kreisMitAnhaengseln(ns, es)}
+  circ:  {name:'Kreisförmig',  dir:false, fn:(ns,es)=> kreisMitAnhaengseln(ns, es)}
 };
-
-/* Ein Verfahren anwenden. Meist je Zusammenhangskomponente (runByComponent);
-   der Kreis aber über alle Objekte auf EINEM Kreis: nur so liegen auch die
-   Anhängsel eines unverbundenen Objekts außerhalb — als eigene Komponente
-   hätte es keinen Kreis, und seine Anhängsel fielen auf „rechts" zurück. */
-function anordnen(nodes, edges, dir, algo){
-  if(algo.ganz) algo.fn(nodes, edges, dir);
-  else runByComponent(nodes, edges, dir, algo.fn);
-}
 
 /* Anhängsel (Quelle/Domäne als eigener Kasten, n.eltern gesetzt) stehen rechts
    neben ihrem Objekt, mehrere untereinander. Das Ebenenverfahren erledigt das
@@ -78,7 +69,8 @@ function mitAnhaengseln(nodes, edges, fn){
    Bogenlänge freihält; die Tiefe braucht keine Reserve, außen ist mehr Umfang.
    Gemessen an vier Modellen: so 0 Überlappungen, ohne Reserve 2 bis 6.
    Ragt die Reihe bei schrägem Strahl noch über eine Ecke des Objekts, rückt
-   sie weiter hinaus. */
+   sie weiter hinaus. Angeordnet wird je Zusammenhangskomponente: ein
+   unverbundenes Objekt steht neben dem Kreis, seine Anhängsel rechts davon. */
 function kreisMitAnhaengseln(nodes, edges){
   const anh = anhaengselJeObjekt(nodes);
   if(!anh.size){ circular(nodes, edges); return; }

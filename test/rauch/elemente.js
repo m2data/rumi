@@ -65,17 +65,26 @@ console.log('== Komplettansicht: Domäne als eigenes Element ==');
 
 console.log('== Kreisförmig: Anhängsel außerhalb des Kreises ==');
 {
-  /* Über das Menü, also den Weg der App: unverbundene Objekte (href_termintreue)
-     liegen mit auf dem Kreis, sonst fielen ihre Anhängsel auf „rechts" zurück. */
+  /* Über das Menü, also den Weg der App (je Zusammenhangskomponente). Ein
+     unverbundenes Objekt (href_termintreue) steht neben dem Kreis, seine
+     Anhängsel rechts davon. */
   const vorher = S.layout.algo;
   [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
     .find(b => b.dataset.algo === 'circ').onclick();
-  const obj = S.graph.nodes.filter(n => !n.eltern && !n.hidden);
+  const rel = S.graph.edges.filter(e => e.kind === 'rel');
+  const verbunden = n => rel.some(e => e.from === n.id || e.to === n.id);
+  const obj = S.graph.nodes.filter(n => !n.eltern && !n.hidden && verbunden(n));
   const cx = obj.reduce((s,n)=> s + n.x + n.w/2, 0) / obj.length;
   const cy = obj.reduce((s,n)=> s + n.y + n.h/2, 0) / obj.length;
   const ab = n => Math.hypot(n.x + n.w/2 - cx, n.y + n.h/2 - cy);
-  const innen = anh().filter(n => ab(n) <= ab(S.graph.byId.get(n.eltern)));
-  t('alle Anhängsel liegen außen', anh().length > 0 && !innen.length, innen.map(n => n.id).join(', '));
+  const amKreis = anh().filter(n => verbunden(S.graph.byId.get(n.eltern)));
+  const innen = amKreis.filter(n => ab(n) <= ab(S.graph.byId.get(n.eltern)));
+  t('alle Anhängsel am Kreis liegen außen', amKreis.length > 0 && !innen.length, innen.map(n => n.id).join(', '));
+  const allein = S.graph.byId.get('o:href_termintreue');
+  const kreisRand = Math.max(...obj.map(n => ab(n) + Math.hypot(n.w, n.h)/2));
+  t('das unverbundene Objekt steht neben dem Kreis', ab(allein) > kreisRand, Math.round(ab(allein)) + ' / ' + Math.round(kreisRand));
+  const seine = anh().filter(n => n.eltern === allein.id);
+  t('seine Anhängsel stehen rechts davon', seine.length > 0 && seine.every(n => n.x >= allein.x + allein.w));
   [...document.getElementById('layoutMenu').querySelectorAll('.opt[data-algo]')]
     .find(b => b.dataset.algo === vorher).onclick();
 }
