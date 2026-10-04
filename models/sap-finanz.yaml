@@ -8,7 +8,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - KundeID
-    sources:
+    source_systems:
       - KNA1
     attributes:
       - name: Mandant
@@ -105,7 +105,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - MaterialID
-    sources:
+    source_systems:
       - MARA
     attributes:
       - name: Mandant
@@ -186,7 +186,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - WerkID
-    sources:
+    source_systems:
       - T001W
     attributes:
       - name: Mandant
@@ -262,7 +262,7 @@ BusinessObjects:
       - Mandant
       - MaterialID
       - WerkID
-    sources:
+    source_systems:
       - MARC
     attributes:
       - name: Mandant
@@ -360,7 +360,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - BestellungID
-    sources:
+    source_systems:
       - EKKO
     attributes:
       - name: Mandant
@@ -446,7 +446,7 @@ BusinessObjects:
       - Mandant
       - BestellungID
       - BestellpositionID
-    sources:
+    source_systems:
       - EKPO
     attributes:
       - name: Mandant
@@ -543,7 +543,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - AuftragID
-    sources:
+    source_systems:
       - VBAK
     attributes:
       - name: Mandant
@@ -637,7 +637,7 @@ BusinessObjects:
       - Mandant
       - AuftragID
       - AuftragspositionID
-    sources:
+    source_systems:
       - VBAP
     attributes:
       - name: Mandant
@@ -731,7 +731,7 @@ BusinessObjects:
     business_keys:
       - Mandant
       - RechnungID
-    sources:
+    source_systems:
       - VBRK
     attributes:
       - name: Mandant
@@ -830,7 +830,7 @@ BusinessObjects:
       - Mandant
       - RechnungID
       - RechnungspositionID
-    sources:
+    source_systems:
       - VBRP
     attributes:
       - name: Mandant

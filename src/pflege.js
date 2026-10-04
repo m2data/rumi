@@ -27,7 +27,7 @@ const PF_FELDER = [
   {rolle:'domain',  keys:['Domain','domain']},
   {rolle:'desc',    keys:['desc','beschreibung','description']},
   {rolle:'keys',    keys:['business_keys','BusinessKeys']},
-  {rolle:'sources', keys:['sources']},
+  {rolle:'sources', keys:['source_systems','sources']},
   {rolle:'attrs',   keys:['attributes']},
   {rolle:'rels',    keys:['relationships']}
 ];
@@ -102,7 +102,7 @@ const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
 
 /* Die Kopfzeile eines Listenfeldes. Steht hinter dem Doppelpunkt nichts (oder
    nur ein Kommentar), bleibt die vorhandene Zeile Zeichen für Zeichen stehen.
-   Trägt sie schon einen Wert — „sources: []" schreiben andere Werkzeuge so, und
+   Trägt sie schon einen Wert — „source_systems: []" schreiben andere Werkzeuge so, und
    eine Inline-Liste „[Q1]" ebenso —, taugt sie nicht als Kopf einer Blockliste:
    die Einträge darunter ergäben kein YAML mehr, und das Gepflegte wäre beim
    nächsten Lesen still verschwunden. Dann wird die Zeile neu geschrieben, ein

@@ -22,7 +22,7 @@ const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinali
 /* Die Schlüssel, die die App selbst auswertet. Alles andere an einem Objekt
    oder Attribut ist ein Zusatzattribut. */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
-  'business_keys','BusinessKeys','sources','attributes','relationships']);
+  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships']);
 const ATTR_KEYS = new Set(['name','type','nullable','primary_key','foreign_key','references']);
 
 function readRel(entry, keyName){
@@ -110,6 +110,8 @@ function buildModel(text){
     // „BusinessKeys" schreiben andere Werkzeuge groß, wie „Domain". Ungelesen
     // fehlte der Business Key still — samt Warnung, obwohl er dasteht.
     const keysRaw = Array.isArray(def.business_keys) ? def.business_keys : def.BusinessKeys;
+    // „source_systems" hat „sources" abgelöst; ältere Dateien bleiben lesbar.
+    const srcRaw = Array.isArray(def.source_systems) ? def.source_systems : def.sources;
     const attrs = (Array.isArray(def.attributes) ? def.attributes : []).filter(a => a && a.name).map(a=>({
       name: a.name,
       type: a.type || null,
@@ -125,7 +127,7 @@ function buildModel(text){
       attrs,
       domain: def.Domain || def.domain || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
-      sources: Array.isArray(def.sources) ? def.sources.filter(Boolean) : [],
+      sources: Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
       rels,
       extra: extraAus(def, OBJ_KEYS, zusatz.objekt)
     };

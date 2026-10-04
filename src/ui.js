@@ -1252,7 +1252,7 @@ function reindentBlock(block, from, to){
 
 /* Einen Objektblock in Kopfzeile und Felder zerlegen. Ein Feld ist entweder ein
    Einzelwert („Domain: X", auch mehrzeilig bei „desc: >") oder eine Liste
-   („sources:" mit eingerückten Einträgen darunter). Was vor dem ersten Feld
+   („source_systems:" mit eingerückten Einträgen darunter). Was vor dem ersten Feld
    steht — ein Kommentar zum ganzen Objekt — gehört zu keinem Feld und käme
    sonst beim Neuschreiben abhanden: es steht als `vorspann` bereit. */
 function splitObjectFields(lines){

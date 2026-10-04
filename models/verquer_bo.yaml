@@ -2,7 +2,7 @@ BusinessObjects:
   Käsereibe:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - KorkenzieherQuelle
     - MessbecherQuelle
     relationships:
@@ -34,7 +34,7 @@ BusinessObjects:
   Toaster:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - KorkenzieherQuelle
     - MessbecherQuelle
     relationships:
@@ -66,7 +66,7 @@ BusinessObjects:
   Schneebesen:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - PfanneQuelle
     relationships:
     - name: ''
@@ -82,7 +82,7 @@ BusinessObjects:
   Kochtopf:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SchneebesenQuelle
     relationships:
     - name: ''
@@ -98,13 +98,13 @@ BusinessObjects:
   Pfanne:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SiebQuelle
     relationships: []
   Sieb:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - ToasterQuelle
     relationships:
     - name: Besteckkasten
@@ -115,17 +115,17 @@ BusinessObjects:
   Schüssel:
     desc: ''
     Domain: Haushalt
-    sources: []
+    source_systems: []
     relationships: []
   Wasserkocher:
     desc: ''
     Domain: Haushalt
-    sources: []
+    source_systems: []
     relationships: []
   Mixer:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - ReibeQuelle
     relationships:
     - name: ''
@@ -166,7 +166,7 @@ BusinessObjects:
   Nudelholz:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - BrotkastenQuelle
     relationships:
     - name: ''
@@ -177,13 +177,13 @@ BusinessObjects:
   Dosenöffner:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - KochtopfQuelle
     relationships: []
   Schöpfkelle:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SuppenkelleQuelle
     relationships:
     - name: Auflaufform
@@ -229,7 +229,7 @@ BusinessObjects:
   Messbecher:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - EierbecherQuelle
     - BackpinselQuelle
     relationships:
@@ -246,19 +246,19 @@ BusinessObjects:
   Backblech:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - BackblechQuelle
     relationships: []
   Brotkasten:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SchneidebrettQuelle
     relationships: []
   Salzstreuer:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - WasserkocherQuelle
     relationships:
     - name: Teller
@@ -284,12 +284,12 @@ BusinessObjects:
   Pfeffermühle:
     desc: ''
     Domain: Haushalt
-    sources: []
+    source_systems: []
     relationships: []
   Tasse:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - KäsereibeQuelle
     relationships:
     - name: ''
@@ -315,13 +315,13 @@ BusinessObjects:
   Teller:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - GemüseschälerQuelle
     relationships: []
   Besteckkasten:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - MixerQuelle
     relationships:
     - name: ''
@@ -362,7 +362,7 @@ BusinessObjects:
   Spülbürste:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SchöpfkelleQuelle
     relationships:
     - name: ''
@@ -373,13 +373,13 @@ BusinessObjects:
   Vorratsdose:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - MörserQuelle
     relationships: []
   Küchenwaage:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - SchüsselQuelle
     relationships:
     - name: ''
@@ -405,7 +405,7 @@ BusinessObjects:
   Topflappen:
     desc: ''
     Domain: Haushalt
-    sources: []
+    source_systems: []
     relationships:
     - name: ''
       to: Pfanne
@@ -415,7 +415,7 @@ BusinessObjects:
   Auflaufform:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - NudelholzQuelle
     relationships:
     - name: ''
@@ -431,6 +431,6 @@ BusinessObjects:
   Teesieb:
     desc: ''
     Domain: Haushalt
-    sources:
+    source_systems:
     - DosenöffnerQuelle
     relationships: []

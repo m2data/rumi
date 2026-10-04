@@ -91,7 +91,7 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
     'BusinessObjects:',
     '  Kunde:',
     '    Domain: CRM',
-    '    sources:',
+    '    source_systems:',
     '    - Customer',
     '    attributes:',
     '    - name: KundeID',
@@ -106,7 +106,7 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
     'BusinessObjects:',
     '  Kunde:',
     '    Domain: SAP',
-    '    sources:',
+    '    source_systems:',
     '      - KNA1',
     '    attributes:',
     '      - name: Mandant',
@@ -140,7 +140,7 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
   const first = Object.keys(S.model.objects)[0];
   const altQuellen = S.model.objects[first].sources.slice();
   const altRels = S.model.objects[first].rels.length;
-  api.loadDelta(`BusinessObjects:\n  ${first}:\n    Domain: DeltaDom\n    sources:\n    - DeltaQuelle\n  NeuObjekt:\n    Domain: DeltaDom\n    business_keys:\n    - K`);
+  api.loadDelta(`BusinessObjects:\n  ${first}:\n    Domain: DeltaDom\n    source_systems:\n    - DeltaQuelle\n  NeuObjekt:\n    Domain: DeltaDom\n    business_keys:\n    - K`);
   t('loadDelta fügt ein neues Objekt hinzu', !!S.model.objects.NeuObjekt);
   t('loadDelta übernimmt den neuen Einzelwert', S.model.objects[first].domain === 'DeltaDom');
   t('loadDelta behält die bisherigen Quellen und ergänzt die neue',

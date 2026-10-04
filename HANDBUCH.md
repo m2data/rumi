@@ -525,7 +525,7 @@ BusinessObjects:            # Pflichtabschnitt
     desc: Repräsentiert einen Kundenauftrag.   # Beschreibung
     business_keys:                             # fachliche Schlüssel
     - BestellungID
-    sources:                                   # Quellsysteme/-tabellen
+    source_systems:                            # Quellsysteme/-tabellen
     - Bestellung
     - Bestellung_VRS
     attributes:
@@ -553,7 +553,7 @@ BusinessObjects:            # Pflichtabschnitt
 | Objekt | `Domain` | fachliche Domäne; gruppiert die Objektliste |
 | | `desc` | Beschreibung (auch mehrzeilig) |
 | | `business_keys` | Liste fachlicher Schlüssel |
-| | `sources` | Liste der Quellsysteme oder -tabellen |
+| | `source_systems` | Liste der Quellsysteme oder -tabellen |
 | | `attributes` | Liste der Attribute |
 | | `relationships` | Liste der ausgehenden Beziehungen |
 | Attribut | `name` | Pflicht; ohne Namen wird der Eintrag übergangen |
@@ -589,9 +589,9 @@ und ist absichtlich nachsichtig:
   `desc`/`beschreibung`/`description`; als Wurzel neben `BusinessObjects` auch
   `businessObjects`, `business_objects`, `Geschaeftsobjekte`; als
   Beziehungsname auch `label`, `bezeichnung`, `rolle`; statt `cardinality` auch
-  `kardinalitaet`; statt `business_keys` auch `BusinessKeys`. Stehen beide
-  Schreibweisen da, gilt die erstgenannte; beim Bearbeiten wird die
-  vorhandene weitergeschrieben.
+  `kardinalitaet`; statt `business_keys` auch `BusinessKeys`; statt
+  `source_systems` auch das ältere `sources`. Stehen beide Schreibweisen da,
+  gilt die erstgenannte; beim Bearbeiten wird die vorhandene weitergeschrieben.
 - **Mehrzeilige Texte** als Blockskalar (`desc: |`, `|-`, `>`, `>-`) oder als
   eingerückte Fortsetzungszeilen.
 - **Kommentare** mit `#` — auch am Zeilenende, sofern nicht in

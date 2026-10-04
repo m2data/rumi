@@ -11,7 +11,7 @@ BusinessObjects:
       angewendeten Rabatt.
     business_keys:
     - BestellungID
-    sources:
+    source_systems:
     - Bestellung
     - Bestellung_VRS
     schema.org: 
@@ -50,7 +50,7 @@ BusinessObjects:
     desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
     business_keys:
     - KatID
-    sources:
+    source_systems:
     - Kategorie
     schema.org: 
     attributes:
@@ -82,7 +82,7 @@ BusinessObjects:
     desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
     business_keys:
     - KundeID
-    sources:
+    source_systems:
     - Kunde
     schema.org: 
     attributes:
@@ -151,7 +151,7 @@ BusinessObjects:
     desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
     business_keys:
     - LieferDienstID
-    sources:
+    source_systems:
     - LieferDienst
     schema.org: 
     attributes:
@@ -198,7 +198,7 @@ BusinessObjects:
       werden können.
     business_keys:
     - LieferAdrID
-    sources:
+    source_systems:
     - Lieferadresse
     schema.org: 
     attributes:
@@ -254,7 +254,7 @@ BusinessObjects:
     - PosID
     - LieferAdrID
     - LieferDienstID
-    sources:
+    source_systems:
     - Lieferung
     schema.org: 
     attributes:
@@ -292,7 +292,7 @@ BusinessObjects:
     business_keys:
     - BestellungID
     - PosID
-    sources:
+    source_systems:
     - Position
     - Position_VRS
     schema.org: 
@@ -334,7 +334,7 @@ BusinessObjects:
     desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
     business_keys:
     - ProduktID
-    sources:
+    source_systems:
     - Produkt
     schema.org: 
     attributes:
@@ -377,7 +377,7 @@ BusinessObjects:
       Rabatten.
     business_keys:
     - VereinsPartnerID
-    sources:
+    source_systems:
     - VereinsPartner
     schema.org: 
     attributes:
@@ -416,7 +416,7 @@ BusinessObjects:
       Gültigkeitsende.
     business_keys:
     - KundeID
-    sources:
+    source_systems:
     - Wohnort
     schema.org: 
     attributes:
@@ -457,7 +457,7 @@ BusinessObjects:
     business_keys:
     - Anzahl_Tage_von
     - Anzahl_Tage_bis
-    sources:
+    source_systems:
     - href_termintreue
     schema.org: 
     attributes: []

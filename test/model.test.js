@@ -40,7 +40,7 @@ BusinessObjects:
     Domain: Willibald
     business_keys:
     - KundeID
-    sources:
+    source_systems:
     - Quelle1
     attributes:
     - name: KundeID
@@ -53,7 +53,7 @@ BusinessObjects:
     Domain: Willibald
     business_keys:
     - BestellungID
-    sources:
+    source_systems:
     - Quelle1
     attributes:
     - name: BestellungID
@@ -87,7 +87,7 @@ console.log('== Business Keys auch in Binnenmajuskel ==');
     Domain: D
     BusinessKeys:
     - KundeID
-    sources:
+    source_systems:
     - Q
 `);
   t('BusinessKeys wird als Business Key gelesen',
@@ -103,7 +103,7 @@ console.log('== Business Keys auch in Binnenmajuskel ==');
     - Gross
     business_keys:
     - Klein
-    sources:
+    source_systems:
     - Q
 `);
   t('business_keys hat Vorrang', beide.objects.Kunde.keys.join(',') === 'Klein',
@@ -145,7 +145,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     relationships:
     - to: Bestellung
@@ -156,7 +156,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - B
-    sources:
+    source_systems:
     - Q
 `);
   t('verschieden benannt: kein Hinweis', !has(m.messages, 'warn', 'doppelt'),
@@ -169,7 +169,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     relationships:
     - to: Bestellung
@@ -179,7 +179,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - B
-    sources:
+    source_systems:
     - Q
 `);
   t('benannt gegen unbenannt: kein Hinweis', !has(m2.messages, 'warn', 'doppelt'));
@@ -190,7 +190,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     relationships:
     - to: Bestellung
@@ -201,7 +201,7 @@ console.log('== Beziehungen gelten nur bei gleichem Namen als doppelt ==');
     Domain: D
     business_keys:
     - B
-    sources:
+    source_systems:
     - Q
 `);
   t('gleicher Name zweimal: Hinweis bleibt', has(m3.messages, 'warn', 'doppelt'));
@@ -215,7 +215,7 @@ console.log('== Unbekannte Kardinalitätswerte werden gemeldet ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     relationships:
     - to: B
@@ -231,7 +231,7 @@ console.log('== Unbekannte Kardinalitätswerte werden gemeldet ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
 `);
   t('unbekannter Wert an der to-Seite gemeldet', has(m.messages, 'warn', '"0..n" unbekannt'));
@@ -248,7 +248,7 @@ console.log('== "many" ohne Untergrenze ist kein gültiger Wert mehr ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     relationships:
     - to: B
@@ -259,7 +259,7 @@ console.log('== "many" ohne Untergrenze ist kein gültiger Wert mehr ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
 `);
   t('"many" wird als unbekannt gemeldet', has(m.messages, 'warn', '"many" unbekannt'));
@@ -276,7 +276,7 @@ console.log('== Doppelte Attributnamen werden gemeldet ==');
     Domain: D
     business_keys:
     - K
-    sources:
+    source_systems:
     - Q
     attributes:
     - name: ID
@@ -462,6 +462,31 @@ console.log('== Zusatzattribute: unbekannte Schlüssel werden mitgeführt ==');
     && !('type' in M.objects.A.attrs[0].extra) && M.zusatz.attribut.get('schema.org') === 1);
   t('keine Meldung dafür', !M.messages.some(m => /schema|dq-regel/.test(m.title + m.body)),
     M.messages.map(m => m.title).join(' | '));
+}
+
+console.log('== buildModel: Quellen unter „source_systems", auch noch unter „sources" ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  Neu:',
+    '    source_systems:',
+    '    - Q1',
+    '    - Q2',
+    '  Alt:',
+    '    sources:',
+    '    - Q3',
+    '  Leer:',
+    '    source_systems:',
+    ''
+  ].join('\n');
+  const M = buildModel(y);
+  t('„source_systems" wird als Quellen gelesen', M.objects.Neu.sources.join(',') === 'Q1,Q2',
+    JSON.stringify(M.objects.Neu.sources));
+  t('das alte „sources" ebenso', M.objects.Alt.sources.join(',') === 'Q3',
+    JSON.stringify(M.objects.Alt.sources));
+  t('ein leeres „source_systems" ist kein Zusatzattribut', !('source_systems' in M.objects.Leer.extra)
+    && !M.zusatz.objekt.has('source_systems'), JSON.stringify(M.objects.Leer.extra));
+  t('und gilt als „keine Quelle"', M.messages.some(m => m.group === 'keine Quelle' && m.obj === 'Leer'));
 }
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`

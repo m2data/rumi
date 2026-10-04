@@ -139,7 +139,7 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
     desc: Repräsentiert einen Kundenauftrag …   # Beschreibung
     business_keys:                          # fachliche Schlüssel
     - BestellungID
-    sources:                                # Quellsysteme/-tabellen
+    source_systems:                         # Quellsysteme/-tabellen
     - Bestellung
     - Bestellung_VRS
     schema.org: https://schema.org/Order    # Zusatzattribut (frei wählbar)

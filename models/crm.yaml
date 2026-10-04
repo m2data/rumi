@@ -8,7 +8,7 @@ BusinessObjects:
     desc: Repräsentiert eine natürliche Person als CRM-Kunde.
     business_keys:
       - KundeID
-    sources:
+    source_systems:
       - Customer
     attributes:
       - name: KundeID
@@ -62,7 +62,7 @@ BusinessObjects:
     desc: Repräsentiert einen Kommunikationskanal eines Kunden, beispielsweise eine E-Mail-Adresse oder Telefonnummer.
     business_keys:
       - KontaktpunktID
-    sources:
+    source_systems:
       - ContactPoint
     attributes:
       - name: KontaktpunktID
@@ -86,7 +86,7 @@ BusinessObjects:
     desc: Repräsentiert eine postalische Adresse eines Kunden.
     business_keys:
       - AdresseID
-    sources:
+    source_systems:
       - Address
     attributes:
       - name: AdresseID
@@ -104,7 +104,7 @@ BusinessObjects:
     desc: Repräsentiert eine historisierte Einwilligung oder einen Widerruf eines Kunden für einen Verarbeitungszweck und Kommunikationskanal.
     business_keys:
       - EinwilligungID
-    sources:
+    source_systems:
       - Consent
     attributes:
       - name: EinwilligungID
@@ -127,7 +127,7 @@ BusinessObjects:
     desc: Repräsentiert einen Kontakt oder ein Ereignis zwischen einem Kunden und dem Unternehmen.
     business_keys:
       - InteraktionID
-    sources:
+    source_systems:
       - Interaction
     attributes:
       - name: InteraktionID
@@ -155,7 +155,7 @@ BusinessObjects:
     desc: Repräsentiert eine von einem Kunden aufgegebene Bestellung.
     business_keys:
       - BestellungID
-    sources:
+    source_systems:
       - Order
     attributes:
       - name: BestellungID
@@ -179,7 +179,7 @@ BusinessObjects:
     desc: Repräsentiert eine einzelne Position innerhalb einer Bestellung.
     business_keys:
       - BestellpositionID
-    sources:
+    source_systems:
       - OrderItem
     attributes:
       - name: BestellpositionID
@@ -202,7 +202,7 @@ BusinessObjects:
     desc: Repräsentiert ein vermarktbares Produkt.
     business_keys:
       - ProduktID
-    sources:
+    source_systems:
       - Product
     attributes:
       - name: ProduktID
@@ -221,7 +221,7 @@ BusinessObjects:
     desc: Repräsentiert eine fachlich definierte Kundenzielgruppe.
     business_keys:
       - SegmentID
-    sources:
+    source_systems:
       - Segment
     attributes:
       - name: SegmentID
@@ -245,7 +245,7 @@ BusinessObjects:
     desc: Repräsentiert die gegebenenfalls historisierte Zuordnung eines Kunden zu einem Segment.
     business_keys:
       - SegmentmitgliedschaftID
-    sources:
+    source_systems:
       - SegmentMember
     attributes:
       - name: SegmentmitgliedschaftID
@@ -268,7 +268,7 @@ BusinessObjects:
     desc: Repräsentiert einen gemeinsamen Haushalt mehrerer Kunden.
     business_keys:
       - HaushaltID
-    sources:
+    source_systems:
       - Household
     attributes:
       - name: HaushaltID
@@ -287,7 +287,7 @@ BusinessObjects:
     desc: Repräsentiert die gegebenenfalls historisierte Zuordnung eines Kunden zu einem Haushalt.
     business_keys:
       - HaushaltsmitgliedschaftID
-    sources:
+    source_systems:
       - HouseholdMember
     attributes:
       - name: HaushaltsmitgliedschaftID
@@ -310,7 +310,7 @@ BusinessObjects:
     desc: Repräsentiert eine fachliche Marketingkampagne.
     business_keys:
       - KampagneID
-    sources:
+    source_systems:
       - Campaign
     attributes:
       - name: KampagneID
@@ -346,7 +346,7 @@ BusinessObjects:
       - KampagneID
       - SegmentID
       - Rolle
-    sources:
+    source_systems:
       - CampaignSegment
     attributes:
       - name: KampagneID
@@ -368,7 +368,7 @@ BusinessObjects:
     desc: Repräsentiert eine konkrete Aussendung, Welle oder Durchführung einer Kampagne.
     business_keys:
       - KampagnenausführungID
-    sources:
+    source_systems:
       - CampaignExecution
     attributes:
       - name: KampagnenausführungID
@@ -402,7 +402,7 @@ BusinessObjects:
     desc: Repräsentiert den Empfänger-Snapshot für eine konkrete Kampagnenausführung.
     business_keys:
       - KampagnenempfängerID
-    sources:
+    source_systems:
       - CampaignRecipient
     attributes:
       - name: KampagnenempfängerID
@@ -446,7 +446,7 @@ BusinessObjects:
     desc: Repräsentiert eine technisch erzeugte und versendete Nachricht für einen Kampagnenempfänger.
     business_keys:
       - KampagnennachrichtID
-    sources:
+    source_systems:
       - CampaignMessage
     attributes:
       - name: KampagnennachrichtID
@@ -464,7 +464,7 @@ BusinessObjects:
     desc: Repräsentiert eine messbare Reaktion eines Kampagnenempfängers, beispielsweise Öffnung, Klick, Abmeldung oder Conversion.
     business_keys:
       - KampagnenreaktionID
-    sources:
+    source_systems:
       - CampaignResponse
     attributes:
       - name: KampagnenreaktionID
@@ -487,7 +487,7 @@ BusinessObjects:
     desc: Repräsentiert ein im Rahmen von Kampagnen nutzbares Angebot, beispielsweise einen Rabatt oder Gutschein.
     business_keys:
       - AngebotID
-    sources:
+    source_systems:
       - Offer
     attributes:
       - name: AngebotID

@@ -27,7 +27,7 @@ console.log('== Nur geänderte Stellen: Kommentare und Formatierung bleiben ==')
     '  A:',
     '    # gehört zum Vertrieb',
     '    Domain: Alt',
-    '    sources:',
+    '    source_systems:',
     '    - Q1          # Hauptquelle',
     '    - Q2',
     '    attributes:',
@@ -90,7 +90,7 @@ console.log('== Nur geänderte Stellen: Kommentare und Formatierung bleiben ==')
 
 console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trägt ==');
 {
-  /* „sources: []" steht so in echten Modelldateien (models/verquer_bo.yaml).
+  /* „source_systems: []" steht so in echten Modelldateien (models/verquer_bo.yaml).
      Die Zeile trägt bereits einen Wert und taugt darum nicht als Kopf einer
      Blockliste: Einträge darunter ergäben kein YAML mehr, und die gepflegte
      Quelle wäre beim nächsten Lesen still verschwunden. */
@@ -98,7 +98,7 @@ console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trä
     'BusinessObjects:',
     '  A:',
     '    Domain: Haushalt',
-    '    sources: []',
+    '    source_systems: []',
     '    attributes:',
     '    - name: AID',
     ''
@@ -110,22 +110,22 @@ console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trä
 
   const mitQuelle = api.goObjektAendern(text, 'A', entwurf, alt);
   t('die leere Inline-Liste wird zur Kopfzeile einer Blockliste',
-    /\n {4}sources:\n {4}- Q9\n/.test(mitQuelle) && !/sources: \[\]/.test(mitQuelle), mitQuelle);
+    /\n {4}source_systems:\n {4}- Q9\n/.test(mitQuelle) && !/source_systems: \[\]/.test(mitQuelle), mitQuelle);
   t('das unberührte Attribut steht unverändert dahinter',
     /\n {4}attributes:\n {4}- name: AID\n/.test(mitQuelle), mitQuelle);
 
   // Auch eine gefüllte Inline-Liste zerfiele sonst in Kopfzeile plus Einträge.
-  const inline = api.goObjektAendern(text.replace('sources: []', 'sources: [Q1]'), 'A',
+  const inline = api.goObjektAendern(text.replace('source_systems: []', 'source_systems: [Q1]'), 'A',
     Object.assign({}, entwurf, {sources:['Q1','Q9']}),
     Object.assign({}, alt, {sources:['Q1']}));
   t('eine gefüllte Inline-Liste wird gleichfalls zur Blockliste',
-    /\n {4}sources:\n {4}- Q1\n {4}- Q9\n/.test(inline) && !/\[Q1\]/.test(inline), inline);
+    /\n {4}source_systems:\n {4}- Q1\n {4}- Q9\n/.test(inline) && !/\[Q1\]/.test(inline), inline);
 
   // Gegenprobe: eine wertlose Kopfzeile bleibt Zeichen für Zeichen stehen.
   const wertlos = api.goObjektAendern(
-    text.replace('    sources: []', '    sources:      # noch offen'), 'A', entwurf, alt);
+    text.replace('    source_systems: []', '    source_systems:      # noch offen'), 'A', entwurf, alt);
   t('eine wertlose Kopfzeile bleibt samt Kommentar unangetastet',
-    /\n {4}sources: {6}# noch offen\n {4}- Q9\n/.test(wertlos), wertlos);
+    /\n {4}source_systems: {6}# noch offen\n {4}- Q9\n/.test(wertlos), wertlos);
 }
 
 console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
@@ -138,13 +138,13 @@ console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
   const entwurf = (s)=> ({name:'A', domain:'D', desc:'', keys:[], sources:s, attrs:[], rels:[]});
 
   const inListe = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','    - Q1',''].join('\n'),
     'A', entwurf(['Q1','Q2']), alt);
   t('in der Liste steht die Leerzeile hinter dem neuen Eintrag',
     /\n {4}- Q1\n {4}- Q2\n$/.test(inListe), inListe);
 
   const vorFeld = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    sources:','    - Q1','','    attributes:','    - name: X',''].join('\n'),
+    ['BusinessObjects:','  A:','    source_systems:','    - Q1','','    attributes:','    - name: X',''].join('\n'),
     'A', Object.assign(entwurf(['Q1','Q2']),
       {attrs:[{name:'X', type:'', nullable:false, pk:false, fk:false, ref:'',
                _alt:{name:'X', type:null, nullable:false, pk:false, fk:false, ref:null}}]}),
@@ -156,7 +156,7 @@ console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
     ['BusinessObjects:','  A:','    Domain: D',''].join('\n'),
     'A', entwurf(['Q1']), Object.assign({}, alt, {sources:[]}));
   t('im Block steht die Leerzeile hinter dem ergänzten Feld',
-    /\n {4}Domain: D\n {4}sources:\n {4}- Q1\n$/.test(imBlock), imBlock);
+    /\n {4}Domain: D\n {4}source_systems:\n {4}- Q1\n$/.test(imBlock), imBlock);
 
   const zweiObjekte = api.goObjektAendern(
     ['BusinessObjects:','  A:','    Domain: D','','  B:','    Domain: D',''].join('\n'),
@@ -165,19 +165,19 @@ console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
     /\n {4}- Q1\n\n {2}B:\n/.test(zweiObjekte), zweiObjekte);
 
   // Gegenproben: ohne Zuwachs bleibt alles, wo es ist.
-  const unberuehrt = ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1',''].join('\n');
+  const unberuehrt = ['BusinessObjects:','  A:','    Domain: D','    source_systems:','    - Q1',''].join('\n');
   t('ohne neuen Eintrag ist der Text Zeichen für Zeichen der alte',
     api.goObjektAendern(unberuehrt, 'A', entwurf(['Q1']), alt) === unberuehrt,
     JSON.stringify(api.goObjektAendern(unberuehrt, 'A', entwurf(['Q1']), alt)));
 
   const gruppiert = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1','','    - Q2',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','    - Q1','','    - Q2',''].join('\n'),
     'A', entwurf(['Q1','Q2','Q3']), Object.assign({}, alt, {sources:['Q1','Q2']}));
   t('eine Leerzeile zwischen zwei Einträgen bleibt liegen',
     /\n {4}- Q1\n\n {4}- Q2\n {4}- Q3\n$/.test(gruppiert), gruppiert);
 
   const mitKomm = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','    - Q1','    # Ende',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','    - Q1','    # Ende',''].join('\n'),
     'A', entwurf(['Q1','Q2']), alt);
   t('ein Kommentar am Ende bleibt, wo er steht',
     /\n {4}- Q1\n {4}# Ende\n {4}- Q2\n$/.test(mitKomm), mitKomm);
@@ -197,24 +197,24 @@ console.log('== Leerzeilen trennen und rutschen nicht mitten hinein ==');
   /* Zwischen Kopfzeile und erstem Eintrag: so steht es in models/sap-finanz.yaml.
      Diese Zeilen gehören zu keinem Eintrag und verschwanden beim Neuschreiben. */
   const nachKopf = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','','    - Q1',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','','    - Q1',''].join('\n'),
     'A', entwurf(['Q1','Q2']), alt);
   t('eine Leerzeile hinter der Kopfzeile bleibt dort',
-    /\n {4}sources:\n\n {4}- Q1\n {4}- Q2\n$/.test(nachKopf), nachKopf);
+    /\n {4}source_systems:\n\n {4}- Q1\n {4}- Q2\n$/.test(nachKopf), nachKopf);
 
   const kommKopf = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','    # alle Altsysteme','    - Q1',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','    # alle Altsysteme','    - Q1',''].join('\n'),
     'A', entwurf(['Q1','Q2']), alt);
   t('ein Kommentar hinter der Kopfzeile bleibt dort',
-    /\n {4}sources:\n {4}# alle Altsysteme\n {4}- Q1\n {4}- Q2\n$/.test(kommKopf), kommKopf);
+    /\n {4}source_systems:\n {4}# alle Altsysteme\n {4}- Q1\n {4}- Q2\n$/.test(kommKopf), kommKopf);
 
   const leerListe = api.goObjektAendern(
-    ['BusinessObjects:','  A:','    Domain: D','    sources:','','  B:','    Domain: D',''].join('\n'),
+    ['BusinessObjects:','  A:','    Domain: D','    source_systems:','','  B:','    Domain: D',''].join('\n'),
     'A', entwurf(['Q1']), Object.assign({}, alt, {sources:[]}));
   t('ohne Eintrag trennt die Leerzeile weiter nach unten',
-    /\n {4}sources:\n {4}- Q1\n\n {2}B:\n/.test(leerListe), leerListe);
+    /\n {4}source_systems:\n {4}- Q1\n\n {2}B:\n/.test(leerListe), leerListe);
   t('und das ergänzte Feld steht davor, nicht hinter der Lücke',
-    /\n {6}Zeile zwei\n {4}sources:\n {4}- Q1\n$/.test(blockText), blockText);
+    /\n {6}Zeile zwei\n {4}source_systems:\n {4}- Q1\n$/.test(blockText), blockText);
 }
 
 console.log('== Umbenennen zieht jeden Verweis mit ==');
@@ -561,7 +561,7 @@ console.log('== Umbenennen zieht den Hierarchie-Ausschnitt mit ==');
     n ? ('hidden=' + n.hidden) : 'nicht im Graphen');
 }
 
-console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
+console.log('== Bedienweg: erste Quelle bei „source_systems: []" pflegen ==');
 {
   /* Derselbe Fall über das Formular: eingetippt, gespeichert — und beim
      nächsten Lesen muss die Quelle im Modell stehen, nicht bloß im Text. */
@@ -569,7 +569,7 @@ console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
     'BusinessObjects:',
     '  Topflappen:',
     '    Domain: Haushalt',
-    '    sources: []',
+    '    source_systems: []',
     ''
   ].join('\n'), 'inline.yaml');
   api.setMode('komplett'); api.setView();
@@ -584,7 +584,7 @@ console.log('== Bedienweg: erste Quelle bei „sources: []" pflegen ==');
     S.model.objects.Topflappen.sources.join(',') === 'Küchenschrank',
     JSON.stringify(S.model.objects.Topflappen.sources));
   t('der Modelltext trägt sie als Listeneintrag',
-    /\n {4}sources:\n {4}- Küchenschrank\n/.test(S.yamlText), S.yamlText);
+    /\n {4}source_systems:\n {4}- Küchenschrank\n/.test(S.yamlText), S.yamlText);
   t('die Warnung „keine Quelle" ist weg',
     !(S.model.messages || []).some(m => m.group === 'keine Quelle'),
     (S.model.messages || []).map(m => m.title).join(' | '));
@@ -600,7 +600,7 @@ console.log('== Bedienweg: Business Keys in einem Feld „BusinessKeys" ==');
     '    Domain: Haushalt',
     '    BusinessKeys:',
     '    - KelleID',
-    '    sources:',
+    '    source_systems:',
     '    - Schublade',
     ''
   ].join('\n'), 'gross.yaml');
@@ -622,6 +622,34 @@ console.log('== Bedienweg: Business Keys in einem Feld „BusinessKeys" ==');
   t('geschrieben wird in das vorhandene Feld',
     /\n {4}BusinessKeys:\n {4}- KelleID\n {4}- Kellennummer\n/.test(S.yamlText), S.yamlText);
   t('und kein zweites Feld daneben', !/business_keys/.test(S.yamlText), S.yamlText);
+}
+
+console.log('== Bedienweg: Quellen im alten Feld „sources" ==');
+{
+  /* „source_systems" hat „sources" abgelöst. Eine ältere Datei wird weiter
+     gelesen, und gepflegt wird in das Feld, das dasteht. */
+  api.loadYaml([
+    'BusinessObjects:',
+    '  Sieb:',
+    '    Domain: Haushalt',
+    '    sources:',
+    '    - Schublade',
+    ''
+  ].join('\n'), 'alt.yaml');
+  api.setMode('komplett'); api.setView();
+  if(!S.pflegeAn) S.pflegeAn = true;
+
+  t('die vorhandene Quelle ist gelesen', S.model.objects.Sieb.sources.join(',') === 'Schublade',
+    JSON.stringify(S.model.objects.Sieb.sources));
+  t('das Formular lässt sich öffnen', formularOeffnen('o:Sieb'));
+  $('pfSources').value = 'Schublade, Haken';
+  dispatch($('pfSave'), 'click', {});
+
+  t('die zweite Quelle steht im Modell', S.model.objects.Sieb.sources.join(',') === 'Schublade,Haken',
+    JSON.stringify(S.model.objects.Sieb.sources));
+  t('geschrieben wird in das vorhandene Feld',
+    /\n {4}sources:\n {4}- Schublade\n {4}- Haken\n/.test(S.yamlText), S.yamlText);
+  t('und kein zweites Feld daneben', !/source_systems/.test(S.yamlText), S.yamlText);
 }
 
 /* Entwurf wie im Formular, aber ohne Oberfläche: `extra` sind die
@@ -664,7 +692,7 @@ console.log('== Lesen/Schreiben: Bestellung und Bestellung_VRS ==');
   pruefe('Bestellung_VRS entfernt', ['Bestellung']);
   pruefe('Bestellung entfernt', ['Bestellung_VRS']);
   const leer = pruefe('beide entfernt', []);
-  t('beide entfernt: kein „sources" mehr', !/sources:/.test(block(leer, 'Bestellung')), block(leer, 'Bestellung'));
+  t('beide entfernt: kein „source_systems" mehr', !/source_systems:/.test(block(leer, 'Bestellung')), block(leer, 'Bestellung'));
   const dazu = pruefe('Bestellung_Neu ergänzt', ['Bestellung', 'Bestellung_VRS', 'Bestellung_Neu']);
   t('die neue Quelle steht vor „schema.org", nicht dahinter',
     /- Bestellung_VRS\n {4}- Bestellung_Neu\n {4}schema\.org:/.test(block(dazu, 'Bestellung')), block(dazu, 'Bestellung'));
@@ -678,7 +706,7 @@ const sonder = [
   '    quelle/system: SAP',
   '    fach_owner: Meier',
   '    schema.org: https://schema.org/Thing',
-  '    sources:',
+  '    source_systems:',
   '    - Q1',
   '    attributes:',
   '    - name: AID',
