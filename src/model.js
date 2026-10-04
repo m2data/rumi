@@ -3,7 +3,7 @@
    ===================================================================== */
 const CARD_LABEL = {
   exactly_one:'genau 1', zero_or_one:'0 oder 1',
-  zero_or_many:'0 bis n', one_or_many:'1 bis n', many:'n'
+  zero_or_many:'0 bis n', one_or_many:'1 bis n'
 };
 
 /* Eine Beziehung kann auf vier Arten notiert sein:

@@ -573,7 +573,6 @@ BusinessObjects:            # Pflichtabschnitt
 | `zero_or_one` | null oder eins | Kreis und Querstrich |
 | `zero_or_many` | null bis viele | Krähenfuß und Kreis |
 | `one_or_many` | eins bis viele | Krähenfuß und Querstrich |
-| `many` | viele | Krähenfuß |
 
 Ein unbekannter Wert wird gemeldet, wie „genau eins" gezeichnet und beim
 Anordnen auch so behandelt. Fehlt die Kardinalität ganz, bleibt das Kantenende

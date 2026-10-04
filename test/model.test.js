@@ -241,6 +241,34 @@ console.log('== Unbekannte Kardinalitätswerte werden gemeldet ==');
   t('gültige Werte lösen keinen Hinweis aus', treffer === 2, treffer + ' Meldungen');
 }
 
+console.log('== "many" ohne Untergrenze ist kein gültiger Wert mehr ==');
+{
+  const m = buildModel(`BusinessObjects:
+  A:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+    relationships:
+    - to: B
+      cardinality:
+        from: exactly_one
+        to: many
+  B:
+    Domain: D
+    business_keys:
+    - K
+    sources:
+    - Q
+`);
+  t('"many" wird als unbekannt gemeldet', has(m.messages, 'warn', '"many" unbekannt'));
+  const {api: r} = load(['render.js'], ['isManyCard']);
+  t('"many" zählt beim Anordnen nicht als viele', !r.isManyCard('many'));
+  t('zero_or_many und one_or_many zählen weiter als viele',
+    r.isManyCard('zero_or_many') && r.isManyCard('one_or_many'));
+}
+
 console.log('== Doppelte Attributnamen werden gemeldet ==');
 {
   const m = buildModel(`BusinessObjects:

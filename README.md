@@ -169,7 +169,7 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
   oder Attribut (Buchstaben, Ziffern, `_ - / .`) wird mitgeführt und lässt
   sich über „Einstellungen → Zusatzattribute …" zur Pflege einschalten.
 - **Kardinalitäten:** `exactly_one`, `zero_or_one`, `zero_or_many`,
-  `one_or_many`, `many`.
+  `one_or_many`.
 - Die App prüft das Modell und meldet Auffälligkeiten (unbekanntes Ziel,
   fehlende Domain, doppelte Beziehung, unbekannte Kardinalität, doppelter
   Attributname, Selbstbezug …) im Reiter „Prüfung". Ein Klick auf den

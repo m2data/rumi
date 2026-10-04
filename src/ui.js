@@ -341,7 +341,7 @@ function addRelated(id){
     else return;
     const node = S.graph.byId.get(nb);
     if(!node || node.eltern) return;                  // Quelle/Domäne ist kein verknüpftes Objekt
-    const many = /many/.test(card || '');
+    const many = /_or_many$/.test(card || '');
     const cur = neigh.get(nb);
     neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
   });

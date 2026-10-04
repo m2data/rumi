@@ -80,7 +80,7 @@ function edgeEnd(node, port, toward){
    ohne e.loop steht sie oben rechts außen. Die zwei Anschlusspunkte ergeben sich
    aus der Richtung zum Scheitel. */
 const SIDE_OUT = {T:{x:0, y:-1}, B:{x:0, y:1}, L:{x:-1, y:0}, R:{x:1, y:0}};
-const isManyCard = c => !!c && /many/.test(c);
+const isManyCard = c => !!c && /_or_many$/.test(c);
 
 function loopGeom(A, e){
   const O = {x:A.x + A.w/2, y:A.y + A.h/2};
@@ -169,7 +169,6 @@ function markerMarkup(p, ang, card){
     case 'zero_or_one':  return dot(14) + bar(8);
     case 'zero_or_many': return fork() + dot(15.5);
     case 'one_or_many':  return fork() + bar(15);
-    case 'many':         return fork();
     default:             return bar(9);
   }
 }
