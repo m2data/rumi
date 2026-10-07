@@ -34,6 +34,9 @@ const teile = [
 
   { marker: '/* einsetzen: uebersicht willibald-übersicht.yaml */', dir: MODELS, file: 'williibald-übersicht.yaml',
     wrap: s => 'const DEFAULT_UEBERSICHT = `' + s + '\n`;' },
+
+  { marker: '/* einsetzen: quelltabellen willibald-quelltabellen.yaml */', dir: MODELS, file: 'willibald-quelltabellen.yaml',
+    wrap: s => 'const DEFAULT_QUELLTABELLEN = `' + s + '\n`;' },
 ];
 
 let html = lies(SRC, 'index.html');

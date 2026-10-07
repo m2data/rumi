@@ -147,6 +147,10 @@ aside{
 .sidetab.tab-hier{display:none}
 body.modus-hierarchie .sidetab.tab-hier{display:flex}
 body.modus-hierarchie .sidetab.tab-komplett{display:none}
+/* Quelltabellen: Baum wie die Hierarchie, die Prüfung gilt dem Tabellenmodell */
+body.modus-quellen .sidetab.tab-komplett{display:flex}
+/* Alles zu den Quelltabellen erst, wenn sie eingeschaltet sind */
+body:not(.quellen-an) .nur-quellen{display:none !important}
 /* Werkzeugleiste zum Bearbeiten der Hierarchie */
 .hier-tools{display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px 0}
 .hier-tools[hidden]{display:none}
@@ -496,6 +500,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
   <div class="modes" role="tablist" aria-label="Darstellung">
     <button class="mode-btn" role="tab" data-mode="komplett" aria-selected="true">Komplettansicht</button>
     <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
+    <button class="mode-btn nur-quellen" role="tab" data-mode="quellen" aria-selected="false">Quelltabellen</button>
   </div>
 
   <div class="tools">
@@ -534,11 +539,17 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
       <div class="menu" id="einstMenu" role="menu">
         <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
                 title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+        <button class="opt" id="optQuellen" role="menuitemcheckbox" aria-checked="false"
+                title="Schaltet den Bereich „Quelltabellen“ frei: eine eigene Datei mit den Tabellen der Quellsysteme, je Quellsystem ein Diagramm und frei gestaltete Gegenüberstellungen. Ausgeschaltet bleibt alles wie ohne Quelltabellen.">Quelltabellen verwenden<span class="tick">✓</span></button>
+        <button class="opt nur-quellen" id="optQuellPflege" role="menuitemcheckbox" aria-checked="false"
+                title="Zeigt im Bereich „Quelltabellen“ „Bearbeiten“ in den Details und „＋ Objekt“ über der Liste — wie „Geschäftsobjekte bearbeiten“, nur für die Tabellen.">Quelltabellen bearbeiten<span class="tick">✓</span></button>
         <div class="head">ALS EIGENES ELEMENT</div>
         <button class="opt" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
                 title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in Komplettansicht und Hierarchie.">Quellen<span class="tick">✓</span></button>
         <button class="opt" id="optDomaene" role="menuitemcheckbox" aria-checked="false"
                 title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in Komplettansicht und Hierarchie.">Domäne<span class="tick">✓</span></button>
+        <button class="opt nur-quellen" id="optGO" role="menuitemcheckbox" aria-checked="false"
+                title="Nur bei den Quelltabellen: das zugeordnete Geschäftsobjekt als eigener Kasten, einmal je Diagramm, verbunden mit allen seinen Tabellen.">Geschäftsobjekt<span class="tick">✓</span></button>
         <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
                 title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
@@ -552,12 +563,16 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
         <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
         <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
+        <button class="nur-quellen" data-act="openQuellen">Quelltabellen (YAML) …</button>
+        <button class="nur-quellen" data-act="loadQuellDiagramme">Quelltabellen-Diagramme (YAML) …</button>
         <div class="head">SPEICHERN</div>
         <button class="withkey" data-act="saveHtml"
                 title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche.">Stand speichern (HTML) …<span class="kbd">Strg+S</span></button>
         <button data-act="saveGO">Geschäftsobjekte (YAML)</button>
         <button data-act="uebersicht">Hierarchiebeschreibung (YAML)</button>
         <button data-act="layout">Positionsinformationen (JSON)</button>
+        <button class="nur-quellen" data-act="saveQuellen">Quelltabellen (YAML)</button>
+        <button class="nur-quellen" data-act="saveQuellDiagramme">Quelltabellen-Diagramme (YAML)</button>
         <div class="head">DIAGRAMM EXPORTIEREN</div>
         <button data-act="svg">Diagramm als SVG</button>
         <div class="pngrow">
@@ -673,6 +688,8 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
 <input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
 <input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="quellInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="quellDiagInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>
 
 <script>
@@ -895,11 +912,27 @@ function readRels(raw, objName, messages){
    Abschnittsnamen und darin, wie ein Eintrag in den Meldungen heißt. */
 const MODELL_ARTEN = {
   go: {roots:['BusinessObjects','businessObjects','business_objects','Geschaeftsobjekte'],
-       abschnitt:'BusinessObjects', keinem:'keinem Geschäftsobjekt', diesem:'diesem Geschäftsobjekt', das:'das Geschäftsobjekt'}
+       abschnitt:'BusinessObjects', keinem:'keinem Geschäftsobjekt', diesem:'diesem Geschäftsobjekt', das:'das Geschäftsobjekt'},
+  /* Eine Quelltabelle ist die Ausformulierung eines Eintrags unter
+     source_systems: dieselben Felder wie ein Geschäftsobjekt, dazu genau ein
+     Quellsystem und das Geschäftsobjekt, dem sie zugeordnet ist. */
+  quelle: {roots:['SourceTables','sourceTables','source_tables','Quelltabellen'],
+       abschnitt:'SourceTables', keinem:'keiner Quelltabelle', diesem:'dieser Quelltabelle', das:'die Quelltabelle'}
+};
+const QT_SYSTEM = ['source_system','Source_System'];
+const QT_GO = ['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt'];
+const QT_KEYS = new Set([...QT_SYSTEM, ...QT_GO]);
+const ersterWert = (def, keys)=>{
+  const k = keys.find(k => def[k] != null && typeof def[k] !== 'object' && String(def[k]).trim() !== '');
+  return k ? String(def[k]).trim() : null;
 };
 
-function buildModel(text, art = 'go'){
+/* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
+   „business_object" geprüft. */
+function buildModel(text, art = 'go', goModell = null){
   const A = MODELL_ARTEN[art];
+  const quelle = art === 'quelle';
+  const objKeys = quelle ? new Set([...OBJ_KEYS, ...QT_KEYS]) : OBJ_KEYS;
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
 
@@ -960,13 +993,14 @@ function buildModel(text, art = 'go'){
     }));
     objects[name] = {
       name,
+      ...(quelle ? {system: ersterWert(def, QT_SYSTEM), bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
       domain: def.Domain || def.domain || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
-      sources: Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
+      sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
       rels,
-      extra: extraAus(def, OBJ_KEYS, zusatz.objekt)
+      extra: extraAus(def, objKeys, zusatz.objekt)
     };
   }
 
@@ -979,7 +1013,16 @@ function buildModel(text, art = 'go'){
   for(const o of Object.values(objects)){
     if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
-    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
+    if(quelle){
+      if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
+        body:'Feld "source_system" fehlt. Die Tabelle erscheint in keinem Diagramm eines Quellsystems.'});
+      if(!o.bo) messages.push({level:'info', group:'ohne Geschäftsobjekt', obj:o.name, title:`${o.name}: ohne Geschäftsobjekt`,
+        body:'Feld "business_object" fehlt — die Tabelle ist noch keinem Geschäftsobjekt zugeordnet.'});
+      else if(goModell && !goModell.objects[o.bo]) messages.push({level:'warn', group:'Geschäftsobjekt unbekannt', obj:o.name,
+        title:`${o.name} → ${o.bo}: Geschäftsobjekt unbekannt`,
+        body:`"${o.bo}" ist im Geschäftsobjekt-Modell nicht definiert.`});
+    }
+    else if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
@@ -1106,6 +1149,9 @@ function attrText(a, showType){
   };
 }
 
+// Eine Quelltabelle hat genau ein Quellsystem, ein Geschäftsobjekt eine Liste
+const quellenVon = o => o.system !== undefined ? (o.system ? [o.system] : []) : o.sources;
+
 function makeGraph(model){
   const nodes = [], edges = [];
   const byId = new Map();
@@ -1115,9 +1161,9 @@ function makeGraph(model){
   for(const o of Object.values(model.objects)){
     const rows = [];
     if(C.keys) o.keys.forEach(k => rows.push({kind:'key', text:k}));
-    if(C.sources && !E.quelle && o.sources.length){
+    if(C.sources && !E.quelle && quellenVon(o).length){
       if(rows.length) rows.push({kind:'sep'});
-      o.sources.forEach(s => rows.push({kind:'src', text:s}));
+      quellenVon(o).forEach(s => rows.push({kind:'src', text:s}));
     }
     if(C.attrs){
       const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.ak || a.fk) : o.attrs;
@@ -1187,7 +1233,31 @@ function makeGraph(model){
   };
   for(const o of Object.values(model.objects)){
     if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
-    if(E.quelle) o.sources.forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+    if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+  }
+
+  /* Das Geschäftsobjekt als eigenes Element (nur bei den Quelltabellen): anders
+     als Quelle und Domäne genau EIN Kasten je Diagramm, an dem alle seine
+     Tabellen hängen — er zeigt, welche Tabellen dasselbe Objekt beliefern.
+     Kein Anhängsel, denn er hat keinen einzelnen Eltern-Kasten; er wird mit
+     angeordnet wie ein Objekt und ist sichtbar, solange es eine seiner
+     Tabellen ist. */
+  if(S.mode === 'quellen' && E.geschaeftsobjekt){
+    const tabellen = new Map();
+    for(const o of Object.values(model.objects)){
+      if(!o.bo || !(S.model && S.model.objects[o.bo])) continue;
+      if(!tabellen.has(o.bo)) tabellen.set(o.bo, []);
+      tabellen.get(o.bo).push(byId.get('o:'+o.name));
+    }
+    for(const [bo, liste] of tabellen){
+      const id = 'g:'+bo;
+      const n = {id, kind:'gobj', name:bo, sub:null, rows:[], abgeleitet:true,
+                 w: Math.max(126, Math.round(measure(bo, F_TITLE) + PAD_X*2 + 8)),
+                 h: HEAD_ONLY_H, x:0, y:0, ref:{name:bo},
+                 get hidden(){ return liste.every(t => t.hidden); }, set hidden(_){}};
+      nodes.push(n); byId.set(id, n);
+      liste.forEach(t => edges.push({from:t.id, to:id, kind:'go', label:'Geschäftsobjekt', fromCard:null, toCard:null}));
+    }
   }
 
   // Mehrfachkanten zwischen demselben Paar auffächern.
@@ -2782,6 +2852,8 @@ const SVG_CSS = `
 .node.source .n-head{fill:#8A5B00}
 .node.domain .n-box{fill:#EAF4EE;stroke:#2E6B4A;stroke-width:1.2;stroke-dasharray:5 3}
 .node.domain .n-head{fill:#2E6B4A}
+.node.gobj .n-box{fill:#E9EFF8;stroke:#1D3F72;stroke-width:1.4;stroke-dasharray:5 3}
+.node.gobj .n-head{fill:#1D3F72}
 .node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
 .node.selected .n-head{fill:#B4145F}
 .node.faded{opacity:.16}
@@ -2796,6 +2868,9 @@ const SVG_CSS = `
 .eg.domaene .e-path{stroke:#2E6B4A;stroke-dasharray:6 4}
 .eg.domaene .e-mk{stroke:#2E6B4A}
 .eg.domaene .e-dot{stroke:#2E6B4A}
+.eg.go .e-path{stroke:#1D3F72;stroke-dasharray:6 4}
+.eg.go .e-mk{stroke:#1D3F72}
+.eg.go .e-dot{stroke:#1D3F72}
 .eg .e-hit{fill:none;stroke:transparent;stroke-width:15;cursor:pointer;pointer-events:stroke}
 .eg.picked .e-path{stroke:#B4145F;stroke-width:2.2}
 .eg.picked .e-mk{stroke:#B4145F}
@@ -2816,6 +2891,7 @@ const SVG_CSS = `
 .elbl .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .elbl.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
 .elbl.domaene .e-lbl{fill:#2E6B4A;letter-spacing:.06em}
+.elbl.go .e-lbl{fill:#1D3F72;letter-spacing:.06em}
 .elbl .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
 .elbl .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded,.elbl.faded{opacity:.1}
@@ -3611,6 +3687,511 @@ const DEFAULT_UEBERSICHT = `# Hierarchie der redaktionellen Diagramme.
             - Produkt
             - Kategorie
 `;
+const DEFAULT_QUELLTABELLEN = `meta:
+  titel: Willibald – Quelltabellen
+  urheber: DDVUG e.V.
+  lizenz: CC BY 4.0
+  lizenz_url: https://creativecommons.org/licenses/by/4.0/
+
+SourceTables:
+  Bestellung:
+    source_system: Webshop
+    business_object: Bestellung
+    Domain: Willibald
+    desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
+    business_keys:
+    - BestellungID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: AllgLieferAdrID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Bestelldatum
+      type: date
+      nullable: false
+    - name: Wunschdatum
+      type: date
+      nullable: false
+    - name: Rabatt
+      type: numeric(5,2)
+      nullable: false
+    relationships:
+    - to: Position
+      name: enthält
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Bestellung_VRS:
+    source_system: Roadshow
+    business_object: Bestellung
+    Domain: Willibald
+    desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
+    business_keys:
+    - BestellungID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: AllgLieferAdrID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Bestelldatum
+      type: date
+      nullable: false
+    - name: Wunschdatum
+      type: date
+      nullable: false
+    - name: Rabatt
+      type: numeric(5,2)
+      nullable: false
+    relationships:
+    - to: Position_VRS
+      name: enthält
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Kategorie:
+    source_system: Webshop
+    business_object: Kategorie
+    Domain: Willibald
+    desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
+    business_keys:
+    - KatID
+    attributes:
+    - name: KatID
+      type: varchar(50)
+      nullable: false
+      primary_key: true
+    - name: OberKatID
+      type: varchar(50)
+      nullable: true
+      foreign_key: true
+      references: Kategorie.KatID
+    - name: Name
+      type: varchar(512)
+      nullable: false
+    relationships:
+    - to: Kategorie
+      name: ist Oberkategorie von
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Produkt
+      name: enthält
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Kunde:
+    source_system: Webshop
+    business_object: Kunde
+    Domain: Willibald
+    desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
+    business_keys:
+    - KundeID
+    attributes:
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      primary_key: true
+    - name: VereinsPartnerID
+      type: varchar(30)
+      nullable: true
+      foreign_key: true
+    - name: Vorname
+      type: varchar(128)
+      nullable: false
+    - name: Name
+      type: varchar(128)
+      nullable: false
+    - name: Geschlecht
+      type: char
+      nullable: true
+    - name: Geburtsdatum
+      type: date
+      nullable: false
+    - name: Telefon
+      type: varchar(20)
+      nullable: true
+    - name: Mobil
+      type: varchar(20)
+      nullable: true
+    - name: Email
+      type: varchar(128)
+      nullable: true
+    - name: Kreditkarte
+      type: varchar(30)
+      nullable: false
+    - name: GueltigBis
+      type: char(5)
+      nullable: false
+    - name: KKFirma
+      type: varchar(128)
+      nullable: false
+    relationships:
+    - to: Wohnort
+      name: hat
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Lieferadresse
+      name: verwendet
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Bestellung
+      name: gibt auf
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  LieferDienst:
+    source_system: Webshop
+    business_object: LieferDienst
+    Domain: Willibald
+    desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
+    business_keys:
+    - LieferDienstID
+    attributes:
+    - name: LieferDienstID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+    - name: Name
+      type: varchar(128)
+      nullable: false
+    - name: Telefon
+      type: varchar(20)
+      nullable: false
+    - name: Fax
+      type: varchar(20)
+      nullable: true
+    - name: Email
+      type: varchar(128)
+      nullable: false
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+    relationships:
+    - to: Lieferung
+      name: führt aus
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Lieferadresse:
+    source_system: Webshop
+    business_object: Lieferadresse
+    Domain: Willibald
+    desc: Enthält eine vom Kunden verwendete Adresse, an die Bestellungen oder einzelne Bestellpositionen geliefert werden können.
+    business_keys:
+    - LieferAdrID
+    attributes:
+    - name: LieferAdrID
+      type: int
+      nullable: false
+      primary_key: true
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Adresszusatz
+      type: varchar(128)
+      nullable: true
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+    relationships:
+    - to: Bestellung
+      name: ist allgemeine Lieferadresse für
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Position
+      name: ist spezielle Lieferadresse für
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+    - to: Lieferung
+      name: ist Zieladresse von
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Lieferung:
+    source_system: Webshop
+    business_object: Lieferung
+    Domain: Willibald
+    desc: Dokumentiert die Zustellung einer Bestellposition an eine Lieferadresse durch einen Lieferdienst zu einem Lieferdatum.
+    business_keys:
+    - BestellungID
+    - PosID
+    - LieferAdrID
+    - LieferDienstID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Position.BestellungID
+    - name: PosID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Position.PosID
+    - name: LieferAdrID
+      type: int
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: LieferDienstID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: LieferDienst.LieferDienstID
+    - name: LieferDatum
+      type: date
+      nullable: false
+  Position:
+    source_system: Webshop
+    business_object: Position
+    Domain: Willibald
+    desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
+    business_keys:
+    - BestellungID
+    - PosID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Bestellung.BestellungID
+    - name: PosID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: ProduktID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Produkt.ProduktID
+    - name: SpezLieferAdrID
+      type: int
+      nullable: true
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Menge
+      type: int
+      nullable: false
+    - name: Preis
+      type: numeric(10,2)
+      nullable: false
+    relationships:
+    - to: Lieferung
+      name: wird erfüllt durch
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Position_VRS:
+    source_system: Roadshow
+    business_object: Position
+    Domain: Willibald
+    desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
+    business_keys:
+    - BestellungID
+    - PosID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Bestellung_VRS.BestellungID
+    - name: PosID
+      type: bigint
+      nullable: false
+      primary_key: true
+    - name: ProduktID
+      type: int
+      nullable: false
+      foreign_key: true
+      references: Produkt.ProduktID
+    - name: SpezLieferAdrID
+      type: int
+      nullable: true
+      foreign_key: true
+      references: Lieferadresse.LieferAdrID
+    - name: Menge
+      type: int
+      nullable: false
+    - name: Preis
+      type: numeric(10,2)
+      nullable: false
+  Produkt:
+    source_system: Webshop
+    business_object: Produkt
+    Domain: Willibald
+    desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
+    business_keys:
+    - ProduktID
+    attributes:
+    - name: ProduktID
+      type: int
+      nullable: false
+      primary_key: true
+    - name: KatID
+      type: varchar(50)
+      nullable: false
+      foreign_key: true
+      references: Kategorie.KatID
+    - name: Bezeichnung
+      type: varchar(512)
+      nullable: false
+    - name: Umfang
+      type: varchar(128)
+      nullable: false
+    - name: Typ
+      type: int
+      nullable: false
+    - name: Preis
+      type: decimal(5,2)
+      nullable: false
+    - name: Pflanzort
+      type: varchar(128)
+      nullable: false
+    - name: Pflanzabstand
+      type: varchar(128)
+      nullable: false
+    relationships:
+    - to: Position
+      name: wird bestellt in
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  VereinsPartner:
+    source_system: Roadshow
+    business_object: VereinsPartner
+    Domain: Willibald
+    desc: Beschreibt einen Vereinspartner mit verantwortlichem Kunden beziehungsweise Vereinsvorsitz und gestaffelten Rabatten.
+    business_keys:
+    - VereinsPartnerID
+    attributes:
+    - name: VereinsPartnerID
+      type: varchar(30)
+      nullable: false
+      primary_key: true
+    - name: KundeIDVerein
+      type: char(13)
+      nullable: false
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Rabatt1
+      type: int
+      nullable: false
+    - name: Rabatt2
+      type: int
+      nullable: false
+    - name: Rabatt3
+      type: int
+      nullable: false
+    relationships:
+    - to: Bestellung_VRS
+      name: begünstigt
+      cardinality:
+        from: exactly_one
+        to: zero_or_many
+  Wohnort:
+    source_system: Webshop
+    business_object: WohnHistorie
+    Domain: Willibald
+    desc: Dokumentiert die zeitliche Historie der Wohnadressen eines Kunden mit Gültigkeitsbeginn und optionalem Gültigkeitsende.
+    business_keys:
+    - KundeID
+    attributes:
+    - name: KundeID
+      type: char(13)
+      nullable: false
+      primary_key: true
+      foreign_key: true
+      references: Kunde.KundeID
+    - name: Von
+      type: date
+      nullable: false
+      primary_key: true
+    - name: Bis
+      type: date
+      nullable: true
+    - name: Strasse
+      type: varchar(128)
+      nullable: false
+    - name: Hausnummer
+      type: varchar(10)
+      nullable: false
+    - name: Adresszusatz
+      type: varchar(128)
+      nullable: true
+    - name: Plz
+      type: varchar(10)
+      nullable: false
+    - name: Ort
+      type: varchar(128)
+      nullable: false
+    - name: Land
+      type: varchar(128)
+      nullable: true
+  href_termintreue:
+    source_system: Referenzdaten
+    business_object: href_termintreue
+    Domain: Willibald
+    desc: Definiert Wertebereiche zur fachlichen Klassifizierung der Termintreue anhand der Anzahl von Tagen.
+    business_keys:
+    - Anzahl_Tage_von
+    - Anzahl_Tage_bis
+`;
 
 const S = {
   model:null, graph:null, yamlText:'',
@@ -3618,7 +4199,7 @@ const S = {
   saved:{1:{}},
   routes:{1:{}},
   content:{1:{}},
-  elemente:{quelle:false, domaene:false},   // Einstellung: Quelle/Domäne als eigener Kasten
+  elemente:{quelle:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Domäne/GO als eigener Kasten
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -3627,15 +4208,21 @@ const S = {
   pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   zusatzAn:{objekt:[], attribut:[]},   // Einstellung: welche Zusatzattribute gepflegt werden
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
+  // Quelltabellen: eigene Datei, eigener Bereich (Einstellung, Vorgabe aus)
+  quellenAn:false,          // Einstellung: gibt es den Bereich überhaupt?
+  quellPflegeAn:false,      // Einstellung: dürfen Quelltabellen bearbeitet werden?
+  quellText:'',             // Quelltabellen-YAML; leer = mitgelieferte Vorlage
+  quellFileName:'willibald-quelltabellen.yaml',
+  quellModell:null,         // aus quellModellBauen()
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',
   // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht
-  mode:'komplett',          // 'komplett' | 'hierarchie'
-  bereiche:{hierarchie: neuerBaum()}
+  mode:'komplett',          // 'komplett' | 'hierarchie' | 'quellen'
+  bereiche:{hierarchie: neuerBaum(), quellen: neuerBaum()}
 };
 
-/* Ein Diagrammbaum mit allem, was an ihm hängt. Die Hierarchie hat einen;
-   die Felder S.outline, S.hierSel … zeigen auf den Baum des aktiven Bereichs,
+/* Ein Diagrammbaum mit allem, was an ihm hängt. Hierarchie und Quelltabellen
+   haben je einen; die Felder S.outline, S.hierSel … zeigen auf den Baum des aktiven Bereichs,
    damit hierarchie.js für jeden Baum dasselbe tut. */
 function neuerBaum(){
   return {
@@ -3650,11 +4237,33 @@ function neuerBaum(){
     hierEditing:false       // Beschreibung gerade im Bearbeiten-Modus?
   };
 }
-const aktBaum = ()=> S.bereiche.hierarchie;
+const aktBaum = ()=> S.mode === 'quellen' ? S.bereiche.quellen : S.bereiche.hierarchie;
 Object.keys(neuerBaum()).forEach(k => Object.defineProperty(S, k, {
   get(){ return aktBaum()[k]; }, set(v){ aktBaum()[k] = v; }, enumerable:true
 }));
-const aktModell = ()=> S.model;
+const aktModell = ()=> S.mode === 'quellen' ? S.quellModell : S.model;
+
+/* Eine reine Rechnung im Baum eines anderen Bereichs ausführen, etwa die
+   Diagramm-YAML der Quelltabellen aus der Komplettansicht heraus speichern.
+   Nichts zeichnen: der Modus gilt nur für die Dauer von fn. */
+function imBereich(mode, fn){
+  const alt = S.mode;
+  S.mode = mode;
+  try{ return fn(); } finally { S.mode = alt; }
+}
+
+const quellTextAkt = ()=> S.quellText || (typeof DEFAULT_QUELLTABELLEN !== 'undefined' ? DEFAULT_QUELLTABELLEN : '');
+
+/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen oder am
+   Geschäftsobjekt-Modell, gegen dessen Namen die Zuordnung geprüft wird. Eine
+   unlesbare Datei lässt den Bereich leer und sagt es in der Prüfung. */
+function quellModellBauen(){
+  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle', S.model); }
+  catch(err){
+    S.quellModell = {objects:{}, meta:{}, zusatz:{objekt:new Map(), attribut:new Map()},
+      messages:[{level:'err', title:'Quelltabellen nicht lesbar', body:err.message}]};
+  }
+}
 
 const $ = id => document.getElementById(id);
 const svg = $('canvas');
@@ -3705,6 +4314,7 @@ function matchesFilter(n, q){
   const r = n.ref || {};
   if(hat(r.domain)) return true;
   if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
+  if(hat(r.system) || hat(r.bo)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
   return (r.rels || []).some(x => hat(x.name));
 }
@@ -4696,8 +5306,8 @@ function buildOutline(text, model){
 
   function node(name, raw, pfad){
     const def = (raw && typeof raw === 'object') ? raw : {};
-    const liste = Array.isArray(def.objekte) ? def.objekte
-                : Array.isArray(def.objects) ? def.objects : [];
+    // „tabellen" in den Diagrammen der Quelltabellen, sonst „objekte"
+    const liste = ['objekte','objects','tabellen','tables'].map(k => def[k]).find(Array.isArray) || [];
     const objekte = liste.filter(Boolean).map(String);
     if(known) objekte.forEach(o=>{
       if(!known.has(o)) messages.push({level:'warn', title:`${name}: Objekt „${o}“ unbekannt`,
@@ -4748,14 +5358,16 @@ function outlineToYaml(roots){
   const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
   const skalar = s => plain(s) ? s : q(s);
   const lines = [];
+  const listKey = S.mode === 'quellen' ? 'tabellen' : 'objekte';
   const emit = (node, ind)=>{
+    if(node.auto) return;                  // aus dem Modell berechnet, gehört nicht in die Datei
     const pad = '  '.repeat(ind);
     lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
     const txt = diagramText(node);
     if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
     const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
     if(objs.length){
-      lines.push(`${pad}  objekte:`);
+      lines.push(`${pad}  ${listKey}:`);
       objs.forEach(o => lines.push(`${pad}    - ${skalar(o)}`));
     }
     if(node.kinder && node.kinder.length){
@@ -4821,7 +5433,7 @@ function wrapRuns(runs, size, maxW){
    Bild, mit gerendertem Markdown (fett/kursiv/Code, Überschriften, Listen,
    Zitate). Gibt {svg, height} zurück oder null (nicht im Hierarchie-Modus). */
 function hierExportHeader(b){
-  if(S.mode !== 'hierarchie' || !S.hierSel || !S.outline) return null;
+  if(S.mode === 'komplett' || !S.hierSel || !S.outline) return null;
   const node = outlineFind(S.outline.roots, S.hierSel);
   if(!node) return null;
   const x0 = b.x + 16, maxW = Math.max(240, b.w - 32);
@@ -4869,10 +5481,34 @@ function hierExportHeader(b){
 
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
-  if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
-  S.outline = buildOutline(S.outlineText, aktModell());
+  if(S.mode === 'quellen'){
+    // Die Diagramme der Quellsysteme stehen in keiner Datei: sie folgen den
+    // Tabellen und werden bei jedem Aufbau neu berechnet. Aufgeklappt bleibt,
+    // was aufgeklappt war — der Baum entsteht hier bei jedem Moduswechsel.
+    S.outline = buildOutline(S.outlineText, aktModell());
+    S.outline.roots.unshift(quellsystemKnoten(aktModell()));
+    if(S.hierOpen) return;
+  } else {
+    if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
+    S.outline = buildOutline(S.outlineText, aktModell());
+  }
   // Ordner anfangs aufgeklappt
   S.hierOpen = new Set(outlineFlat(S.outline.roots).filter(n => n.kinder.length).map(n => n.id));
+}
+
+/* „Quellsysteme" mit allen Tabellen, darunter je Quellsystem ein Diagramm mit
+   genau dessen Tabellen. */
+const QS_WURZEL = 'Quellsysteme';
+function quellsystemKnoten(modell){
+  const tabellen = Object.values(modell.objects);
+  const systeme = [...new Set(tabellen.map(o => o.system).filter(Boolean))].sort((a,b)=> a.localeCompare(b, 'de'));
+  return {
+    id: QS_WURZEL, name: QS_WURZEL, auto: true,
+    beschreibung: 'Alle Quelltabellen. Darunter je Quellsystem ein Diagramm mit seinen Tabellen.',
+    objekte: tabellen.map(o => o.name),
+    kinder: systeme.map(s => ({id: QS_WURZEL + '›' + s, name: s, auto: true, beschreibung: '',
+      objekte: tabellen.filter(o => o.system === s).map(o => o.name), kinder: []}))
+  };
 }
 
 /* ---------- Baum links oben ---------- */
@@ -4994,8 +5630,23 @@ function platziereNeue(neu, platziert){
 function hierPlaceFresh(){
   const saved = S.hierSaved[S.hierSel] || {};
   const neu = visNodes().filter(n => !saved[n.id]);
-  platziereNeue(neu.filter(n => !n.eltern), visNodes().filter(n => saved[n.id]));
+  platziereNeue(neu.filter(n => !n.eltern && !n.abgeleitet), visNodes().filter(n => saved[n.id]));
   platziereAnhaengsel(S.graph, neu);
+  platziereGO(S.graph, neu);
+}
+
+/* Ein neu hinzugekommenes Geschäftsobjekt-Element (Quelltabellen) rechts
+   neben seine sichtbaren Tabellen samt deren Anhängseln, auf deren mittlere
+   Höhe. So bleibt eine gelegte Anordnung liegen, wenn man es einschaltet. */
+function platziereGO(g, neu){
+  neu.filter(n => n.kind === 'gobj').forEach(n=>{
+    const tab = new Set(g.edges.filter(e => e.to === n.id).map(e => e.from));
+    const t = g.nodes.filter(x => !x.hidden && (tab.has(x.id) || tab.has(x.eltern)));
+    if(!t.length) return;
+    const mitte = t.filter(x => tab.has(x.id));
+    n.x = Math.round(Math.max(...t.map(x => x.x + x.w)) + 60);
+    n.y = Math.round(mitte.reduce((s,x)=> s + x.y + x.h/2, 0) / mitte.length - n.h/2);
+  });
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -5023,7 +5674,7 @@ function showDiagram(node){
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
   const known = vis.filter(n => saved[n.id]);
-  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern);
+  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern && !n.abgeleitet);
   if(known.length === vis.length && known.length){
     S.graph.nodes.forEach(n=>{ if(saved[n.id]){ n.x = saved[n.id].x; n.y = saved[n.id].y; } });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
@@ -5033,6 +5684,7 @@ function showDiagram(node){
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
     platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
+    platziereGO(S.graph, vis.filter(n => !saved[n.id]));
     hierPersist();
   } else {
     applyAutoLayout(S.graph);
@@ -5054,13 +5706,23 @@ function showDiagram(node){
 
 /* ---------- Modus wechseln ---------- */
 function setMode(mode){
+  if(mode === 'quellen' && !S.quellenAn) mode = 'hierarchie';   // Bereich ausgeschaltet
   S.mode = mode;
-  document.body.classList.toggle('modus-hierarchie', mode === 'hierarchie');
+  // Die Quelltabellen sind ein zweiter Baum: dieselbe Oberfläche wie die Hierarchie
+  const baum = mode !== 'komplett';
+  document.body.classList.toggle('modus-hierarchie', baum);
+  document.body.classList.toggle('modus-quellen', mode === 'quellen');
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
-  $('hierTree').hidden = mode !== 'hierarchie';
-  $('hierTools').hidden = mode !== 'hierarchie';
-  if(mode === 'hierarchie'){
+  $('hierTree').hidden = !baum;
+  $('hierTools').hidden = !baum;
+  const oben = $('hierTools').querySelector('[data-hact="add-top"]');
+  oben.textContent = mode === 'quellen' ? '＋ Diagramm' : '＋ Domäne';
+  oben.title = mode === 'quellen' ? 'Neues Diagramm auf oberster Ebene' : 'Neue Domäne auf oberster Ebene';
+  // Die Diagramme der Quellsysteme folgen den Tabellen: bei jedem Eintritt neu
+  if(mode === 'quellen'){ quellModellBauen(); parseOutline(); }
+  renderMessages();                        // die Prüfung gilt dem Modell des Bereichs
+  if(baum){
     if(!S.outline) parseOutline();
     setSidePane('beschreibung');
     const gewaehlt = S.hierSel && outlineFind(S.outline.roots, S.hierSel);
@@ -5078,11 +5740,27 @@ function setMode(mode){
 /* In-App-Bearbeitungen (Text, Objektmengen) in die Knoten schreiben, damit sie
    beim Neuaufbau der Kennungen und der YAML-Ausgabe erhalten bleiben. */
 function bakeOverlays(){
+  const auto = new Set();
   outlineFlat(S.outline.roots).forEach(n=>{
+    if(n.auto){ auto.add(n.id); return; }   // steht in keiner Datei: Bearbeitungen bleiben Überlagerung
     if(S.hierText[n.id] !== undefined) n.beschreibung = S.hierText[n.id];
     if(S.hierShown[n.id]) n.objekte = S.hierShown[n.id].map(i => i.replace(/^o:/, ''));
   });
-  S.hierText = {}; S.hierShown = {};
+  const nurAuto = m => Object.fromEntries(Object.entries(m).filter(([id]) => auto.has(id)));
+  S.hierText = nurAuto(S.hierText); S.hierShown = nurAuto(S.hierShown);
+}
+
+/* Die Diagramme der Quellsysteme entstehen aus den Tabellen; ändern lässt
+   sich an ihnen nur Anordnung, Auswahl und Beschreibung. */
+function autoGesperrt(node){
+  if(!node || !node.auto) return false;
+  toast('Die Diagramme der Quellsysteme entstehen aus den Tabellen und lassen sich nicht umbauen');
+  return true;
+}
+function nameFrei(name){
+  if(S.mode !== 'quellen' || name !== QS_WURZEL) return true;
+  toast('„' + QS_WURZEL + '" ist den Diagrammen der Quellsysteme vorbehalten');
+  return false;
 }
 
 /* Kennungen (Pfad) für den ganzen Baum neu vergeben. */
@@ -5114,10 +5792,12 @@ const reinName = s => String(s || '').replace(/[›:]/g, '').trim();
 
 function outlineAdd(parentId, name){
   name = reinName(name);
-  if(!name || !S.outline) return null;
+  if(!name || !S.outline || !nameFrei(name)) return null;
+  const p = parentId ? outlineFind(S.outline.roots, parentId) : null;
+  if(parentId && (!p || autoGesperrt(p))) return null;
   bakeOverlays();
   const neu = {id:'', name, beschreibung:'', objekte:[], kinder:[]};
-  if(parentId){ const p = outlineFind(S.outline.roots, parentId); if(!p) return null; p.kinder.push(neu); }
+  if(p) p.kinder.push(neu);
   else S.outline.roots.push(neu);
   reassignIds();
   commitOutline();
@@ -5129,7 +5809,7 @@ function outlineAdd(parentId, name){
 function outlineRename(id, name){
   name = reinName(name);
   const node = S.outline && outlineFind(S.outline.roots, id);
-  if(!node || !name) return;
+  if(!node || !name || autoGesperrt(node) || !nameFrei(name)) return;
   bakeOverlays();
   const alt = node.id;
   node.name = name;
@@ -5142,7 +5822,7 @@ function outlineRename(id, name){
 
 function outlineDelete(id){
   const node = S.outline && outlineFind(S.outline.roots, id);
-  if(!node) return;
+  if(!node || autoGesperrt(node)) return;
   bakeOverlays();
   const entferne = arr=>{
     const i = arr.findIndex(n => n.id === id);
@@ -5165,7 +5845,7 @@ function outlineMove(dragId, targetId, pos){
   const drag = outlineFind(S.outline.roots, dragId);
   if(!drag) return;
   const target = outlineFind(S.outline.roots, targetId);
-  if(!target) return;
+  if(!target || autoGesperrt(drag) || autoGesperrt(target)) return;
   if(target.id === dragId || target.id.startsWith(dragId + '›')){ toast('Ein Diagramm kann nicht in sich selbst verschoben werden'); return; }
   bakeOverlays();
   const alt = drag.id;
@@ -5189,13 +5869,17 @@ function outlineMove(dragId, targetId, pos){
 
 /* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */
 function hierAction(act){
-  if(act === 'add-top'){ const n = prompt('Name der neuen Domäne:'); if(n) outlineAdd(null, n); return; }
+  if(act === 'add-top'){
+    const n = prompt(S.mode === 'quellen' ? 'Name des neuen Diagramms:' : 'Name der neuen Domäne:');
+    if(n) outlineAdd(null, n);
+    return;
+  }
   const id = S.hierSel;
   if(!id){ toast('Erst ein Diagramm wählen'); return; }
   const node = outlineFind(S.outline.roots, id);
   if(act === 'add-child'){ const n = prompt('Name des neuen Unterdiagramms:'); if(n) outlineAdd(id, n); }
   else if(act === 'rename'){ const n = prompt('Neuer Name:', node ? node.name : ''); if(n) outlineRename(id, n); }
-  else if(act === 'delete'){ if(node && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
+  else if(act === 'delete'){ if(node && !autoGesperrt(node) && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
 }
 /* =====================================================================
    10 — Pflege: Geschäftsobjekte und ihre Beziehungen bearbeiten
@@ -5228,8 +5912,18 @@ const PF_FELDER = [
   {rolle:'keys',    keys:['business_keys','BusinessKeys']},
   {rolle:'sources', keys:['source_systems','sources']},
   {rolle:'attrs',   keys:['attributes']},
-  {rolle:'rels',    keys:['relationships']}
+  {rolle:'rels',    keys:['relationships']},
+  // nur an Quelltabellen; an Geschäftsobjekten bleiben beide leer und unberührt
+  {rolle:'system',  keys:['source_system','Source_System']},
+  {rolle:'bo',      keys:['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt']}
 ];
+const PF_EINZEL = ['domain','desc','system','bo'];
+
+/* Welche Datei die Pflege gerade bearbeitet: im Bereich der Quelltabellen
+   deren YAML, sonst das Geschäftsobjekt-Modell. */
+const QT_HEAD = /^\s*(SourceTables|sourceTables|source_tables|Quelltabellen)\s*:\s*(#.*)?$/;
+const aktText = ()=> S.mode === 'quellen' ? quellTextAkt() : S.yamlText;
+const aktKopf = ()=> S.mode === 'quellen' ? QT_HEAD : BO_HEAD;
 const pfRolle = key => (PF_FELDER.find(f => f.keys.includes(key)) || {}).rolle || null;
 const pfStd   = rolle => PF_FELDER.find(f => f.rolle === rolle).keys[0];
 
@@ -5375,9 +6069,8 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
    Modell — daran hängt die Entscheidung „unverändert, also unangetastet". */
 function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
-  if(rolle === 'domain' || rolle === 'desc'){
-    const neu = (rolle === 'domain' ? e.domain : e.desc) || '';
-    const vor = (rolle === 'domain' ? alt.domain : alt.desc) || '';
+  if(PF_EINZEL.includes(rolle)){
+    const neu = e[rolle] || '', vor = alt[rolle] || '';
     if(neu === vor) return f ? f.lines : [];
     return neu ? [' '.repeat(col) + key + ': ' + yWert(neu)] : [];
   }
@@ -5534,9 +6227,12 @@ function uebersichtObjekt(text, alt, neu){
    vergessen und mit ihr jeder von Hand gezogene Kantenzug. */
 function pfIdsUmbenennen(altId, neuId){
   const um = m => { if(m && m[altId] !== undefined){ m[neuId] = m[altId]; delete m[altId]; } };
-  um(S.saved[1]);
+  // Die Komplettansicht zeigt nur Geschäftsobjekte; eine Tabelle gleichen
+  // Namens darf deren Lage nicht mitnehmen. Der Baum ist der des Bereichs.
+  const komplett = S.mode !== 'quellen';
+  if(komplett) um(S.saved[1]);
   Object.values(S.hierSaved).forEach(um);
-  if(S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
+  if(komplett && S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
   Object.keys(S.hierShown).forEach(k=>{
     S.hierShown[k] = (S.hierShown[k] || []).map(id => id === altId ? neuId : id);
   });
@@ -5552,7 +6248,7 @@ function pfIdsUmbenennen(altId, neuId){
     Object.keys(m || {}).forEach(k => { out[schluessel(k)] = m[k]; });
     return out;
   };
-  S.routes[1] = routen(S.routes[1]);
+  if(komplett) S.routes[1] = routen(S.routes[1]);
   Object.keys(S.hierRoutes).forEach(k => { S.hierRoutes[k] = routen(S.hierRoutes[k]); });
 }
 
@@ -5561,20 +6257,44 @@ function pfIdsUmbenennen(altId, neuId){
    Verlauf schreibt den Modelltext mit, Strg+Z nimmt die Bearbeitung also
    wieder zurück. Ohne Einpassen — beim Tippen soll der Ausschnitt stehen. */
 function pfUebernehmen(text, selId, meldung){
+  const quellen = S.mode === 'quellen';
   let modell;
-  try{ modell = buildModel(text); }
+  try{ modell = quellen ? buildModel(text, 'quelle', S.model) : buildModel(text); }
   catch(err){ toast('Der geänderte Modelltext ist nicht lesbar: ' + err.message); return false; }
-  S.model = modell;
-  S.yamlText = text;
+  if(quellen){ S.quellText = text; S.quellModell = modell; }
+  else { S.model = modell; S.yamlText = text; quellModellBauen(); }   // die Zuordnung prüft gegen die neuen Namen
   S.pflege = null; pfEntwurf = null;
   if(!S.outline) parseOutline();
   renderMessages(); syncLayoutMenu();
   if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
   else { S.sel = new Set(); S.selected = null; }
-  setView({autoFit:false});
-  if(S.mode === 'hierarchie') setMode('hierarchie');
+  ansichtNeu({autoFit:false});
+  // Im Bereich der Quelltabellen legt kein setView den Stand ab; ohne diesen
+  // Aufruf fehlte die Bearbeitung im Verlauf, Strg+Z nähme die Aktion davor.
+  writeStore();
   toast(meldung);
   return true;
+}
+
+/* Ein umbenanntes Geschäftsobjekt in der Zuordnung der Quelltabellen
+   nachziehen („business_object:"). Nur das Feld selbst, kein gleichlautender
+   Wert anderswo; ändert sich nichts, bleibt der Text unberührt. */
+function quellBoUmbenennen(text, alt, neu){
+  const B = splitBusinessObjects(text, QT_HEAD);
+  if(!B) return text;
+  let geaendert = false;
+  B.blocks = B.blocks.map(b=>{
+    const F = splitObjectFields(b.lines);
+    const lines = b.lines.map(l=>{
+      const m = !yBlank(l) && yCol(l) === F.fieldCol
+        && l.match(/^(\s*"?(?:business_object|Business_Object|Geschäftsobjekt|Geschaeftsobjekt)"?\s*:\s*)"?([^"#]*?)"?(\s+#.*)?\s*$/);
+      if(!m || m[2].trim() !== alt) return l;
+      geaendert = true;
+      return m[1] + yWert(neu) + (m[3] || '');
+    });
+    return {name: b.name, lines};
+  });
+  return geaendert ? pfZusammen(B) : text;
 }
 
 const PF_VERBOTEN = /[:#"]/;
@@ -5584,16 +6304,21 @@ function pfNamePruefen(name){
   return true;
 }
 
+/* Jeder Bereich hat seinen Schalter: die Geschäftsobjekte „Geschäftsobjekte
+   bearbeiten", die Quelltabellen „Quelltabellen bearbeiten". */
+const pflegeErlaubt = ()=> S.mode === 'quellen' ? S.quellPflegeAn : S.pflegeAn;
+
 /* ---------- Formular im Reiter „Details" ---------- */
 let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus YAML
 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
-  if(!S.pflegeAn || !n || n.kind !== 'object') return;
+  if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
     name: o.name, domain: o.domain || '', desc: o.desc || '',
     keys: o.keys.slice(), sources: o.sources.slice(),
+    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
@@ -5622,7 +6347,8 @@ function pfLesen(){
   e.domain = $('pfDomain').value.trim();
   e.desc = $('pfDesc').value.trim();
   e.keys = liste($('pfKeys').value);
-  e.sources = liste($('pfSources').value);
+  if($('pfSources')) e.sources = liste($('pfSources').value);
+  if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = feld('.pfo-extra', z).value.trim(); });
   e.attrs.forEach((a, i)=>{
@@ -5656,6 +6382,12 @@ function pflegeFormular(box){
     `<select class="${klasse}" data-i="${i}" aria-label="${titel}">`
     + werte.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
   const karten = [['', '—'], ...Object.keys(CARD_LABEL).map(k=>[k, CARD_LABEL[k]])];
+  // Quelltabellen: genau ein Quellsystem und die Zuordnung zu einem Geschäftsobjekt
+  const quellen = S.mode === 'quellen';
+  const gos = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
+  if(e.bo && !gos.includes(e.bo)) gos.push(e.bo);        // unbekannte Zuordnung bleibt wählbar
+  const wahlGO = `<select id="pfBO" aria-label="Geschäftsobjekt">`
+    + [['', '—'], ...gos.map(g => [g, g])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
 
   box.innerHTML =
     `<div class="hd-bar"><h2 class="hd-title">Bearbeiten</h2>
@@ -5666,7 +6398,10 @@ function pflegeFormular(box){
        <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
-       <label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>
+       ${quellen
+         ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
+            <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
+         : `<label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>`}
        ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><input class="pfo-extra" data-i="${z}"></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
@@ -5703,7 +6438,8 @@ function pflegeFormular(box){
   $('pfDomain').value = e.domain;
   $('pfDesc').value = e.desc;
   $('pfKeys').value = e.keys.join(', ');
-  $('pfSources').value = e.sources.join(', ');
+  if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
+  else $('pfSources').value = e.sources.join(', ');
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = e.extra[k]; });
   e.attrs.forEach((a,i)=>{
@@ -5757,13 +6493,18 @@ function pflegeSpeichern(){
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
 
-  let text = goObjektAendern(S.yamlText, altName, e, alt);
+  let text = goObjektAendern(aktText(), altName, e, alt, aktKopf());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   if(neuName !== altName){
-    text = goUmbenennen(text, altName, neuName);
+    text = goUmbenennen(text, altName, neuName, aktKopf());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
     S.outlineText = uebersichtObjekt(S.outlineText, altName, neuName);
     S.outline = null;
+    // Ein Geschäftsobjekt heißt auch in der Zuordnung der Quelltabellen neu
+    if(S.mode !== 'quellen'){
+      const q = quellBoUmbenennen(quellTextAkt(), altName, neuName);
+      if(q !== quellTextAkt()) S.quellText = q;
+    }
   }
   pfUebernehmen(text, 'o:' + neuName, 'Gespeichert');
 }
@@ -5771,15 +6512,15 @@ function pflegeSpeichern(){
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in
    pflegeObjektNeu/pflegeObjektWeg, damit sie auch ohne Dialog prüfbar ist. */
 function pflegeNeu(){
-  const name = (prompt('Name des neuen Geschäftsobjekts:') || '').trim();
+  const name = (prompt(S.mode === 'quellen' ? 'Name der neuen Quelltabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
   if(name) pflegeObjektNeu(name);
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!S.pflegeAn || !pfNamePruefen(name)) return;
+  if(!pflegeErlaubt() || !pfNamePruefen(name)) return;
   if(aktModell().objects[name]){ toast(`„${name}" gibt es schon`); return; }
-  const text = goObjektAnlegen(S.yamlText, name);
-  if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return; }
+  const text = goObjektAnlegen(aktText(), name, aktKopf());
+  if(text == null){ toast(`Im Modelltext fehlt der Abschnitt "${S.mode === 'quellen' ? 'SourceTables' : 'BusinessObjects'}"`); return; }
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
@@ -5796,8 +6537,8 @@ const pfEingehend = name => Object.values(aktModell().objects)
   .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
 function pflegeObjektWeg(name){
-  if(!S.pflegeAn || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(S.yamlText, name);
+  if(!pflegeErlaubt() || !aktModell().objects[name]) return;
+  const text = goObjektLoeschen(aktText(), name, aktKopf());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
   S.outline = null;
@@ -5815,7 +6556,7 @@ $('objNew').addEventListener('click', pflegeNeu);
    bleiben. „Zusatzattribute …" öffnet einen Dialog. */
 function pflegeSchalten(an){
   S.pflegeAn = !!an;
-  if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
+  if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   renderObjectList(); renderDetails();
   writeStore();
@@ -5876,10 +6617,38 @@ function syncEinstMenu(){
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   $('optQuelle').setAttribute('aria-checked', String(!!S.elemente.quelle));
   $('optDomaene').setAttribute('aria-checked', String(!!S.elemente.domaene));
+  $('optQuellen').setAttribute('aria-checked', String(S.quellenAn));
+  $('optQuellPflege').setAttribute('aria-checked', String(S.quellPflegeAn));
+  $('optGO').setAttribute('aria-checked', String(!!S.elemente.geschaeftsobjekt));
+  document.body.classList.toggle('quellen-an', S.quellenAn);   // blendet alles zu den Quelltabellen ein
+}
+
+/* „Quelltabellen verwenden": ohne den Haken gibt es den Bereich nicht —
+   kein Modus, keine Dateien, keine Schalter. Wer ihn im Bereich selbst
+   abschaltet, landet in der Hierarchie. Gemerkt und ein Schritt im Verlauf. */
+function quellenSchalten(an){
+  S.quellenAn = !!an;
+  syncEinstMenu();
+  if(!S.quellenAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; setMode('hierarchie'); }
+  writeStore();
+  toast(S.quellenAn ? 'Quelltabellen eingeschaltet' : 'Quelltabellen ausgeschaltet');
+}
+/* „Quelltabellen bearbeiten": dasselbe wie „Geschäftsobjekte bearbeiten",
+   nur für den Bereich der Quelltabellen. */
+function quellPflegeSchalten(an){
+  S.quellPflegeAn = !!an;
+  if(!S.quellPflegeAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; }
+  syncEinstMenu();
+  renderObjectList(); renderDetails();
+  writeStore();
+  toast(S.quellPflegeAn ? 'Bearbeiten der Quelltabellen eingeschaltet' : 'Bearbeiten der Quelltabellen ausgeschaltet');
 }
 
 $('btnEinst').addEventListener('click', syncEinstMenu);
 $('optPflege').addEventListener('click', ()=> pflegeSchalten(!S.pflegeAn));
+$('optQuellen').addEventListener('click', ()=> quellenSchalten(!S.quellenAn));
+$('optQuellPflege').addEventListener('click', ()=> quellPflegeSchalten(!S.quellPflegeAn));
+$('optGO').addEventListener('click', ()=> elementSchalten('geschaeftsobjekt'));
 $('optQuelle').addEventListener('click', ()=> elementSchalten('quelle'));
 $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
@@ -5976,9 +6745,19 @@ const layoutFile = ()=> ({
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
   elemente: S.elemente,
-  uebersichtText: S.outlineText,
-  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
+  uebersichtText: S.bereiche.hierarchie.outlineText,
+  hierarchie: baumAblage(S.bereiche.hierarchie),
+  // Seit den Quelltabellen; fehlt der Schlüssel (ältere Datei), gelten die Vorgaben
+  quelltabellen: Object.assign({an: S.quellenAn, pflegeAn: S.quellPflegeAn,
+    uebersichtText: S.bereiche.quellen.outlineText}, baumAblage(S.bereiche.quellen))
 });
+const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText});
+function baumUebernehmen(B, a){
+  B.hierSaved = a.anordnung || {};
+  B.hierRoutes = a.kantenzuege || {};
+  B.hierShown = a.sichtbar || {};
+  B.hierText = a.text || {};
+}
 
 function adoptLayoutFile(obj){
   if(!obj || typeof obj !== 'object') return false;
@@ -5998,13 +6777,16 @@ function adoptLayoutFile(obj){
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
   if(obj.elemente && typeof obj.elemente === 'object')
-    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene};
-  if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
-  if(obj.hierarchie){
-    S.hierSaved = obj.hierarchie.anordnung || {};
-    S.hierRoutes = obj.hierarchie.kantenzuege || {};
-    S.hierShown = obj.hierarchie.sichtbar || {};
-    S.hierText = obj.hierarchie.text || {};
+    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene,
+                  geschaeftsobjekt: !!obj.elemente.geschaeftsobjekt};
+  if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
+  if(obj.hierarchie) baumUebernehmen(S.bereiche.hierarchie, obj.hierarchie);
+  const q = obj.quelltabellen;
+  if(q && typeof q === 'object'){
+    S.quellenAn = !!q.an;
+    S.quellPflegeAn = !!q.pflegeAn;
+    S.bereiche.quellen.outlineText = typeof q.uebersichtText === 'string' ? q.uebersichtText : '';
+    baumUebernehmen(S.bereiche.quellen, q);
   }
   return true;
 }
@@ -6019,15 +6801,19 @@ function writeStore(){
   const blob = layoutFile();
   const snap = JSON.stringify(blob);
   store.set('layouts:' + S.fileName, snap);
-  const sitzung = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText}, blob));
+  const sitzung = JSON.stringify(Object.assign(modellTexte(), blob));
   store.set('sitzung', sitzung);
   // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:layoutFile()}));
+  recordHistory(verlaufsStand());
 }
+/* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
+   Geschäftsobjekt-Modell und die Quelltabellen (eigene Datei). */
+const modellTexte = ()=> ({fileName:S.fileName, yaml:S.yamlText,
+                           quellFileName:S.quellFileName, quellYaml:S.quellText});
+const verlaufsStand = ()=> JSON.stringify({yaml:S.yamlText, quellYaml:S.quellText, stand:layoutFile()});
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
    Schnappschuss-basiert: jede gespeicherte Aktion (Verschieben, Anordnen,
@@ -6037,7 +6823,7 @@ function writeStore(){
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
+function resetHistory(){ hist = [verlaufsStand()]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -6054,16 +6840,23 @@ function restoreHistory(snap){
     if(p.yaml !== S.yamlText){
       S.yamlText = p.yaml;
       S.model = buildModel(p.yaml);
-      renderMessages();
     }
-    const beforeOutline = S.outlineText;
+    S.quellText = p.quellYaml || '';
+    quellModellBauen();
+    const H = S.bereiche.hierarchie, Q = S.bereiche.quellen;
+    const vorH = H.outlineText, vorQ = Q.outlineText;
     adoptLayoutFile(p.stand);
     // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
-    if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }
+    if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }
     syncEinstMenu();
-    // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
-    if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
-    if(S.mode === 'hierarchie'){
+    // Änderte sich die Struktur eines Baums, ihn aus dem Text neu aufbauen.
+    // Die Quelltabellen stets: ihre Systemdiagramme folgen den Tabellen.
+    if(H.outlineText !== vorH){ H.outline = null; imBereich('hierarchie', parseOutline); }
+    if(Q.outlineText !== vorQ) Q.outline = null;
+    if(S.mode === 'quellen' && S.quellenAn) parseOutline();
+    renderMessages();
+    if(S.mode === 'quellen' && !S.quellenAn) setMode('hierarchie');   // Bereich zurückgenommen
+    else if(S.mode !== 'komplett'){
       renderOutlineTree();
       if(S.hierSel && !(S.outline && outlineFind(S.outline.roots, S.hierSel))){
         const flat = S.outline ? outlineFlat(S.outline.roots) : [];
@@ -6086,7 +6879,7 @@ function redo(){
 }
 
 function persist(){
-  if(S.mode === 'hierarchie'){ hierPersist(); return; }
+  if(S.mode !== 'komplett'){ hierPersist(); return; }
   S.saved[S.view] = positionsSnapshot();
   captureRoutes();
   writeStore();
@@ -6111,16 +6904,18 @@ function hierPersist(){
    Hierarchie sind die im Diagramm sichtbaren angehakt, die übrigen lassen sich
    dort hinzuholen. Anhängsel (Quelle/Domäne) gehören zu ihrem Objekt und
    stehen nicht in der Liste. */
-function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern); }
+function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern && !n.abgeleitet); }
 
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
 function renderObjectList(){
-  $('objNew').hidden = !S.pflegeAn;          // Einstellung „Geschäftsobjekte bearbeiten"
+  $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
   const ul = $('objectList');
   const groups = new Map();
+  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne
+  const quellen = S.mode === 'quellen';
   listedNodes().forEach(n=>{
-    const g = n.ref.domain || 'Ohne Domain';
+    const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.domain || 'Ohne Domain');
     if(!groups.has(g)) groups.set(g, []);
     groups.get(g).push(n);
   });
@@ -6164,7 +6959,7 @@ function renderObjectList(){
 /* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
    Modus als sichtbare Menge je Diagramm (S.hierShown[Diagramm]). */
 function markVisible(id, on){
-  if(S.mode === 'hierarchie'){
+  if(S.mode !== 'komplett'){
     const shown = hierShownSet();
     if(on) shown.add(id); else shown.delete(id);
     S.hierShown[S.hierSel] = [...shown];
@@ -6180,7 +6975,7 @@ function setGroupVisible(list, on){
     if(!on) S.sel.delete(n.id);
   });
   if(S.selected && !S.sel.has(S.selected)) S.selected = [...S.sel].pop() || null;
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -6196,7 +6991,7 @@ function setVisible(id, on){
   if(n) n.hidden = !on;
   markVisible(id, on);
   if(!on){ S.sel.delete(id); if(S.selected === id) S.selected = [...S.sel].pop() || null; }
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   document.querySelectorAll(`.olist .ochk[data-id="${CSS.escape(id)}"]`).forEach(c=>{
     c.checked = on;
     c.closest('li').classList.toggle('off', !on);
@@ -6207,7 +7002,7 @@ function setVisible(id, on){
 function setAllVisible(on){
   listedNodes().forEach(n=>{ n.hidden = !on; markVisible(n.id, on); });
   if(!on){ S.sel.clear(); S.selected = null; }
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -6227,7 +7022,7 @@ function addRelated(id){
     else if(e.to === id){ nb = e.from; card = e.fromCard; }
     else return;
     const node = S.graph.byId.get(nb);
-    if(!node || node.eltern) return;                  // Quelle/Domäne ist kein verknüpftes Objekt
+    if(!node || node.eltern || node.abgeleitet) return;   // Quelle/Domäne/GO-Element ist kein verknüpftes Objekt
     const many = /_or_many$/.test(card || '');
     const cur = neigh.get(nb);
     neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
@@ -6300,11 +7095,20 @@ function renderDetails(){
 
   if(S.pflege === n.id){ pflegeFormular(box); return; }
 
-  if(n.eltern){
+  if(n.abgeleitet){
+    // Geschäftsobjekt-Element: welche Tabellen es beliefern
+    const tabellen = Object.values(aktModell().objects).filter(o => o.bo === n.name).map(o => o.name);
+    box.innerHTML =
+      `<div class="grouphead">GESCHÄFTSOBJEKT</div>
+       <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
+       <div class="grouphead">QUELLTABELLEN</div>` +
+      tabellen.map(u=>`<div class="rel"><span class="arrow">←</span>
+        <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
+  } else if(n.eltern){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? o.sources.includes(n.name) : o.domain === n.name).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domain === n.name).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
@@ -6316,18 +7120,21 @@ function renderDetails(){
     const incoming = [];
     Object.values(aktModell().objects).forEach(src=>
       src.rels.forEach(r=>{ if(r.to === o.name) incoming.push({from:src.name, r}); }));
+    const tabelle = S.mode === 'quellen';
     box.innerHTML =
-      `<div class="grouphead">GESCHÄFTSOBJEKT</div>
+      `<div class="grouphead">${tabelle ? 'QUELLTABELLE' : 'GESCHÄFTSOBJEKT'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
-       ${S.pflegeAn ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
+       ${pflegeErlaubt() ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
+       ${tabelle ? `<dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
+       <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
-       <div class="grouphead">QUELLEN</div>
-       <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
+       ${tabelle ? '' : `<div class="grouphead">QUELLEN</div>
+       <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>`}
        <div class="grouphead">ATTRIBUTE${o.attrs.length ? ' (' + o.attrs.length + ')' : ''}</div>
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
@@ -6463,6 +7270,7 @@ function renderLegend(){
       <g class="eg ${k}"><path class="e-path" d="M4 11H60"/></g></svg>${txt}, ohne Kardinalität</div>`;
   if(S.elemente.quelle)  html += ohne('quelle', 'Quelle');
   if(S.elemente.domaene) html += ohne('domaene', 'Domäne');
+  if(S.elemente.geschaeftsobjekt && S.mode === 'quellen') html += ohne('go', 'Geschäftsobjekt');
   $('legend').innerHTML = html;
 }
 
@@ -6606,7 +7414,7 @@ function renderContentMenu(){
 /* Diagramm neu aufbauen, Lagen der Knoten behalten: nach geändertem Inhalt
    (Kästen neu vermessen) oder umgeschalteten Elementen (Einstellungen). */
 function neuAufbauen(){
-  if(S.mode === 'hierarchie'){
+  if(S.mode !== 'komplett'){
     // Ausschnitt behalten: nur die Lagen der sichtbaren Knoten sichern und das
     // Diagramm neu aufbauen (showDiagram misst die Kästen neu). NICHT setView,
     // das wuerde alle Geschäftsobjekte einblenden.
@@ -6699,7 +7507,7 @@ document.addEventListener('keydown', ev=>{
   // Entf blendet die markierten Objekte aus (Strg+Z holt sie zurück)
   if(ev.key === 'Delete'){
     // Anhängsel (Quelle/Domäne) gehen mit ihrem Objekt, nicht allein
-    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden && !n.eltern);
+    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden && !n.eltern && !n.abgeleitet);
     if(!list.length) return;
     ev.preventDefault();
     setGroupVisible(list, false);
@@ -6946,6 +7754,17 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     toast('Hierarchiebeschreibung gespeichert');
   }
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
+  // Quelltabellen: zwei eigene Dateien, wie Modell und Hierarchiebeschreibung
+  if(a === 'openQuellen') $('quellInput').click();
+  if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
+  if(a === 'saveQuellen'){
+    download(quellTextAkt(), S.quellFileName, 'text/yaml');
+    toast('Quelltabellen gespeichert');
+  }
+  if(a === 'saveQuellDiagramme'){
+    download(quellDiagrammeYaml(), quellDiagrammeName(), 'text/yaml');
+    toast('Quelltabellen-Diagramme gespeichert');
+  }
   if(a === 'saveHtml') speichernInDatei();
   // Diagramm exportieren
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
@@ -6967,7 +7786,7 @@ function ctxMenuOeffnen(n, x, y){
   m.innerHTML =
     `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
     + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
-    + (einzeln && S.pflegeAn
+    + (einzeln && pflegeErlaubt()
         ? `<button data-ctx="edit">Bearbeiten …</button>
            <hr><button data-ctx="delete">Objekt löschen …</button>` : '');
   m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
@@ -6997,6 +7816,14 @@ const slug = s => String(s).toLowerCase()
 const diagramName = ()=> slug(S.fileName.replace(/\.[^.]+$/, '')) + '-geschaeftsobjektmodell';
 // Der Hierarchie-Export heißt wie die Geschäftsobjekt-Datei plus „-hierarchie".
 const uebersichtName = ()=> S.fileName.replace(/\.[^.]+$/, '') + '-hierarchie.yaml';
+const quellDiagrammeName = ()=> S.quellFileName.replace(/\.[^.]+$/, '') + '-diagramme.yaml';
+/* Die Diagramm-YAML der Quelltabellen, aus jedem Modus heraus. */
+function quellDiagrammeYaml(){
+  return imBereich('quellen', ()=>{
+    if(!S.outline){ quellModellBauen(); parseOutline(); }
+    return outlineToYaml(S.outline.roots);
+  });
+}
 
 function toast(msg){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -7149,7 +7976,8 @@ function splitObjectFields(lines){
   let cur = null;
   for(let i = 1; i < lines.length; i++){
     const l = lines[i];
-    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w.\/-]*)"?\s*:/) : null;
+    // Umlaute im Feldnamen: „Geschäftsobjekt:" an Quelltabellen
+    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-zÄÖÜäöüß_][\wÄÖÜäöüß.\/-]*)"?\s*:/) : null;
     if(m){ cur = {key: m[1], lines: [l]}; fields.push(cur); }
     else if(cur) cur.lines.push(l);
     else vorspann.push(l);
@@ -7257,11 +8085,11 @@ function loadDelta(text){
   if(!merged){ toast('Keine Geschäftsobjekte in der Datei gefunden'); return; }
   S.model = buildModel(merged.text);
   S.yamlText = merged.text;
+  quellModellBauen();
   renderMessages(); syncLayoutMenu();
   // Kein resetHistory: die Verlaufsstände tragen den Modelltext mit, ein Delta
   // ist damit eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
-  setView();                             // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
-  if(S.mode === 'hierarchie') setMode('hierarchie');
+  ansichtNeu();                          // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
   toast(`Delta: ${merged.added} neu, ${merged.merged} zusammengeführt`);
 }
 $('layoutInput').addEventListener('change', e=>{
@@ -7269,8 +8097,8 @@ $('layoutInput').addEventListener('change', e=>{
   f.text().then(t=>{
     try{
       adoptLayoutFile(JSON.parse(t));
-      syncLayoutMenu(); setView();
-      if(S.mode === 'hierarchie') setMode('hierarchie');
+      syncLayoutMenu(); syncEinstMenu();
+      ansichtNeu();
       toast('Positionsinformationen übernommen');
     }
     catch(_){ toast('Die JSON-Datei lässt sich nicht lesen'); }
@@ -7282,19 +8110,63 @@ $('layoutInput').addEventListener('change', e=>{
    Diagramm gespeicherten Bearbeitungen (die auf die alten Kennungen zeigen)
    werden dabei verworfen. */
 function loadUebersicht(text){
-  S.outlineText = text;
-  S.outline = null; S.hierSel = null;
-  S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
-  parseOutline();
+  const H = S.bereiche.hierarchie = Object.assign(neuerBaum(), {outlineText: text});
+  imBereich('hierarchie', parseOutline);
   writeStore();
   if(S.mode === 'hierarchie') setMode('hierarchie');
-  const bad = S.outline.messages.filter(m => m.level !== 'info').length;
+  const bad = H.outline.messages.filter(m => m.level !== 'info').length;
   toast(bad ? `Hierarchiebeschreibung geladen · ${bad} Hinweise` : 'Hierarchiebeschreibung geladen');
 }
 
 $('uebersichtInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t => loadUebersicht(t));
+  e.target.value = '';
+});
+
+/* Nach geändertem Modell die laufende Ansicht neu aufbauen. Im Bereich der
+   Quelltabellen nie über setView: das legte die Lagen der Geschäftsobjekte
+   unter den gleichlautenden Kennungen der Tabellen ab. */
+function ansichtNeu(opts){
+  if(S.mode === 'quellen'){ setMode('quellen'); return; }
+  setView(opts);
+  if(S.mode === 'hierarchie') setMode('hierarchie');
+}
+
+/* Quelltabellen laden: eine eigene Datei. Ist sie nicht lesbar, bleibt der
+   bisherige Stand. Die Diagramme behalten ihre Anordnung; neue Tabellen
+   werden platziert. */
+function loadQuellen(text, name){
+  try{ buildModel(text, 'quelle', S.model); }
+  catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
+  S.quellText = text;
+  S.quellFileName = name || 'quelltabellen.yaml';
+  quellModellBauen();
+  S.bereiche.quellen.outline = null;
+  writeStore();
+  if(S.mode === 'quellen') setMode('quellen');
+  const n = Object.keys(S.quellModell.objects).length;
+  const bad = S.quellModell.messages.filter(m => m.level !== 'info').length;
+  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : ''));
+}
+
+/* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
+   Diagramm gespeicherten Bearbeitungen, wie bei der Hierarchiebeschreibung. */
+function loadQuellDiagramme(text){
+  S.bereiche.quellen = Object.assign(neuerBaum(), {outlineText: text});
+  writeStore();
+  if(S.mode === 'quellen') setMode('quellen');
+  toast('Quelltabellen-Diagramme geladen');
+}
+
+$('quellInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadQuellen(t, f.name));
+  e.target.value = '';
+});
+$('quellDiagInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadQuellDiagramme(t));
   e.target.value = '';
 });
 
@@ -7324,20 +8196,25 @@ async function loadYaml(text, name, preset){
     S.routes = {1:{}, 2:{}, 3:{}};
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
-    S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
-    S.outlineText = '';
-    S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
+    // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
+    S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
+    // Die Quelltabellen sind eine eigene Datei: ein neues Modell lässt sie stehen
+    if(preset && typeof preset.quellYaml === 'string'){
+      S.quellText = preset.quellYaml;
+      if(preset.quellFileName) S.quellFileName = preset.quellFileName;
+    }
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);
       if(raw){ try{ adoptLayoutFile(JSON.parse(raw)); }catch(_){} }
     }
+    quellModellBauen();
     $('fileLabel').textContent = S.fileName;
+    syncEinstMenu();
     renderMessages();
     syncLayoutMenu();
-    setView();
-    if(S.mode === 'hierarchie') setMode('hierarchie');
-    resetHistory();                       // geladener Stand ist der Anfang des Verlaufs
+    ansichtNeu();
+    resetHistory();                      // geladener Stand ist der Anfang des Verlaufs
     const bad = model.messages.filter(m => m.level !== 'info').length;
     toast(bad ? `${Object.keys(model.objects).length} Objekte geladen · ${bad} Hinweise`
               : `${Object.keys(model.objects).length} Objekte geladen`);
@@ -7355,7 +8232,7 @@ function standAlsHtml(){
   const el = $('bakedState');
   const before = el.textContent;
   el.textContent = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText}, layoutFile())
+    Object.assign(modellTexte(), layoutFile())
   ).replace(/</g, '\\u003c');
 
   // Generierte Bereiche leeren, damit die Datei klein bleibt
@@ -7454,7 +8331,7 @@ window.addEventListener('resize', ()=> applyTransform());
    setView() würde den Ausschnitt aufheben und wieder alle Objekte zeigen. */
 function nachSchriftMessen(){
   if(!S.graph) return;
-  if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); }
+  if(S.mode !== 'komplett'){ if(S.hierSel) selectDiagram(S.hierSel); }
   else setView();
 }
 document.fonts && document.fonts.ready.then(nachSchriftMessen);

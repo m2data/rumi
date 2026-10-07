@@ -37,6 +37,17 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
   dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und
   die Hierarchie bleiben davon unberührt.
+- **Quelltabellen** – zunächst **ausgeschaltet** („Einstellungen →
+  Quelltabellen verwenden"; ausgeschaltet bleibt alles wie zuvor). Die Einträge
+  unter `source_systems` ausformuliert: Tabellen mit denselben Feldern wie ein
+  Geschäftsobjekt, dazu genau ein Quellsystem und das zugeordnete
+  Geschäftsobjekt, in einer eigenen Datei. Ein eigener Bereich wie die
+  Hierarchie: je Quellsystem ein automatisches Diagramm, daneben frei angelegte
+  Gegenüberstellungen (eigene YAML). „Einstellungen → Geschäftsobjekt" stellt
+  das zugeordnete Objekt als Kasten ins Diagramm, einmal je Diagramm und mit
+  allen seinen Tabellen verbunden. Gepflegt wird über „Quelltabellen
+  bearbeiten" wie bei den Geschäftsobjekten. Siehe
+  [Handbuch, Kapitel 17](HANDBUCH.md#17-quelltabellen).
 - **Zusatzattribute** – jeder Schlüssel an einem Objekt oder Attribut, den die
   App nicht selbst auswertet (etwa `schema.org:`), wird übernommen.
   „Einstellungen → Zusatzattribute …" schaltet je Feld ein, ob es im Formular
@@ -121,6 +132,14 @@ gespeichert:
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
    Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)
+
+Mit eingeschalteten Quelltabellen kommen zwei weitere dazu (Format siehe
+[Handbuch, Anhang D und E](HANDBUCH.md#anhang-d--quelltabellen-yaml)):
+
+4. **Quelltabellen** – YAML (`models/willibald-quelltabellen.yaml`), Abschnitt
+   `SourceTables`, je Tabelle `source_system` und `business_object`
+5. **Quelltabellen-Diagramme** – YAML wie die Hierarchiebeschreibung, Liste
+   `tabellen`; die Diagramme der Quellsysteme entstehen aus den Tabellen
 
 ### 1. Geschäftsobjekt-Modell (YAML)
 
@@ -233,7 +252,7 @@ Projektstruktur:
                 interaktion, hierarchie, pflege, ui)
     build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
     dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
-    models/     Beispiel-YAML (Geschäftsobjekte + Hierarchie)
+    models/     Beispiel-YAML (Geschäftsobjekte, Hierarchie, Quelltabellen)
     test/       Rauch-/Modell-/Layout-/Outline-Tests (nur Node, ohne Abhängigkeiten)
     hooks/      pre-commit (baut, testet, warnt bei Code ohne Test);
                 aktiv über: git config core.hooksPath hooks

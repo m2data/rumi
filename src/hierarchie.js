@@ -12,8 +12,8 @@ function buildOutline(text, model){
 
   function node(name, raw, pfad){
     const def = (raw && typeof raw === 'object') ? raw : {};
-    const liste = Array.isArray(def.objekte) ? def.objekte
-                : Array.isArray(def.objects) ? def.objects : [];
+    // „tabellen" in den Diagrammen der Quelltabellen, sonst „objekte"
+    const liste = ['objekte','objects','tabellen','tables'].map(k => def[k]).find(Array.isArray) || [];
     const objekte = liste.filter(Boolean).map(String);
     if(known) objekte.forEach(o=>{
       if(!known.has(o)) messages.push({level:'warn', title:`${name}: Objekt „${o}“ unbekannt`,
@@ -64,14 +64,16 @@ function outlineToYaml(roots){
   const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
   const skalar = s => plain(s) ? s : q(s);
   const lines = [];
+  const listKey = S.mode === 'quellen' ? 'tabellen' : 'objekte';
   const emit = (node, ind)=>{
+    if(node.auto) return;                  // aus dem Modell berechnet, gehört nicht in die Datei
     const pad = '  '.repeat(ind);
     lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
     const txt = diagramText(node);
     if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
     const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
     if(objs.length){
-      lines.push(`${pad}  objekte:`);
+      lines.push(`${pad}  ${listKey}:`);
       objs.forEach(o => lines.push(`${pad}    - ${skalar(o)}`));
     }
     if(node.kinder && node.kinder.length){
@@ -137,7 +139,7 @@ function wrapRuns(runs, size, maxW){
    Bild, mit gerendertem Markdown (fett/kursiv/Code, Überschriften, Listen,
    Zitate). Gibt {svg, height} zurück oder null (nicht im Hierarchie-Modus). */
 function hierExportHeader(b){
-  if(S.mode !== 'hierarchie' || !S.hierSel || !S.outline) return null;
+  if(S.mode === 'komplett' || !S.hierSel || !S.outline) return null;
   const node = outlineFind(S.outline.roots, S.hierSel);
   if(!node) return null;
   const x0 = b.x + 16, maxW = Math.max(240, b.w - 32);
@@ -185,10 +187,34 @@ function hierExportHeader(b){
 
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
-  if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
-  S.outline = buildOutline(S.outlineText, aktModell());
+  if(S.mode === 'quellen'){
+    // Die Diagramme der Quellsysteme stehen in keiner Datei: sie folgen den
+    // Tabellen und werden bei jedem Aufbau neu berechnet. Aufgeklappt bleibt,
+    // was aufgeklappt war — der Baum entsteht hier bei jedem Moduswechsel.
+    S.outline = buildOutline(S.outlineText, aktModell());
+    S.outline.roots.unshift(quellsystemKnoten(aktModell()));
+    if(S.hierOpen) return;
+  } else {
+    if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
+    S.outline = buildOutline(S.outlineText, aktModell());
+  }
   // Ordner anfangs aufgeklappt
   S.hierOpen = new Set(outlineFlat(S.outline.roots).filter(n => n.kinder.length).map(n => n.id));
+}
+
+/* „Quellsysteme" mit allen Tabellen, darunter je Quellsystem ein Diagramm mit
+   genau dessen Tabellen. */
+const QS_WURZEL = 'Quellsysteme';
+function quellsystemKnoten(modell){
+  const tabellen = Object.values(modell.objects);
+  const systeme = [...new Set(tabellen.map(o => o.system).filter(Boolean))].sort((a,b)=> a.localeCompare(b, 'de'));
+  return {
+    id: QS_WURZEL, name: QS_WURZEL, auto: true,
+    beschreibung: 'Alle Quelltabellen. Darunter je Quellsystem ein Diagramm mit seinen Tabellen.',
+    objekte: tabellen.map(o => o.name),
+    kinder: systeme.map(s => ({id: QS_WURZEL + '›' + s, name: s, auto: true, beschreibung: '',
+      objekte: tabellen.filter(o => o.system === s).map(o => o.name), kinder: []}))
+  };
 }
 
 /* ---------- Baum links oben ---------- */
@@ -310,8 +336,23 @@ function platziereNeue(neu, platziert){
 function hierPlaceFresh(){
   const saved = S.hierSaved[S.hierSel] || {};
   const neu = visNodes().filter(n => !saved[n.id]);
-  platziereNeue(neu.filter(n => !n.eltern), visNodes().filter(n => saved[n.id]));
+  platziereNeue(neu.filter(n => !n.eltern && !n.abgeleitet), visNodes().filter(n => saved[n.id]));
   platziereAnhaengsel(S.graph, neu);
+  platziereGO(S.graph, neu);
+}
+
+/* Ein neu hinzugekommenes Geschäftsobjekt-Element (Quelltabellen) rechts
+   neben seine sichtbaren Tabellen samt deren Anhängseln, auf deren mittlere
+   Höhe. So bleibt eine gelegte Anordnung liegen, wenn man es einschaltet. */
+function platziereGO(g, neu){
+  neu.filter(n => n.kind === 'gobj').forEach(n=>{
+    const tab = new Set(g.edges.filter(e => e.to === n.id).map(e => e.from));
+    const t = g.nodes.filter(x => !x.hidden && (tab.has(x.id) || tab.has(x.eltern)));
+    if(!t.length) return;
+    const mitte = t.filter(x => tab.has(x.id));
+    n.x = Math.round(Math.max(...t.map(x => x.x + x.w)) + 60);
+    n.y = Math.round(mitte.reduce((s,x)=> s + x.y + x.h/2, 0) / mitte.length - n.h/2);
+  });
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -339,7 +380,7 @@ function showDiagram(node){
   const saved = S.hierSaved[node.id] || {};
   const vis = visNodes();
   const known = vis.filter(n => saved[n.id]);
-  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern);
+  const neuObj = vis.filter(n => !saved[n.id] && !n.eltern && !n.abgeleitet);
   if(known.length === vis.length && known.length){
     S.graph.nodes.forEach(n=>{ if(saved[n.id]){ n.x = saved[n.id].x; n.y = saved[n.id].y; } });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
@@ -349,6 +390,7 @@ function showDiagram(node){
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
     platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
+    platziereGO(S.graph, vis.filter(n => !saved[n.id]));
     hierPersist();
   } else {
     applyAutoLayout(S.graph);
@@ -370,13 +412,23 @@ function showDiagram(node){
 
 /* ---------- Modus wechseln ---------- */
 function setMode(mode){
+  if(mode === 'quellen' && !S.quellenAn) mode = 'hierarchie';   // Bereich ausgeschaltet
   S.mode = mode;
-  document.body.classList.toggle('modus-hierarchie', mode === 'hierarchie');
+  // Die Quelltabellen sind ein zweiter Baum: dieselbe Oberfläche wie die Hierarchie
+  const baum = mode !== 'komplett';
+  document.body.classList.toggle('modus-hierarchie', baum);
+  document.body.classList.toggle('modus-quellen', mode === 'quellen');
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
-  $('hierTree').hidden = mode !== 'hierarchie';
-  $('hierTools').hidden = mode !== 'hierarchie';
-  if(mode === 'hierarchie'){
+  $('hierTree').hidden = !baum;
+  $('hierTools').hidden = !baum;
+  const oben = $('hierTools').querySelector('[data-hact="add-top"]');
+  oben.textContent = mode === 'quellen' ? '＋ Diagramm' : '＋ Domäne';
+  oben.title = mode === 'quellen' ? 'Neues Diagramm auf oberster Ebene' : 'Neue Domäne auf oberster Ebene';
+  // Die Diagramme der Quellsysteme folgen den Tabellen: bei jedem Eintritt neu
+  if(mode === 'quellen'){ quellModellBauen(); parseOutline(); }
+  renderMessages();                        // die Prüfung gilt dem Modell des Bereichs
+  if(baum){
     if(!S.outline) parseOutline();
     setSidePane('beschreibung');
     const gewaehlt = S.hierSel && outlineFind(S.outline.roots, S.hierSel);
@@ -394,11 +446,27 @@ function setMode(mode){
 /* In-App-Bearbeitungen (Text, Objektmengen) in die Knoten schreiben, damit sie
    beim Neuaufbau der Kennungen und der YAML-Ausgabe erhalten bleiben. */
 function bakeOverlays(){
+  const auto = new Set();
   outlineFlat(S.outline.roots).forEach(n=>{
+    if(n.auto){ auto.add(n.id); return; }   // steht in keiner Datei: Bearbeitungen bleiben Überlagerung
     if(S.hierText[n.id] !== undefined) n.beschreibung = S.hierText[n.id];
     if(S.hierShown[n.id]) n.objekte = S.hierShown[n.id].map(i => i.replace(/^o:/, ''));
   });
-  S.hierText = {}; S.hierShown = {};
+  const nurAuto = m => Object.fromEntries(Object.entries(m).filter(([id]) => auto.has(id)));
+  S.hierText = nurAuto(S.hierText); S.hierShown = nurAuto(S.hierShown);
+}
+
+/* Die Diagramme der Quellsysteme entstehen aus den Tabellen; ändern lässt
+   sich an ihnen nur Anordnung, Auswahl und Beschreibung. */
+function autoGesperrt(node){
+  if(!node || !node.auto) return false;
+  toast('Die Diagramme der Quellsysteme entstehen aus den Tabellen und lassen sich nicht umbauen');
+  return true;
+}
+function nameFrei(name){
+  if(S.mode !== 'quellen' || name !== QS_WURZEL) return true;
+  toast('„' + QS_WURZEL + '" ist den Diagrammen der Quellsysteme vorbehalten');
+  return false;
 }
 
 /* Kennungen (Pfad) für den ganzen Baum neu vergeben. */
@@ -430,10 +498,12 @@ const reinName = s => String(s || '').replace(/[›:]/g, '').trim();
 
 function outlineAdd(parentId, name){
   name = reinName(name);
-  if(!name || !S.outline) return null;
+  if(!name || !S.outline || !nameFrei(name)) return null;
+  const p = parentId ? outlineFind(S.outline.roots, parentId) : null;
+  if(parentId && (!p || autoGesperrt(p))) return null;
   bakeOverlays();
   const neu = {id:'', name, beschreibung:'', objekte:[], kinder:[]};
-  if(parentId){ const p = outlineFind(S.outline.roots, parentId); if(!p) return null; p.kinder.push(neu); }
+  if(p) p.kinder.push(neu);
   else S.outline.roots.push(neu);
   reassignIds();
   commitOutline();
@@ -445,7 +515,7 @@ function outlineAdd(parentId, name){
 function outlineRename(id, name){
   name = reinName(name);
   const node = S.outline && outlineFind(S.outline.roots, id);
-  if(!node || !name) return;
+  if(!node || !name || autoGesperrt(node) || !nameFrei(name)) return;
   bakeOverlays();
   const alt = node.id;
   node.name = name;
@@ -458,7 +528,7 @@ function outlineRename(id, name){
 
 function outlineDelete(id){
   const node = S.outline && outlineFind(S.outline.roots, id);
-  if(!node) return;
+  if(!node || autoGesperrt(node)) return;
   bakeOverlays();
   const entferne = arr=>{
     const i = arr.findIndex(n => n.id === id);
@@ -481,7 +551,7 @@ function outlineMove(dragId, targetId, pos){
   const drag = outlineFind(S.outline.roots, dragId);
   if(!drag) return;
   const target = outlineFind(S.outline.roots, targetId);
-  if(!target) return;
+  if(!target || autoGesperrt(drag) || autoGesperrt(target)) return;
   if(target.id === dragId || target.id.startsWith(dragId + '›')){ toast('Ein Diagramm kann nicht in sich selbst verschoben werden'); return; }
   bakeOverlays();
   const alt = drag.id;
@@ -505,11 +575,15 @@ function outlineMove(dragId, targetId, pos){
 
 /* Verknüpfung der Werkzeugleiste (fragt Namen per Dialog ab). */
 function hierAction(act){
-  if(act === 'add-top'){ const n = prompt('Name der neuen Domäne:'); if(n) outlineAdd(null, n); return; }
+  if(act === 'add-top'){
+    const n = prompt(S.mode === 'quellen' ? 'Name des neuen Diagramms:' : 'Name der neuen Domäne:');
+    if(n) outlineAdd(null, n);
+    return;
+  }
   const id = S.hierSel;
   if(!id){ toast('Erst ein Diagramm wählen'); return; }
   const node = outlineFind(S.outline.roots, id);
   if(act === 'add-child'){ const n = prompt('Name des neuen Unterdiagramms:'); if(n) outlineAdd(id, n); }
   else if(act === 'rename'){ const n = prompt('Neuer Name:', node ? node.name : ''); if(n) outlineRename(id, n); }
-  else if(act === 'delete'){ if(node && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
+  else if(act === 'delete'){ if(node && !autoGesperrt(node) && confirm('„' + node.name + '" samt Unterdiagrammen löschen?')) outlineDelete(id); }
 }

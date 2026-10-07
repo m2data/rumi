@@ -88,6 +88,34 @@ t('HTML wird maskiert (keine Injektion)', (()=>{
   return h.includes('&lt;script&gt;') && !h.includes('<script>');
 })());
 
+console.log('== Quelltabellen: Diagramme der Quellsysteme ==');
+{
+  const {api: q, S: qs} = load(['yaml.js', 'model.js', 'hierarchie.js'],
+    ['buildModel', 'buildOutline', 'quellsystemKnoten', 'outlineToYaml']);
+  qs.hierShown = {}; qs.hierText = {};
+  const tab = q.buildModel(fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8'), 'quelle', model);
+  const wurzel = q.quellsystemKnoten(tab);
+  t('Wurzel „Quellsysteme" mit allen Tabellen', wurzel.name === 'Quellsysteme' && wurzel.auto && wurzel.objekte.length === 13,
+    wurzel.objekte.length);
+  t('je Quellsystem ein Kind, alphabetisch', wurzel.kinder.map(k => k.name).join(',') === 'Referenzdaten,Roadshow,Webshop',
+    wurzel.kinder.map(k => k.name).join(','));
+  const rs = wurzel.kinder.find(k => k.name === 'Roadshow');
+  t('Roadshow zeigt genau seine Tabellen', rs.objekte.slice().sort().join(',') === 'Bestellung_VRS,Position_VRS,VereinsPartner',
+    rs.objekte.join(','));
+  t('Kennungen als Pfad', rs.id === 'Quellsysteme›Roadshow' && rs.auto);
+
+  const text = 'Gegenüberstellung:\n  beschreibung: "Webshop gegen Roadshow"\n  tabellen:\n    - Bestellung\n    - Bestellung_VRS\n';
+  const o = q.buildOutline(text, tab);
+  t('„tabellen:" wird gelesen', o.roots[0].objekte.join(',') === 'Bestellung,Bestellung_VRS', o.roots[0].objekte.join(','));
+  qs.mode = 'quellen';
+  const aus = q.outlineToYaml([wurzel, ...o.roots]);
+  t('geschrieben wird „tabellen:"', /^  tabellen:$/m.test(aus) && !/objekte:/.test(aus), aus);
+  t('die automatischen Diagramme stehen nicht in der Datei', !/Quellsysteme|Roadshow:/.test(aus), aus);
+  t('Rundlauf ergibt denselben Baum', JSON.stringify(q.buildOutline(aus, tab).roots) === JSON.stringify(o.roots));
+  qs.mode = undefined;
+  t('in der Hierarchie bleibt es bei „objekte:"', /objekte:/.test(q.outlineToYaml(o.roots)));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

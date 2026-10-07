@@ -36,6 +36,7 @@
   <div class="modes" role="tablist" aria-label="Darstellung">
     <button class="mode-btn" role="tab" data-mode="komplett" aria-selected="true">Komplettansicht</button>
     <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
+    <button class="mode-btn nur-quellen" role="tab" data-mode="quellen" aria-selected="false">Quelltabellen</button>
   </div>
 
   <div class="tools">
@@ -74,11 +75,17 @@
       <div class="menu" id="einstMenu" role="menu">
         <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
                 title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+        <button class="opt" id="optQuellen" role="menuitemcheckbox" aria-checked="false"
+                title="Schaltet den Bereich „Quelltabellen“ frei: eine eigene Datei mit den Tabellen der Quellsysteme, je Quellsystem ein Diagramm und frei gestaltete Gegenüberstellungen. Ausgeschaltet bleibt alles wie ohne Quelltabellen.">Quelltabellen verwenden<span class="tick">✓</span></button>
+        <button class="opt nur-quellen" id="optQuellPflege" role="menuitemcheckbox" aria-checked="false"
+                title="Zeigt im Bereich „Quelltabellen“ „Bearbeiten“ in den Details und „＋ Objekt“ über der Liste — wie „Geschäftsobjekte bearbeiten“, nur für die Tabellen.">Quelltabellen bearbeiten<span class="tick">✓</span></button>
         <div class="head">ALS EIGENES ELEMENT</div>
         <button class="opt" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
                 title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in Komplettansicht und Hierarchie.">Quellen<span class="tick">✓</span></button>
         <button class="opt" id="optDomaene" role="menuitemcheckbox" aria-checked="false"
                 title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in Komplettansicht und Hierarchie.">Domäne<span class="tick">✓</span></button>
+        <button class="opt nur-quellen" id="optGO" role="menuitemcheckbox" aria-checked="false"
+                title="Nur bei den Quelltabellen: das zugeordnete Geschäftsobjekt als eigener Kasten, einmal je Diagramm, verbunden mit allen seinen Tabellen.">Geschäftsobjekt<span class="tick">✓</span></button>
         <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
                 title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
@@ -92,12 +99,16 @@
         <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
         <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
         <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
+        <button class="nur-quellen" data-act="openQuellen">Quelltabellen (YAML) …</button>
+        <button class="nur-quellen" data-act="loadQuellDiagramme">Quelltabellen-Diagramme (YAML) …</button>
         <div class="head">SPEICHERN</div>
         <button class="withkey" data-act="saveHtml"
                 title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche.">Stand speichern (HTML) …<span class="kbd">Strg+S</span></button>
         <button data-act="saveGO">Geschäftsobjekte (YAML)</button>
         <button data-act="uebersicht">Hierarchiebeschreibung (YAML)</button>
         <button data-act="layout">Positionsinformationen (JSON)</button>
+        <button class="nur-quellen" data-act="saveQuellen">Quelltabellen (YAML)</button>
+        <button class="nur-quellen" data-act="saveQuellDiagramme">Quelltabellen-Diagramme (YAML)</button>
         <div class="head">DIAGRAMM EXPORTIEREN</div>
         <button data-act="svg">Diagramm als SVG</button>
         <div class="pngrow">
@@ -213,6 +224,8 @@
 <input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
 <input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="quellInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="quellDiagInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>
 
 <script>

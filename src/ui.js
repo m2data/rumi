@@ -89,9 +89,19 @@ const layoutFile = ()=> ({
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
   elemente: S.elemente,
-  uebersichtText: S.outlineText,
-  hierarchie: { anordnung: S.hierSaved, kantenzuege: S.hierRoutes, sichtbar: S.hierShown, text: S.hierText }
+  uebersichtText: S.bereiche.hierarchie.outlineText,
+  hierarchie: baumAblage(S.bereiche.hierarchie),
+  // Seit den Quelltabellen; fehlt der Schlüssel (ältere Datei), gelten die Vorgaben
+  quelltabellen: Object.assign({an: S.quellenAn, pflegeAn: S.quellPflegeAn,
+    uebersichtText: S.bereiche.quellen.outlineText}, baumAblage(S.bereiche.quellen))
 });
+const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText});
+function baumUebernehmen(B, a){
+  B.hierSaved = a.anordnung || {};
+  B.hierRoutes = a.kantenzuege || {};
+  B.hierShown = a.sichtbar || {};
+  B.hierText = a.text || {};
+}
 
 function adoptLayoutFile(obj){
   if(!obj || typeof obj !== 'object') return false;
@@ -111,13 +121,16 @@ function adoptLayoutFile(obj){
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
   if(obj.elemente && typeof obj.elemente === 'object')
-    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene};
-  if(obj.uebersichtText) S.outlineText = obj.uebersichtText;
-  if(obj.hierarchie){
-    S.hierSaved = obj.hierarchie.anordnung || {};
-    S.hierRoutes = obj.hierarchie.kantenzuege || {};
-    S.hierShown = obj.hierarchie.sichtbar || {};
-    S.hierText = obj.hierarchie.text || {};
+    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene,
+                  geschaeftsobjekt: !!obj.elemente.geschaeftsobjekt};
+  if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
+  if(obj.hierarchie) baumUebernehmen(S.bereiche.hierarchie, obj.hierarchie);
+  const q = obj.quelltabellen;
+  if(q && typeof q === 'object'){
+    S.quellenAn = !!q.an;
+    S.quellPflegeAn = !!q.pflegeAn;
+    S.bereiche.quellen.outlineText = typeof q.uebersichtText === 'string' ? q.uebersichtText : '';
+    baumUebernehmen(S.bereiche.quellen, q);
   }
   return true;
 }
@@ -132,15 +145,19 @@ function writeStore(){
   const blob = layoutFile();
   const snap = JSON.stringify(blob);
   store.set('layouts:' + S.fileName, snap);
-  const sitzung = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText}, blob));
+  const sitzung = JSON.stringify(Object.assign(modellTexte(), blob));
   store.set('sitzung', sitzung);
   // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
   // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
   // Vorrang. So behält jeder Tab sein eigenes Modell.
   try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
-  recordHistory(JSON.stringify({yaml:S.yamlText, stand:layoutFile()}));
+  recordHistory(verlaufsStand());
 }
+/* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
+   Geschäftsobjekt-Modell und die Quelltabellen (eigene Datei). */
+const modellTexte = ()=> ({fileName:S.fileName, yaml:S.yamlText,
+                           quellFileName:S.quellFileName, quellYaml:S.quellText});
+const verlaufsStand = ()=> JSON.stringify({yaml:S.yamlText, quellYaml:S.quellText, stand:layoutFile()});
 
 /* ---- Verlauf: Rückgängig (Strg+Z) / Wiederherstellen (Strg+Y) ----
    Schnappschuss-basiert: jede gespeicherte Aktion (Verschieben, Anordnen,
@@ -150,7 +167,7 @@ function writeStore(){
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [JSON.stringify({yaml:S.yamlText, stand:layoutFile()})]; histPos = 0; }
+function resetHistory(){ hist = [verlaufsStand()]; histPos = 0; }
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -167,16 +184,23 @@ function restoreHistory(snap){
     if(p.yaml !== S.yamlText){
       S.yamlText = p.yaml;
       S.model = buildModel(p.yaml);
-      renderMessages();
     }
-    const beforeOutline = S.outlineText;
+    S.quellText = p.quellYaml || '';
+    quellModellBauen();
+    const H = S.bereiche.hierarchie, Q = S.bereiche.quellen;
+    const vorH = H.outlineText, vorQ = Q.outlineText;
     adoptLayoutFile(p.stand);
     // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
-    if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }
+    if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }
     syncEinstMenu();
-    // Änderte sich die Hierarchie-Struktur, den Baum aus dem Text neu aufbauen.
-    if(S.outlineText !== beforeOutline){ S.outline = null; parseOutline(); }
-    if(S.mode === 'hierarchie'){
+    // Änderte sich die Struktur eines Baums, ihn aus dem Text neu aufbauen.
+    // Die Quelltabellen stets: ihre Systemdiagramme folgen den Tabellen.
+    if(H.outlineText !== vorH){ H.outline = null; imBereich('hierarchie', parseOutline); }
+    if(Q.outlineText !== vorQ) Q.outline = null;
+    if(S.mode === 'quellen' && S.quellenAn) parseOutline();
+    renderMessages();
+    if(S.mode === 'quellen' && !S.quellenAn) setMode('hierarchie');   // Bereich zurückgenommen
+    else if(S.mode !== 'komplett'){
       renderOutlineTree();
       if(S.hierSel && !(S.outline && outlineFind(S.outline.roots, S.hierSel))){
         const flat = S.outline ? outlineFlat(S.outline.roots) : [];
@@ -199,7 +223,7 @@ function redo(){
 }
 
 function persist(){
-  if(S.mode === 'hierarchie'){ hierPersist(); return; }
+  if(S.mode !== 'komplett'){ hierPersist(); return; }
   S.saved[S.view] = positionsSnapshot();
   captureRoutes();
   writeStore();
@@ -224,16 +248,18 @@ function hierPersist(){
    Hierarchie sind die im Diagramm sichtbaren angehakt, die übrigen lassen sich
    dort hinzuholen. Anhängsel (Quelle/Domäne) gehören zu ihrem Objekt und
    stehen nicht in der Liste. */
-function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern); }
+function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern && !n.abgeleitet); }
 
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
 function renderObjectList(){
-  $('objNew').hidden = !S.pflegeAn;          // Einstellung „Geschäftsobjekte bearbeiten"
+  $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
   const ul = $('objectList');
   const groups = new Map();
+  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne
+  const quellen = S.mode === 'quellen';
   listedNodes().forEach(n=>{
-    const g = n.ref.domain || 'Ohne Domain';
+    const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.domain || 'Ohne Domain');
     if(!groups.has(g)) groups.set(g, []);
     groups.get(g).push(n);
   });
@@ -277,7 +303,7 @@ function renderObjectList(){
 /* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
    Modus als sichtbare Menge je Diagramm (S.hierShown[Diagramm]). */
 function markVisible(id, on){
-  if(S.mode === 'hierarchie'){
+  if(S.mode !== 'komplett'){
     const shown = hierShownSet();
     if(on) shown.add(id); else shown.delete(id);
     S.hierShown[S.hierSel] = [...shown];
@@ -293,7 +319,7 @@ function setGroupVisible(list, on){
     if(!on) S.sel.delete(n.id);
   });
   if(S.selected && !S.sel.has(S.selected)) S.selected = [...S.sel].pop() || null;
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -309,7 +335,7 @@ function setVisible(id, on){
   if(n) n.hidden = !on;
   markVisible(id, on);
   if(!on){ S.sel.delete(id); if(S.selected === id) S.selected = [...S.sel].pop() || null; }
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   document.querySelectorAll(`.olist .ochk[data-id="${CSS.escape(id)}"]`).forEach(c=>{
     c.checked = on;
     c.closest('li').classList.toggle('off', !on);
@@ -320,7 +346,7 @@ function setVisible(id, on){
 function setAllVisible(on){
   listedNodes().forEach(n=>{ n.hidden = !on; markVisible(n.id, on); });
   if(!on){ S.sel.clear(); S.selected = null; }
-  if(S.mode === 'hierarchie') hierPlaceFresh();
+  if(S.mode !== 'komplett') hierPlaceFresh();
   renderObjectList(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
@@ -340,7 +366,7 @@ function addRelated(id){
     else if(e.to === id){ nb = e.from; card = e.fromCard; }
     else return;
     const node = S.graph.byId.get(nb);
-    if(!node || node.eltern) return;                  // Quelle/Domäne ist kein verknüpftes Objekt
+    if(!node || node.eltern || node.abgeleitet) return;   // Quelle/Domäne/GO-Element ist kein verknüpftes Objekt
     const many = /_or_many$/.test(card || '');
     const cur = neigh.get(nb);
     neigh.set(nb, {node, many: (cur ? cur.many : false) || many});   // mehrere Kanten: „viele" gewinnt
@@ -413,11 +439,20 @@ function renderDetails(){
 
   if(S.pflege === n.id){ pflegeFormular(box); return; }
 
-  if(n.eltern){
+  if(n.abgeleitet){
+    // Geschäftsobjekt-Element: welche Tabellen es beliefern
+    const tabellen = Object.values(aktModell().objects).filter(o => o.bo === n.name).map(o => o.name);
+    box.innerHTML =
+      `<div class="grouphead">GESCHÄFTSOBJEKT</div>
+       <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
+       <div class="grouphead">QUELLTABELLEN</div>` +
+      tabellen.map(u=>`<div class="rel"><span class="arrow">←</span>
+        <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
+  } else if(n.eltern){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? o.sources.includes(n.name) : o.domain === n.name).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domain === n.name).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
@@ -429,18 +464,21 @@ function renderDetails(){
     const incoming = [];
     Object.values(aktModell().objects).forEach(src=>
       src.rels.forEach(r=>{ if(r.to === o.name) incoming.push({from:src.name, r}); }));
+    const tabelle = S.mode === 'quellen';
     box.innerHTML =
-      `<div class="grouphead">GESCHÄFTSOBJEKT</div>
+      `<div class="grouphead">${tabelle ? 'QUELLTABELLE' : 'GESCHÄFTSOBJEKT'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
-       ${S.pflegeAn ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
+       ${pflegeErlaubt() ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
+       ${tabelle ? `<dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
+       <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
-       <div class="grouphead">QUELLEN</div>
-       <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
+       ${tabelle ? '' : `<div class="grouphead">QUELLEN</div>
+       <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>`}
        <div class="grouphead">ATTRIBUTE${o.attrs.length ? ' (' + o.attrs.length + ')' : ''}</div>
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
@@ -576,6 +614,7 @@ function renderLegend(){
       <g class="eg ${k}"><path class="e-path" d="M4 11H60"/></g></svg>${txt}, ohne Kardinalität</div>`;
   if(S.elemente.quelle)  html += ohne('quelle', 'Quelle');
   if(S.elemente.domaene) html += ohne('domaene', 'Domäne');
+  if(S.elemente.geschaeftsobjekt && S.mode === 'quellen') html += ohne('go', 'Geschäftsobjekt');
   $('legend').innerHTML = html;
 }
 
@@ -719,7 +758,7 @@ function renderContentMenu(){
 /* Diagramm neu aufbauen, Lagen der Knoten behalten: nach geändertem Inhalt
    (Kästen neu vermessen) oder umgeschalteten Elementen (Einstellungen). */
 function neuAufbauen(){
-  if(S.mode === 'hierarchie'){
+  if(S.mode !== 'komplett'){
     // Ausschnitt behalten: nur die Lagen der sichtbaren Knoten sichern und das
     // Diagramm neu aufbauen (showDiagram misst die Kästen neu). NICHT setView,
     // das wuerde alle Geschäftsobjekte einblenden.
@@ -812,7 +851,7 @@ document.addEventListener('keydown', ev=>{
   // Entf blendet die markierten Objekte aus (Strg+Z holt sie zurück)
   if(ev.key === 'Delete'){
     // Anhängsel (Quelle/Domäne) gehen mit ihrem Objekt, nicht allein
-    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden && !n.eltern);
+    const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(n => n && !n.hidden && !n.eltern && !n.abgeleitet);
     if(!list.length) return;
     ev.preventDefault();
     setGroupVisible(list, false);
@@ -1059,6 +1098,17 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     toast('Hierarchiebeschreibung gespeichert');
   }
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
+  // Quelltabellen: zwei eigene Dateien, wie Modell und Hierarchiebeschreibung
+  if(a === 'openQuellen') $('quellInput').click();
+  if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
+  if(a === 'saveQuellen'){
+    download(quellTextAkt(), S.quellFileName, 'text/yaml');
+    toast('Quelltabellen gespeichert');
+  }
+  if(a === 'saveQuellDiagramme'){
+    download(quellDiagrammeYaml(), quellDiagrammeName(), 'text/yaml');
+    toast('Quelltabellen-Diagramme gespeichert');
+  }
   if(a === 'saveHtml') speichernInDatei();
   // Diagramm exportieren
   if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
@@ -1080,7 +1130,7 @@ function ctxMenuOeffnen(n, x, y){
   m.innerHTML =
     `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
     + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
-    + (einzeln && S.pflegeAn
+    + (einzeln && pflegeErlaubt()
         ? `<button data-ctx="edit">Bearbeiten …</button>
            <hr><button data-ctx="delete">Objekt löschen …</button>` : '');
   m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
@@ -1110,6 +1160,14 @@ const slug = s => String(s).toLowerCase()
 const diagramName = ()=> slug(S.fileName.replace(/\.[^.]+$/, '')) + '-geschaeftsobjektmodell';
 // Der Hierarchie-Export heißt wie die Geschäftsobjekt-Datei plus „-hierarchie".
 const uebersichtName = ()=> S.fileName.replace(/\.[^.]+$/, '') + '-hierarchie.yaml';
+const quellDiagrammeName = ()=> S.quellFileName.replace(/\.[^.]+$/, '') + '-diagramme.yaml';
+/* Die Diagramm-YAML der Quelltabellen, aus jedem Modus heraus. */
+function quellDiagrammeYaml(){
+  return imBereich('quellen', ()=>{
+    if(!S.outline){ quellModellBauen(); parseOutline(); }
+    return outlineToYaml(S.outline.roots);
+  });
+}
 
 function toast(msg){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -1262,7 +1320,8 @@ function splitObjectFields(lines){
   let cur = null;
   for(let i = 1; i < lines.length; i++){
     const l = lines[i];
-    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-z_][\w.\/-]*)"?\s*:/) : null;
+    // Umlaute im Feldnamen: „Geschäftsobjekt:" an Quelltabellen
+    const m = (!yBlank(l) && yCol(l) === fieldCol) ? l.match(/^\s*"?([A-Za-zÄÖÜäöüß_][\wÄÖÜäöüß.\/-]*)"?\s*:/) : null;
     if(m){ cur = {key: m[1], lines: [l]}; fields.push(cur); }
     else if(cur) cur.lines.push(l);
     else vorspann.push(l);
@@ -1370,11 +1429,11 @@ function loadDelta(text){
   if(!merged){ toast('Keine Geschäftsobjekte in der Datei gefunden'); return; }
   S.model = buildModel(merged.text);
   S.yamlText = merged.text;
+  quellModellBauen();
   renderMessages(); syncLayoutMenu();
   // Kein resetHistory: die Verlaufsstände tragen den Modelltext mit, ein Delta
   // ist damit eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
-  setView();                             // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
-  if(S.mode === 'hierarchie') setMode('hierarchie');
+  ansichtNeu();                          // vorhandene bleiben, neue werden platziert; persistiert in den Verlauf
   toast(`Delta: ${merged.added} neu, ${merged.merged} zusammengeführt`);
 }
 $('layoutInput').addEventListener('change', e=>{
@@ -1382,8 +1441,8 @@ $('layoutInput').addEventListener('change', e=>{
   f.text().then(t=>{
     try{
       adoptLayoutFile(JSON.parse(t));
-      syncLayoutMenu(); setView();
-      if(S.mode === 'hierarchie') setMode('hierarchie');
+      syncLayoutMenu(); syncEinstMenu();
+      ansichtNeu();
       toast('Positionsinformationen übernommen');
     }
     catch(_){ toast('Die JSON-Datei lässt sich nicht lesen'); }
@@ -1395,19 +1454,63 @@ $('layoutInput').addEventListener('change', e=>{
    Diagramm gespeicherten Bearbeitungen (die auf die alten Kennungen zeigen)
    werden dabei verworfen. */
 function loadUebersicht(text){
-  S.outlineText = text;
-  S.outline = null; S.hierSel = null;
-  S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
-  parseOutline();
+  const H = S.bereiche.hierarchie = Object.assign(neuerBaum(), {outlineText: text});
+  imBereich('hierarchie', parseOutline);
   writeStore();
   if(S.mode === 'hierarchie') setMode('hierarchie');
-  const bad = S.outline.messages.filter(m => m.level !== 'info').length;
+  const bad = H.outline.messages.filter(m => m.level !== 'info').length;
   toast(bad ? `Hierarchiebeschreibung geladen · ${bad} Hinweise` : 'Hierarchiebeschreibung geladen');
 }
 
 $('uebersichtInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t => loadUebersicht(t));
+  e.target.value = '';
+});
+
+/* Nach geändertem Modell die laufende Ansicht neu aufbauen. Im Bereich der
+   Quelltabellen nie über setView: das legte die Lagen der Geschäftsobjekte
+   unter den gleichlautenden Kennungen der Tabellen ab. */
+function ansichtNeu(opts){
+  if(S.mode === 'quellen'){ setMode('quellen'); return; }
+  setView(opts);
+  if(S.mode === 'hierarchie') setMode('hierarchie');
+}
+
+/* Quelltabellen laden: eine eigene Datei. Ist sie nicht lesbar, bleibt der
+   bisherige Stand. Die Diagramme behalten ihre Anordnung; neue Tabellen
+   werden platziert. */
+function loadQuellen(text, name){
+  try{ buildModel(text, 'quelle', S.model); }
+  catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
+  S.quellText = text;
+  S.quellFileName = name || 'quelltabellen.yaml';
+  quellModellBauen();
+  S.bereiche.quellen.outline = null;
+  writeStore();
+  if(S.mode === 'quellen') setMode('quellen');
+  const n = Object.keys(S.quellModell.objects).length;
+  const bad = S.quellModell.messages.filter(m => m.level !== 'info').length;
+  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : ''));
+}
+
+/* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
+   Diagramm gespeicherten Bearbeitungen, wie bei der Hierarchiebeschreibung. */
+function loadQuellDiagramme(text){
+  S.bereiche.quellen = Object.assign(neuerBaum(), {outlineText: text});
+  writeStore();
+  if(S.mode === 'quellen') setMode('quellen');
+  toast('Quelltabellen-Diagramme geladen');
+}
+
+$('quellInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadQuellen(t, f.name));
+  e.target.value = '';
+});
+$('quellDiagInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadQuellDiagramme(t));
   e.target.value = '';
 });
 
@@ -1437,20 +1540,25 @@ async function loadYaml(text, name, preset){
     S.routes = {1:{}, 2:{}, 3:{}};
     S.content = {1:{}, 2:{}, 3:{}};
     S.hidden = new Set();
-    S.outline = null; S.hierSel = null;   // Übersicht zum neuen Modell neu prüfen
-    S.outlineText = '';
-    S.hierSaved = {}; S.hierRoutes = {}; S.hierShown = {}; S.hierText = {};
+    // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
+    S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
+    // Die Quelltabellen sind eine eigene Datei: ein neues Modell lässt sie stehen
+    if(preset && typeof preset.quellYaml === 'string'){
+      S.quellText = preset.quellYaml;
+      if(preset.quellFileName) S.quellFileName = preset.quellFileName;
+    }
     if(preset) adoptLayoutFile(preset);
     else {
       const raw = await store.get('layouts:' + S.fileName);
       if(raw){ try{ adoptLayoutFile(JSON.parse(raw)); }catch(_){} }
     }
+    quellModellBauen();
     $('fileLabel').textContent = S.fileName;
+    syncEinstMenu();
     renderMessages();
     syncLayoutMenu();
-    setView();
-    if(S.mode === 'hierarchie') setMode('hierarchie');
-    resetHistory();                       // geladener Stand ist der Anfang des Verlaufs
+    ansichtNeu();
+    resetHistory();                      // geladener Stand ist der Anfang des Verlaufs
     const bad = model.messages.filter(m => m.level !== 'info').length;
     toast(bad ? `${Object.keys(model.objects).length} Objekte geladen · ${bad} Hinweise`
               : `${Object.keys(model.objects).length} Objekte geladen`);
@@ -1468,7 +1576,7 @@ function standAlsHtml(){
   const el = $('bakedState');
   const before = el.textContent;
   el.textContent = JSON.stringify(
-    Object.assign({fileName:S.fileName, yaml:S.yamlText}, layoutFile())
+    Object.assign(modellTexte(), layoutFile())
   ).replace(/</g, '\\u003c');
 
   // Generierte Bereiche leeren, damit die Datei klein bleibt
@@ -1567,7 +1675,7 @@ window.addEventListener('resize', ()=> applyTransform());
    setView() würde den Ausschnitt aufheben und wieder alle Objekte zeigen. */
 function nachSchriftMessen(){
   if(!S.graph) return;
-  if(S.mode === 'hierarchie'){ if(S.hierSel) selectDiagram(S.hierSel); }
+  if(S.mode !== 'komplett'){ if(S.hierSel) selectDiagram(S.hierSel); }
   else setView();
 }
 document.fonts && document.fonts.ready.then(nachSchriftMessen);

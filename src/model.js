@@ -67,11 +67,27 @@ function readRels(raw, objName, messages){
    Abschnittsnamen und darin, wie ein Eintrag in den Meldungen heißt. */
 const MODELL_ARTEN = {
   go: {roots:['BusinessObjects','businessObjects','business_objects','Geschaeftsobjekte'],
-       abschnitt:'BusinessObjects', keinem:'keinem Geschäftsobjekt', diesem:'diesem Geschäftsobjekt', das:'das Geschäftsobjekt'}
+       abschnitt:'BusinessObjects', keinem:'keinem Geschäftsobjekt', diesem:'diesem Geschäftsobjekt', das:'das Geschäftsobjekt'},
+  /* Eine Quelltabelle ist die Ausformulierung eines Eintrags unter
+     source_systems: dieselben Felder wie ein Geschäftsobjekt, dazu genau ein
+     Quellsystem und das Geschäftsobjekt, dem sie zugeordnet ist. */
+  quelle: {roots:['SourceTables','sourceTables','source_tables','Quelltabellen'],
+       abschnitt:'SourceTables', keinem:'keiner Quelltabelle', diesem:'dieser Quelltabelle', das:'die Quelltabelle'}
+};
+const QT_SYSTEM = ['source_system','Source_System'];
+const QT_GO = ['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt'];
+const QT_KEYS = new Set([...QT_SYSTEM, ...QT_GO]);
+const ersterWert = (def, keys)=>{
+  const k = keys.find(k => def[k] != null && typeof def[k] !== 'object' && String(def[k]).trim() !== '');
+  return k ? String(def[k]).trim() : null;
 };
 
-function buildModel(text, art = 'go'){
+/* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
+   „business_object" geprüft. */
+function buildModel(text, art = 'go', goModell = null){
   const A = MODELL_ARTEN[art];
+  const quelle = art === 'quelle';
+  const objKeys = quelle ? new Set([...OBJ_KEYS, ...QT_KEYS]) : OBJ_KEYS;
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
 
@@ -132,13 +148,14 @@ function buildModel(text, art = 'go'){
     }));
     objects[name] = {
       name,
+      ...(quelle ? {system: ersterWert(def, QT_SYSTEM), bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
       domain: def.Domain || def.domain || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
-      sources: Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
+      sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
       rels,
-      extra: extraAus(def, OBJ_KEYS, zusatz.objekt)
+      extra: extraAus(def, objKeys, zusatz.objekt)
     };
   }
 
@@ -151,7 +168,16 @@ function buildModel(text, art = 'go'){
   for(const o of Object.values(objects)){
     if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
-    if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
+    if(quelle){
+      if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
+        body:'Feld "source_system" fehlt. Die Tabelle erscheint in keinem Diagramm eines Quellsystems.'});
+      if(!o.bo) messages.push({level:'info', group:'ohne Geschäftsobjekt', obj:o.name, title:`${o.name}: ohne Geschäftsobjekt`,
+        body:'Feld "business_object" fehlt — die Tabelle ist noch keinem Geschäftsobjekt zugeordnet.'});
+      else if(goModell && !goModell.objects[o.bo]) messages.push({level:'warn', group:'Geschäftsobjekt unbekannt', obj:o.name,
+        title:`${o.name} → ${o.bo}: Geschäftsobjekt unbekannt`,
+        body:`"${o.bo}" ist im Geschäftsobjekt-Modell nicht definiert.`});
+    }
+    else if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
@@ -278,6 +304,9 @@ function attrText(a, showType){
   };
 }
 
+// Eine Quelltabelle hat genau ein Quellsystem, ein Geschäftsobjekt eine Liste
+const quellenVon = o => o.system !== undefined ? (o.system ? [o.system] : []) : o.sources;
+
 function makeGraph(model){
   const nodes = [], edges = [];
   const byId = new Map();
@@ -287,9 +316,9 @@ function makeGraph(model){
   for(const o of Object.values(model.objects)){
     const rows = [];
     if(C.keys) o.keys.forEach(k => rows.push({kind:'key', text:k}));
-    if(C.sources && !E.quelle && o.sources.length){
+    if(C.sources && !E.quelle && quellenVon(o).length){
       if(rows.length) rows.push({kind:'sep'});
-      o.sources.forEach(s => rows.push({kind:'src', text:s}));
+      quellenVon(o).forEach(s => rows.push({kind:'src', text:s}));
     }
     if(C.attrs){
       const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.ak || a.fk) : o.attrs;
@@ -359,7 +388,31 @@ function makeGraph(model){
   };
   for(const o of Object.values(model.objects)){
     if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
-    if(E.quelle) o.sources.forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+    if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+  }
+
+  /* Das Geschäftsobjekt als eigenes Element (nur bei den Quelltabellen): anders
+     als Quelle und Domäne genau EIN Kasten je Diagramm, an dem alle seine
+     Tabellen hängen — er zeigt, welche Tabellen dasselbe Objekt beliefern.
+     Kein Anhängsel, denn er hat keinen einzelnen Eltern-Kasten; er wird mit
+     angeordnet wie ein Objekt und ist sichtbar, solange es eine seiner
+     Tabellen ist. */
+  if(S.mode === 'quellen' && E.geschaeftsobjekt){
+    const tabellen = new Map();
+    for(const o of Object.values(model.objects)){
+      if(!o.bo || !(S.model && S.model.objects[o.bo])) continue;
+      if(!tabellen.has(o.bo)) tabellen.set(o.bo, []);
+      tabellen.get(o.bo).push(byId.get('o:'+o.name));
+    }
+    for(const [bo, liste] of tabellen){
+      const id = 'g:'+bo;
+      const n = {id, kind:'gobj', name:bo, sub:null, rows:[], abgeleitet:true,
+                 w: Math.max(126, Math.round(measure(bo, F_TITLE) + PAD_X*2 + 8)),
+                 h: HEAD_ONLY_H, x:0, y:0, ref:{name:bo},
+                 get hidden(){ return liste.every(t => t.hidden); }, set hidden(_){}};
+      nodes.push(n); byId.set(id, n);
+      liste.forEach(t => edges.push({from:t.id, to:id, kind:'go', label:'Geschäftsobjekt', fromCard:null, toCard:null}));
+    }
   }
 
   // Mehrfachkanten zwischen demselben Paar auffächern.

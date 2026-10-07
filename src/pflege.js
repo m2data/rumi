@@ -29,8 +29,18 @@ const PF_FELDER = [
   {rolle:'keys',    keys:['business_keys','BusinessKeys']},
   {rolle:'sources', keys:['source_systems','sources']},
   {rolle:'attrs',   keys:['attributes']},
-  {rolle:'rels',    keys:['relationships']}
+  {rolle:'rels',    keys:['relationships']},
+  // nur an Quelltabellen; an Geschäftsobjekten bleiben beide leer und unberührt
+  {rolle:'system',  keys:['source_system','Source_System']},
+  {rolle:'bo',      keys:['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt']}
 ];
+const PF_EINZEL = ['domain','desc','system','bo'];
+
+/* Welche Datei die Pflege gerade bearbeitet: im Bereich der Quelltabellen
+   deren YAML, sonst das Geschäftsobjekt-Modell. */
+const QT_HEAD = /^\s*(SourceTables|sourceTables|source_tables|Quelltabellen)\s*:\s*(#.*)?$/;
+const aktText = ()=> S.mode === 'quellen' ? quellTextAkt() : S.yamlText;
+const aktKopf = ()=> S.mode === 'quellen' ? QT_HEAD : BO_HEAD;
 const pfRolle = key => (PF_FELDER.find(f => f.keys.includes(key)) || {}).rolle || null;
 const pfStd   = rolle => PF_FELDER.find(f => f.rolle === rolle).keys[0];
 
@@ -176,9 +186,8 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
    Modell — daran hängt die Entscheidung „unverändert, also unangetastet". */
 function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
-  if(rolle === 'domain' || rolle === 'desc'){
-    const neu = (rolle === 'domain' ? e.domain : e.desc) || '';
-    const vor = (rolle === 'domain' ? alt.domain : alt.desc) || '';
+  if(PF_EINZEL.includes(rolle)){
+    const neu = e[rolle] || '', vor = alt[rolle] || '';
     if(neu === vor) return f ? f.lines : [];
     return neu ? [' '.repeat(col) + key + ': ' + yWert(neu)] : [];
   }
@@ -335,9 +344,12 @@ function uebersichtObjekt(text, alt, neu){
    vergessen und mit ihr jeder von Hand gezogene Kantenzug. */
 function pfIdsUmbenennen(altId, neuId){
   const um = m => { if(m && m[altId] !== undefined){ m[neuId] = m[altId]; delete m[altId]; } };
-  um(S.saved[1]);
+  // Die Komplettansicht zeigt nur Geschäftsobjekte; eine Tabelle gleichen
+  // Namens darf deren Lage nicht mitnehmen. Der Baum ist der des Bereichs.
+  const komplett = S.mode !== 'quellen';
+  if(komplett) um(S.saved[1]);
   Object.values(S.hierSaved).forEach(um);
-  if(S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
+  if(komplett && S.hidden.has(altId)){ S.hidden.delete(altId); S.hidden.add(neuId); }
   Object.keys(S.hierShown).forEach(k=>{
     S.hierShown[k] = (S.hierShown[k] || []).map(id => id === altId ? neuId : id);
   });
@@ -353,7 +365,7 @@ function pfIdsUmbenennen(altId, neuId){
     Object.keys(m || {}).forEach(k => { out[schluessel(k)] = m[k]; });
     return out;
   };
-  S.routes[1] = routen(S.routes[1]);
+  if(komplett) S.routes[1] = routen(S.routes[1]);
   Object.keys(S.hierRoutes).forEach(k => { S.hierRoutes[k] = routen(S.hierRoutes[k]); });
 }
 
@@ -362,20 +374,44 @@ function pfIdsUmbenennen(altId, neuId){
    Verlauf schreibt den Modelltext mit, Strg+Z nimmt die Bearbeitung also
    wieder zurück. Ohne Einpassen — beim Tippen soll der Ausschnitt stehen. */
 function pfUebernehmen(text, selId, meldung){
+  const quellen = S.mode === 'quellen';
   let modell;
-  try{ modell = buildModel(text); }
+  try{ modell = quellen ? buildModel(text, 'quelle', S.model) : buildModel(text); }
   catch(err){ toast('Der geänderte Modelltext ist nicht lesbar: ' + err.message); return false; }
-  S.model = modell;
-  S.yamlText = text;
+  if(quellen){ S.quellText = text; S.quellModell = modell; }
+  else { S.model = modell; S.yamlText = text; quellModellBauen(); }   // die Zuordnung prüft gegen die neuen Namen
   S.pflege = null; pfEntwurf = null;
   if(!S.outline) parseOutline();
   renderMessages(); syncLayoutMenu();
   if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
   else { S.sel = new Set(); S.selected = null; }
-  setView({autoFit:false});
-  if(S.mode === 'hierarchie') setMode('hierarchie');
+  ansichtNeu({autoFit:false});
+  // Im Bereich der Quelltabellen legt kein setView den Stand ab; ohne diesen
+  // Aufruf fehlte die Bearbeitung im Verlauf, Strg+Z nähme die Aktion davor.
+  writeStore();
   toast(meldung);
   return true;
+}
+
+/* Ein umbenanntes Geschäftsobjekt in der Zuordnung der Quelltabellen
+   nachziehen („business_object:"). Nur das Feld selbst, kein gleichlautender
+   Wert anderswo; ändert sich nichts, bleibt der Text unberührt. */
+function quellBoUmbenennen(text, alt, neu){
+  const B = splitBusinessObjects(text, QT_HEAD);
+  if(!B) return text;
+  let geaendert = false;
+  B.blocks = B.blocks.map(b=>{
+    const F = splitObjectFields(b.lines);
+    const lines = b.lines.map(l=>{
+      const m = !yBlank(l) && yCol(l) === F.fieldCol
+        && l.match(/^(\s*"?(?:business_object|Business_Object|Geschäftsobjekt|Geschaeftsobjekt)"?\s*:\s*)"?([^"#]*?)"?(\s+#.*)?\s*$/);
+      if(!m || m[2].trim() !== alt) return l;
+      geaendert = true;
+      return m[1] + yWert(neu) + (m[3] || '');
+    });
+    return {name: b.name, lines};
+  });
+  return geaendert ? pfZusammen(B) : text;
 }
 
 const PF_VERBOTEN = /[:#"]/;
@@ -385,16 +421,21 @@ function pfNamePruefen(name){
   return true;
 }
 
+/* Jeder Bereich hat seinen Schalter: die Geschäftsobjekte „Geschäftsobjekte
+   bearbeiten", die Quelltabellen „Quelltabellen bearbeiten". */
+const pflegeErlaubt = ()=> S.mode === 'quellen' ? S.quellPflegeAn : S.pflegeAn;
+
 /* ---------- Formular im Reiter „Details" ---------- */
 let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus YAML
 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
-  if(!S.pflegeAn || !n || n.kind !== 'object') return;
+  if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
     name: o.name, domain: o.domain || '', desc: o.desc || '',
     keys: o.keys.slice(), sources: o.sources.slice(),
+    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
@@ -423,7 +464,8 @@ function pfLesen(){
   e.domain = $('pfDomain').value.trim();
   e.desc = $('pfDesc').value.trim();
   e.keys = liste($('pfKeys').value);
-  e.sources = liste($('pfSources').value);
+  if($('pfSources')) e.sources = liste($('pfSources').value);
+  if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = feld('.pfo-extra', z).value.trim(); });
   e.attrs.forEach((a, i)=>{
@@ -457,6 +499,12 @@ function pflegeFormular(box){
     `<select class="${klasse}" data-i="${i}" aria-label="${titel}">`
     + werte.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
   const karten = [['', '—'], ...Object.keys(CARD_LABEL).map(k=>[k, CARD_LABEL[k]])];
+  // Quelltabellen: genau ein Quellsystem und die Zuordnung zu einem Geschäftsobjekt
+  const quellen = S.mode === 'quellen';
+  const gos = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
+  if(e.bo && !gos.includes(e.bo)) gos.push(e.bo);        // unbekannte Zuordnung bleibt wählbar
+  const wahlGO = `<select id="pfBO" aria-label="Geschäftsobjekt">`
+    + [['', '—'], ...gos.map(g => [g, g])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
 
   box.innerHTML =
     `<div class="hd-bar"><h2 class="hd-title">Bearbeiten</h2>
@@ -467,7 +515,10 @@ function pflegeFormular(box){
        <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
-       <label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>
+       ${quellen
+         ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
+            <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
+         : `<label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>`}
        ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><input class="pfo-extra" data-i="${z}"></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
@@ -504,7 +555,8 @@ function pflegeFormular(box){
   $('pfDomain').value = e.domain;
   $('pfDesc').value = e.desc;
   $('pfKeys').value = e.keys.join(', ');
-  $('pfSources').value = e.sources.join(', ');
+  if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
+  else $('pfSources').value = e.sources.join(', ');
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = e.extra[k]; });
   e.attrs.forEach((a,i)=>{
@@ -558,13 +610,18 @@ function pflegeSpeichern(){
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
 
-  let text = goObjektAendern(S.yamlText, altName, e, alt);
+  let text = goObjektAendern(aktText(), altName, e, alt, aktKopf());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   if(neuName !== altName){
-    text = goUmbenennen(text, altName, neuName);
+    text = goUmbenennen(text, altName, neuName, aktKopf());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
     S.outlineText = uebersichtObjekt(S.outlineText, altName, neuName);
     S.outline = null;
+    // Ein Geschäftsobjekt heißt auch in der Zuordnung der Quelltabellen neu
+    if(S.mode !== 'quellen'){
+      const q = quellBoUmbenennen(quellTextAkt(), altName, neuName);
+      if(q !== quellTextAkt()) S.quellText = q;
+    }
   }
   pfUebernehmen(text, 'o:' + neuName, 'Gespeichert');
 }
@@ -572,15 +629,15 @@ function pflegeSpeichern(){
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in
    pflegeObjektNeu/pflegeObjektWeg, damit sie auch ohne Dialog prüfbar ist. */
 function pflegeNeu(){
-  const name = (prompt('Name des neuen Geschäftsobjekts:') || '').trim();
+  const name = (prompt(S.mode === 'quellen' ? 'Name der neuen Quelltabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
   if(name) pflegeObjektNeu(name);
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!S.pflegeAn || !pfNamePruefen(name)) return;
+  if(!pflegeErlaubt() || !pfNamePruefen(name)) return;
   if(aktModell().objects[name]){ toast(`„${name}" gibt es schon`); return; }
-  const text = goObjektAnlegen(S.yamlText, name);
-  if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return; }
+  const text = goObjektAnlegen(aktText(), name, aktKopf());
+  if(text == null){ toast(`Im Modelltext fehlt der Abschnitt "${S.mode === 'quellen' ? 'SourceTables' : 'BusinessObjects'}"`); return; }
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
@@ -597,8 +654,8 @@ const pfEingehend = name => Object.values(aktModell().objects)
   .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
 function pflegeObjektWeg(name){
-  if(!S.pflegeAn || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(S.yamlText, name);
+  if(!pflegeErlaubt() || !aktModell().objects[name]) return;
+  const text = goObjektLoeschen(aktText(), name, aktKopf());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
   S.outline = null;
@@ -616,7 +673,7 @@ $('objNew').addEventListener('click', pflegeNeu);
    bleiben. „Zusatzattribute …" öffnet einen Dialog. */
 function pflegeSchalten(an){
   S.pflegeAn = !!an;
-  if(!S.pflegeAn){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
+  if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   renderObjectList(); renderDetails();
   writeStore();
@@ -677,10 +734,38 @@ function syncEinstMenu(){
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   $('optQuelle').setAttribute('aria-checked', String(!!S.elemente.quelle));
   $('optDomaene').setAttribute('aria-checked', String(!!S.elemente.domaene));
+  $('optQuellen').setAttribute('aria-checked', String(S.quellenAn));
+  $('optQuellPflege').setAttribute('aria-checked', String(S.quellPflegeAn));
+  $('optGO').setAttribute('aria-checked', String(!!S.elemente.geschaeftsobjekt));
+  document.body.classList.toggle('quellen-an', S.quellenAn);   // blendet alles zu den Quelltabellen ein
+}
+
+/* „Quelltabellen verwenden": ohne den Haken gibt es den Bereich nicht —
+   kein Modus, keine Dateien, keine Schalter. Wer ihn im Bereich selbst
+   abschaltet, landet in der Hierarchie. Gemerkt und ein Schritt im Verlauf. */
+function quellenSchalten(an){
+  S.quellenAn = !!an;
+  syncEinstMenu();
+  if(!S.quellenAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; setMode('hierarchie'); }
+  writeStore();
+  toast(S.quellenAn ? 'Quelltabellen eingeschaltet' : 'Quelltabellen ausgeschaltet');
+}
+/* „Quelltabellen bearbeiten": dasselbe wie „Geschäftsobjekte bearbeiten",
+   nur für den Bereich der Quelltabellen. */
+function quellPflegeSchalten(an){
+  S.quellPflegeAn = !!an;
+  if(!S.quellPflegeAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; }
+  syncEinstMenu();
+  renderObjectList(); renderDetails();
+  writeStore();
+  toast(S.quellPflegeAn ? 'Bearbeiten der Quelltabellen eingeschaltet' : 'Bearbeiten der Quelltabellen ausgeschaltet');
 }
 
 $('btnEinst').addEventListener('click', syncEinstMenu);
 $('optPflege').addEventListener('click', ()=> pflegeSchalten(!S.pflegeAn));
+$('optQuellen').addEventListener('click', ()=> quellenSchalten(!S.quellenAn));
+$('optQuellPflege').addEventListener('click', ()=> quellPflegeSchalten(!S.quellPflegeAn));
+$('optGO').addEventListener('click', ()=> elementSchalten('geschaeftsobjekt'));
 $('optQuelle').addEventListener('click', ()=> elementSchalten('quelle'));
 $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);

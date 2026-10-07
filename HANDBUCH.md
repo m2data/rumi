@@ -22,6 +22,7 @@ Dateien siehe den [Anhang](#anhang-die-dateien) am Ende.
 - [14. Laden, Speichern, Weitergeben](#14-laden-speichern-weitergeben)
 - [15. Tastenkürzel](#15-tastenkürzel)
 - [16. Wenn etwas klemmt](#16-wenn-etwas-klemmt)
+- [17. Quelltabellen](#17-quelltabellen)
 - [Anhang: die Dateien](#anhang-die-dateien)
 
 ---
@@ -53,7 +54,7 @@ dauerhaft: Wer einen Stand aufheben oder weitergeben will, speichert ihn über
 | Bereich | Bedeutung |
 | --- | --- |
 | Titel und Dateiname | welches Modell gerade geladen ist |
-| **Komplettansicht \| Hierarchie** | die beiden Arbeitsweisen (Kapitel 3 bzw. 11) |
+| **Komplettansicht \| Hierarchie** | die beiden Arbeitsweisen (Kapitel 3 bzw. 11); mit „Quelltabellen verwenden" kommt **Quelltabellen** dazu (Kapitel 17) |
 | **Anordnen ▾** | Verfahren, Richtung, Kanten neu ziehen (Kapitel 8) |
 | **Inhalt ▾** | was in den Kästen steht (Kapitel 10) |
 | **Einpassen** | alles ins Bild rücken (Taste `F`) |
@@ -496,17 +497,80 @@ von Hand an (Kapitel 9) — dann bleibt er.
 behält beim Neuladen sein eigenes Modell. Ein neuer Tab startet mit dem zuletzt
 gespeicherten Stand.
 
+**Der Knopf „Quelltabellen" fehlt.** Er erscheint erst mit „Einstellungen →
+Quelltabellen verwenden" (Kapitel 17).
+
 **Das Bild ist leer.** „Einpassen" (`F`) holt alles zurück ins Sichtfeld.
 
 **Nach dem Neubauen der Anwendung sieht man den alten Stand.** Die Seite im
 Browser **neu laden** — sonst läuft weiter die zuvor geladene Fassung.
+
+## 17. Quelltabellen
+
+Unter `source_systems` steht bei einem Geschäftsobjekt nur ein Name. Die Ebene
+der **Quelltabellen** formuliert diese Einträge aus: jede Tabelle mit denselben
+Feldern wie ein Geschäftsobjekt (Domain, Beschreibung, Business Keys,
+Attribute, Beziehungen zwischen Tabellen), dazu genau **ein Quellsystem** und
+das **Geschäftsobjekt**, dem sie zugeordnet ist. Eine oder mehrere Tabellen
+können demselben Geschäftsobjekt zugeordnet sein. Die Tabellen stehen in einer
+eigenen Datei (Anhang D).
+
+**Einschalten.** Die Ebene ist zunächst **aus** — das Werkzeug verhält sich
+dann genau wie ohne sie. „Einstellungen → Quelltabellen verwenden" schaltet sie
+ein: in der Kopfzeile erscheint der Knopf **Quelltabellen**, im Menü „Datei &
+Export" die beiden Dateien der Quelltabellen, unter „Einstellungen" die
+Schalter „Quelltabellen bearbeiten" und „Geschäftsobjekt". Der Schalter wird
+gemerkt und wandert in Positionsinformationen und Stand mit; Strg+Z nimmt ihn
+zurück. Wer ihn im Bereich selbst ausschaltet, landet in der Hierarchie.
+Mitgeliefert sind die Quelltabellen zum Willibald-Beispiel.
+
+**Der Bereich** ist gebaut wie die Hierarchie (Kapitel 11): links der Baum,
+darunter die Beschreibung, rechts das Diagramm.
+
+- Ganz oben steht **„Quellsysteme"** mit allen Tabellen und darunter **je
+  Quellsystem ein Diagramm** mit genau dessen Tabellen. Diese Diagramme
+  entstehen aus den Tabellen — kommt ein Quellsystem hinzu oder wechselt eine
+  Tabelle ihr System, folgt der Baum von selbst. Umbenennen, löschen,
+  verschieben oder Unterdiagramme anlegen lässt sich an ihnen nichts;
+  Anordnung, Auswahl der gezeigten Tabellen und Beschreibung schon.
+- Daneben lassen sich **eigene Diagramme** anlegen („＋ Diagramm",
+  „＋ Unterdiagramm"), etwa um Tabellen aus mehreren Quellsystemen
+  gegenüberzustellen. Tabellen kommen wie in der Hierarchie über die Häkchen der
+  Objektliste hinein. Diese Diagramme stehen in einer eigenen Datei (Anhang E).
+- Die **Objektliste** gruppiert nach Quellsystem; die **Prüfung** gilt den
+  Tabellen; die **Suche** findet auch Quellsystem und Geschäftsobjekt.
+- „Quellen" als eigenes Element zeigt hier das eine Quellsystem der Tabelle.
+
+**Geschäftsobjekt als eigenes Element.** „Einstellungen → Geschäftsobjekt"
+stellt das zugeordnete Geschäftsobjekt als eigenen Kasten ins Diagramm — anders
+als Quelle und Domäne **nur einmal je Diagramm**, verbunden mit allen seinen
+Tabellen (gestrichelte Kante „Geschäftsobjekt"). So sieht man, welche Tabellen
+dasselbe Objekt beliefern. Der Kasten ist sichtbar, solange es eine seiner
+Tabellen ist; eingeschaltet in einem schon gelegten Diagramm kommt er rechts
+neben seine Tabellen, das Übrige bleibt liegen. Das Element gibt es nur bei den
+Quelltabellen.
+
+**Bearbeiten.** „Einstellungen → Quelltabellen bearbeiten" funktioniert wie
+„Geschäftsobjekte bearbeiten" (Kapitel 13), nur für die Tabellen: Formular im
+Reiter „Details", „＋ Objekt" über der Liste, Löschen, Strg+Z. Statt „Quellen"
+gibt es ein Feld **Quellsystem** und eine Auswahl **Geschäftsobjekt**.
+Geschrieben wird in die Tabellen-YAML, nur an der bearbeiteten Stelle.
+Umbenennen einer Tabelle zieht `to:`, `references:`, die Diagramme und die
+Anordnung mit. Wird ein **Geschäftsobjekt** umbenannt, zieht seine Zuordnung in
+den Tabellen mit; wird es gelöscht, bleibt die Zuordnung stehen und die Prüfung
+meldet „Geschäftsobjekt unbekannt".
+
+Eine Prozedur, die Tabellen selbsttätig Geschäftsobjekten zuordnet, gibt es in
+diesem Stand noch nicht — die Zuordnung steht in der Datei oder wird von Hand
+gepflegt.
 
 ---
 
 # Anhang: die Dateien
 
 Ein vollständiger Arbeitsstand besteht aus drei Dateien, die einzeln geladen
-und gespeichert werden. Nur die erste ist Pflicht.
+und gespeichert werden; mit den Quelltabellen (Kapitel 17) kommen zwei dazu.
+Nur die erste ist Pflicht.
 
 ## Anhang A — Geschäftsobjekte (YAML)
 
@@ -705,11 +769,57 @@ Sie enthält:
 | `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
 | `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
 | `inhalt` | was in den Kästen steht |
-| `elemente` | ob Quelle und Domäne als eigene Elemente stehen |
+| `elemente` | ob Quelle, Domäne und (bei den Quelltabellen) das Geschäftsobjekt als eigene Elemente stehen |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
 | `uebersichtText` | die Hierarchiebeschreibung |
 | `hierarchie` | je Diagramm: Anordnung, Kantenzüge, sichtbare Objekte, Text |
+| `quelltabellen` | Schalter „Quelltabellen verwenden" (`an`) und „… bearbeiten" (`pflegeAn`), die Diagramm-YAML (`uebersichtText`) und je Diagramm Anordnung, Kantenzüge, sichtbare Tabellen, Text. Fehlt der Eintrag (ältere Datei), gelten die Vorgaben. |
 
 Der HTML-Export („Stand als HTML sichern") trägt dieselben Angaben zusammen mit
-dem Modell in einer Datei — für die Weitergabe ist er der bequemere Weg.
+dem Modell in einer Datei — für die Weitergabe ist er der bequemere Weg. Er
+enthält auch die Quelltabellen-YAML.
+
+## Anhang D — Quelltabellen (YAML)
+
+Eine eigene Datei, aufgebaut wie die Geschäftsobjekte (Anhang A) — nur heißt
+der Abschnitt `SourceTables`, und jede Tabelle trägt statt der Liste
+`source_systems` genau ein Quellsystem und ihre Zuordnung:
+
+```yaml
+SourceTables:                   # auch: Quelltabellen, source_tables
+  Bestellung_VRS:
+    source_system: Roadshow     # auch: Source_System
+    business_object: Bestellung # auch: Geschäftsobjekt
+    Domain: Willibald
+    business_keys:
+    - BestellungID
+    attributes:
+    - name: BestellungID
+      type: bigint
+      primary_key: true
+    relationships:              # zwischen Tabellen
+    - to: Position_VRS
+      name: enthält
+```
+
+- Der Tabellenname ist dateiweit eindeutig; `references:` und `to:` nennen
+  Tabellen.
+- Geprüft wird wie bei den Geschäftsobjekten, dazu: **kein Quellsystem**
+  (Hinweis), **Geschäftsobjekt unbekannt** (Hinweis: die Zuordnung nennt ein
+  Objekt, das es im Modell nicht gibt) und **ohne Geschäftsobjekt** (Info).
+
+## Anhang E — Quelltabellen-Diagramme (YAML)
+
+Die eigenen Diagramme des Bereichs Quelltabellen, aufgebaut wie die
+Hierarchiebeschreibung (Anhang B); die Liste heißt `tabellen` (`objekte` wird
+auch gelesen). Die Diagramme der Quellsysteme stehen **nicht** darin, sie
+entstehen aus den Tabellen.
+
+```yaml
+Bestellung Webshop/Roadshow:
+  beschreibung: "Dieselbe Bestellung aus zwei Systemen"
+  tabellen:
+    - Bestellung
+    - Bestellung_VRS
+```

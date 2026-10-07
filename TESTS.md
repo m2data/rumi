@@ -27,7 +27,8 @@ Kreuzungszählung Zentrum-zu-Zentrum und entlang gerouteter Segmente,
 Kantenpfad-Aufbau). Neue Tests nutzen diese Zähler statt eigener Kopien —
 sonst messen zwei Tests still Verschiedenes.
 
-**`model.test.js`** prüft `yaml.js` + `model.js`: YAML-Rundlauf (Tabs wie
+**`model.test.js`** prüft `yaml.js` + `model.js` (auch die Modellart der
+Quelltabellen): YAML-Rundlauf (Tabs wie
 Leerzeichen), Aufbau von Objekten, Attributen und Beziehungen sowie die
 Prüfregeln (unbekanntes Ziel, fehlende Domain, doppelte Beziehung, Selbstbezug …)
 und einen Rundlauf am ausgelieferten Modell.
@@ -78,6 +79,14 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
+- **`quellen.js`** — die Ebene der Quelltabellen: Schalter „Quelltabellen
+  verwenden" (Vorgabe aus, im Verlauf), Bereich mit den automatischen
+  Diagrammen je Quellsystem (geschützt) und eigenen Gegenüberstellungen, das
+  Geschäftsobjekt als eigenes Element (einmal je Diagramm, nur dort),
+  „Quelltabellen bearbeiten" (Quellsystem, Zuordnung, nur geänderte Zeilen,
+  Umbenennen, Anlegen, Löschen), das Nachziehen der Zuordnung beim Umbenennen
+  eines Geschäftsobjekts, die beiden Dateien laden und speichern, Stand und
+  ältere Positionsinformationen.
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell
   (willibald + Delta crm + sap-finanz): kein Pendeln zwischen den Seiten
   (Blitzmuster), kaum Züge außerhalb ihres Anschluss-Intervalls (Kringel),

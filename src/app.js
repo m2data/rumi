@@ -3,6 +3,7 @@
    ===================================================================== */
 /* einsetzen: modell willibald-attr.yaml */
 /* einsetzen: uebersicht willibald-übersicht.yaml */
+/* einsetzen: quelltabellen willibald-quelltabellen.yaml */
 
 const S = {
   model:null, graph:null, yamlText:'',
@@ -10,7 +11,7 @@ const S = {
   saved:{1:{}},
   routes:{1:{}},
   content:{1:{}},
-  elemente:{quelle:false, domaene:false},   // Einstellung: Quelle/Domäne als eigener Kasten
+  elemente:{quelle:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Domäne/GO als eigener Kasten
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -19,15 +20,21 @@ const S = {
   pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   zusatzAn:{objekt:[], attribut:[]},   // Einstellung: welche Zusatzattribute gepflegt werden
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
+  // Quelltabellen: eigene Datei, eigener Bereich (Einstellung, Vorgabe aus)
+  quellenAn:false,          // Einstellung: gibt es den Bereich überhaupt?
+  quellPflegeAn:false,      // Einstellung: dürfen Quelltabellen bearbeitet werden?
+  quellText:'',             // Quelltabellen-YAML; leer = mitgelieferte Vorlage
+  quellFileName:'willibald-quelltabellen.yaml',
+  quellModell:null,         // aus quellModellBauen()
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',
   // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht
-  mode:'komplett',          // 'komplett' | 'hierarchie'
-  bereiche:{hierarchie: neuerBaum()}
+  mode:'komplett',          // 'komplett' | 'hierarchie' | 'quellen'
+  bereiche:{hierarchie: neuerBaum(), quellen: neuerBaum()}
 };
 
-/* Ein Diagrammbaum mit allem, was an ihm hängt. Die Hierarchie hat einen;
-   die Felder S.outline, S.hierSel … zeigen auf den Baum des aktiven Bereichs,
+/* Ein Diagrammbaum mit allem, was an ihm hängt. Hierarchie und Quelltabellen
+   haben je einen; die Felder S.outline, S.hierSel … zeigen auf den Baum des aktiven Bereichs,
    damit hierarchie.js für jeden Baum dasselbe tut. */
 function neuerBaum(){
   return {
@@ -42,11 +49,33 @@ function neuerBaum(){
     hierEditing:false       // Beschreibung gerade im Bearbeiten-Modus?
   };
 }
-const aktBaum = ()=> S.bereiche.hierarchie;
+const aktBaum = ()=> S.mode === 'quellen' ? S.bereiche.quellen : S.bereiche.hierarchie;
 Object.keys(neuerBaum()).forEach(k => Object.defineProperty(S, k, {
   get(){ return aktBaum()[k]; }, set(v){ aktBaum()[k] = v; }, enumerable:true
 }));
-const aktModell = ()=> S.model;
+const aktModell = ()=> S.mode === 'quellen' ? S.quellModell : S.model;
+
+/* Eine reine Rechnung im Baum eines anderen Bereichs ausführen, etwa die
+   Diagramm-YAML der Quelltabellen aus der Komplettansicht heraus speichern.
+   Nichts zeichnen: der Modus gilt nur für die Dauer von fn. */
+function imBereich(mode, fn){
+  const alt = S.mode;
+  S.mode = mode;
+  try{ return fn(); } finally { S.mode = alt; }
+}
+
+const quellTextAkt = ()=> S.quellText || (typeof DEFAULT_QUELLTABELLEN !== 'undefined' ? DEFAULT_QUELLTABELLEN : '');
+
+/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen oder am
+   Geschäftsobjekt-Modell, gegen dessen Namen die Zuordnung geprüft wird. Eine
+   unlesbare Datei lässt den Bereich leer und sagt es in der Prüfung. */
+function quellModellBauen(){
+  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle', S.model); }
+  catch(err){
+    S.quellModell = {objects:{}, meta:{}, zusatz:{objekt:new Map(), attribut:new Map()},
+      messages:[{level:'err', title:'Quelltabellen nicht lesbar', body:err.message}]};
+  }
+}
 
 const $ = id => document.getElementById(id);
 const svg = $('canvas');
@@ -97,6 +126,7 @@ function matchesFilter(n, q){
   const r = n.ref || {};
   if(hat(r.domain)) return true;
   if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
+  if(hat(r.system) || hat(r.bo)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
   return (r.rels || []).some(x => hat(x.name));
 }
