@@ -23,7 +23,7 @@ const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinali
    oder Attribut ist ein Zusatzattribut. */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
   'business_keys','BusinessKeys','source_systems','sources','attributes','relationships']);
-const ATTR_KEYS = new Set(['name','type','nullable','primary_key','foreign_key','references']);
+const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references']);
 
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
@@ -117,6 +117,7 @@ function buildModel(text){
       type: a.type || null,
       nullable: a.nullable === true,
       pk: a.primary_key === true,
+      ak: a.alternate_key === true,
       fk: a.foreign_key === true,
       ref: a.references || null,
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
@@ -154,6 +155,10 @@ function buildModel(text){
     attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt', obj:o.name,
       title:`${o.name}.${n}: Attribut doppelt`,
       body:`Der Attributname "${n}" kommt in diesem Geschäftsobjekt mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
+    // Ein Alternativschlüssel steht neben dem Primärschlüssel, nicht auf ihm.
+    o.attrs.filter(a => a.pk && a.ak).forEach(a => messages.push({level:'err', group:'PK und AK zugleich', obj:o.name,
+      title:`${o.name}.${a.name}: PK und AK zugleich`,
+      body:'Das Attribut ist als "primary_key" und als "alternate_key" markiert. Ein Alternativschlüssel ist per Definition nicht der Primärschlüssel — eine der beiden Angaben streichen.'}));
     for(const r of o.rels){
       if(!names.has(r.to)){
         messages.push({level:'err', group:'Ziel unbekannt', obj:o.name, title:`${o.name} → ${r.to}: Ziel unbekannt`, body:`"${r.to}" ist unter ${rootKey} nicht definiert. Die Beziehung wird nicht gezeichnet.`});
@@ -260,7 +265,7 @@ function wrapText(text, maxW, font){
 function attrText(a, showType){
   return {
     name: a.name,
-    tags: (a.pk ? 'PK' : '') + (a.pk && a.fk ? ' ' : '') + (a.fk ? 'FK' : ''),
+    tags: [a.pk && 'PK', a.ak && 'AK', a.fk && 'FK'].filter(Boolean).join(' '),
     type: showType && a.type ? a.type + (a.nullable ? ' ?' : '') : ''
   };
 }
@@ -279,7 +284,7 @@ function makeGraph(model){
       o.sources.forEach(s => rows.push({kind:'src', text:s}));
     }
     if(C.attrs){
-      const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.fk) : o.attrs;
+      const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.ak || a.fk) : o.attrs;
       if(list.length){
         if(rows.length) rows.push({kind:'sep'});
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));

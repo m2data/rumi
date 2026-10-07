@@ -361,6 +361,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .attrs .at{font-size:10px;color:var(--muted);text-align:right;padding-left:8px;white-space:nowrap}
 .attrs .ak{font-size:8.5px;text-align:right;padding-left:6px;white-space:nowrap}
 .attrs .ak .pk{color:var(--hot);margin-left:3px}
+.attrs .ak .alt{color:var(--obj);margin-left:3px}
 .attrs .ak .fk{color:var(--src);margin-left:3px}
 .attrs .aref{font-size:9.5px;color:var(--muted);padding:0 0 4px 10px;border-bottom:1px dotted var(--hair-soft)}
 .rel .pickedge{
@@ -850,7 +851,7 @@ const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinali
    oder Attribut ist ein Zusatzattribut. */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
   'business_keys','BusinessKeys','source_systems','sources','attributes','relationships']);
-const ATTR_KEYS = new Set(['name','type','nullable','primary_key','foreign_key','references']);
+const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references']);
 
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
@@ -944,6 +945,7 @@ function buildModel(text){
       type: a.type || null,
       nullable: a.nullable === true,
       pk: a.primary_key === true,
+      ak: a.alternate_key === true,
       fk: a.foreign_key === true,
       ref: a.references || null,
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
@@ -981,6 +983,10 @@ function buildModel(text){
     attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt', obj:o.name,
       title:`${o.name}.${n}: Attribut doppelt`,
       body:`Der Attributname "${n}" kommt in diesem Geschäftsobjekt mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
+    // Ein Alternativschlüssel steht neben dem Primärschlüssel, nicht auf ihm.
+    o.attrs.filter(a => a.pk && a.ak).forEach(a => messages.push({level:'err', group:'PK und AK zugleich', obj:o.name,
+      title:`${o.name}.${a.name}: PK und AK zugleich`,
+      body:'Das Attribut ist als "primary_key" und als "alternate_key" markiert. Ein Alternativschlüssel ist per Definition nicht der Primärschlüssel — eine der beiden Angaben streichen.'}));
     for(const r of o.rels){
       if(!names.has(r.to)){
         messages.push({level:'err', group:'Ziel unbekannt', obj:o.name, title:`${o.name} → ${r.to}: Ziel unbekannt`, body:`"${r.to}" ist unter ${rootKey} nicht definiert. Die Beziehung wird nicht gezeichnet.`});
@@ -1087,7 +1093,7 @@ function wrapText(text, maxW, font){
 function attrText(a, showType){
   return {
     name: a.name,
-    tags: (a.pk ? 'PK' : '') + (a.pk && a.fk ? ' ' : '') + (a.fk ? 'FK' : ''),
+    tags: [a.pk && 'PK', a.ak && 'AK', a.fk && 'FK'].filter(Boolean).join(' '),
     type: showType && a.type ? a.type + (a.nullable ? ' ?' : '') : ''
   };
 }
@@ -1106,7 +1112,7 @@ function makeGraph(model){
       o.sources.forEach(s => rows.push({kind:'src', text:s}));
     }
     if(C.attrs){
-      const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.fk) : o.attrs;
+      const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.ak || a.fk) : o.attrs;
       if(list.length){
         if(rows.length) rows.push({kind:'sep'});
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
@@ -5217,6 +5223,7 @@ function pfAttrZeilen(a, col, altEintrag){
   if(a.type)     z.push(i + 'type: ' + yWert(a.type));
   if(a.nullable) z.push(i + 'nullable: true');
   if(a.pk)       z.push(i + 'primary_key: true');
+  if(a.ak)       z.push(i + 'alternate_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
@@ -5266,7 +5273,7 @@ function pfRelZeilen(r, col){
 const pfExtraGleich = (x = {}, y = {}) =>
   [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
-  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
+  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
   && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
   && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
@@ -5568,7 +5575,7 @@ function pflegeStart(id){
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
+                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
   };
   S.pflege = id;
@@ -5601,6 +5608,7 @@ function pfLesen(){
     a.type = feld('.pfa-type', i).value.trim();
     a.ref  = feld('.pfa-ref', i).value.trim();
     a.pk   = feld('.pfa-pk', i).checked;
+    a.ak   = feld('.pfa-ak', i).checked;
     a.fk   = feld('.pfa-fk', i).checked;
     a.nullable = feld('.pfa-null', i).checked;
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
@@ -5646,6 +5654,7 @@ function pflegeFormular(box){
             <button class="pfx" data-weg="attr" data-i="${i}" title="Attribut entfernen" aria-label="Attribut entfernen">×</button></div>
           <div class="pfz">
             <label class="pfk"><input type="checkbox" class="pfa-pk" data-i="${i}">PK</label>
+            <label class="pfk"><input type="checkbox" class="pfa-ak" data-i="${i}">AK</label>
             <label class="pfk"><input type="checkbox" class="pfa-fk" data-i="${i}">FK</label>
             <label class="pfk"><input type="checkbox" class="pfa-null" data-i="${i}">null</label>
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
@@ -5682,6 +5691,7 @@ function pflegeFormular(box){
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;
     feld('.pfa-pk', i).checked = a.pk;
+    feld('.pfa-ak', i).checked = a.ak;
     feld('.pfa-fk', i).checked = a.fk;
     feld('.pfa-null', i).checked = a.nullable;
   });
@@ -5701,7 +5711,7 @@ function pflegeFormular(box){
 
 function pfZeileNeu(art){
   pfLesen();
-  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, fk:false, ref:'', extra:{}, _alt:null});
+  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
   else {
     const ziele = Object.keys(S.model.objects);
     pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
@@ -6300,7 +6310,7 @@ function renderDetails(){
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
-          <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
+          <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
           + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`

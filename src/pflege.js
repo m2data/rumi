@@ -46,6 +46,7 @@ function pfAttrZeilen(a, col, altEintrag){
   if(a.type)     z.push(i + 'type: ' + yWert(a.type));
   if(a.nullable) z.push(i + 'nullable: true');
   if(a.pk)       z.push(i + 'primary_key: true');
+  if(a.ak)       z.push(i + 'alternate_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
@@ -95,7 +96,7 @@ function pfRelZeilen(r, col){
 const pfExtraGleich = (x = {}, y = {}) =>
   [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
-  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
+  && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
   && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
   && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
@@ -397,7 +398,7 @@ function pflegeStart(id){
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
+                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
   };
   S.pflege = id;
@@ -430,6 +431,7 @@ function pfLesen(){
     a.type = feld('.pfa-type', i).value.trim();
     a.ref  = feld('.pfa-ref', i).value.trim();
     a.pk   = feld('.pfa-pk', i).checked;
+    a.ak   = feld('.pfa-ak', i).checked;
     a.fk   = feld('.pfa-fk', i).checked;
     a.nullable = feld('.pfa-null', i).checked;
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
@@ -475,6 +477,7 @@ function pflegeFormular(box){
             <button class="pfx" data-weg="attr" data-i="${i}" title="Attribut entfernen" aria-label="Attribut entfernen">×</button></div>
           <div class="pfz">
             <label class="pfk"><input type="checkbox" class="pfa-pk" data-i="${i}">PK</label>
+            <label class="pfk"><input type="checkbox" class="pfa-ak" data-i="${i}">AK</label>
             <label class="pfk"><input type="checkbox" class="pfa-fk" data-i="${i}">FK</label>
             <label class="pfk"><input type="checkbox" class="pfa-null" data-i="${i}">null</label>
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
@@ -511,6 +514,7 @@ function pflegeFormular(box){
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;
     feld('.pfa-pk', i).checked = a.pk;
+    feld('.pfa-ak', i).checked = a.ak;
     feld('.pfa-fk', i).checked = a.fk;
     feld('.pfa-null', i).checked = a.nullable;
   });
@@ -530,7 +534,7 @@ function pflegeFormular(box){
 
 function pfZeileNeu(art){
   pfLesen();
-  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, fk:false, ref:'', extra:{}, _alt:null});
+  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
   else {
     const ziele = Object.keys(S.model.objects);
     pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});

@@ -75,6 +75,17 @@ console.log('== Nur geänderte Stellen: Kommentare und Formatierung bleiben ==')
   t('ein neues Attribut kommt mit Typ, FK und Verweis dazu',
     neuesAttr.includes('    - name: BID\n      type: int\n      foreign_key: true\n      references: B.BID'), neuesAttr);
 
+  const neuerAK = api.goObjektAendern(text, 'A', entwurf({attrs:[
+    Object.assign({}, alt.attrs[0], {_alt:alt.attrs[0]}),
+    {name:'Nr', type:'int', nullable:false, pk:false, ak:true, fk:true, ref:'B.Nr', _alt:null}]}), alt);
+  t('ein neues Attribut kommt mit AK vor FK dazu',
+    neuerAK.includes('    - name: Nr\n      type: int\n      alternate_key: true\n      foreign_key: true\n'), neuerAK);
+
+  const nurAK = api.goObjektAendern(text, 'A', entwurf({attrs:[
+    Object.assign({}, alt.attrs[0], {ak:true, _alt:alt.attrs[0]})]}), alt);
+  t('nur AK angehakt: das Attribut wird neu geschrieben',
+    nurAK.includes('      primary_key: true\n      alternate_key: true\n'), nurAK);
+
   const wenigerQuellen = api.goObjektAendern(text, 'A', entwurf({sources:['Q2']}), alt);
   t('eine entfernte Quelle ist raus, die andere unverändert',
     !/Q1/.test(wenigerQuellen) && /- Q2/.test(wenigerQuellen), wenigerQuellen);
@@ -650,6 +661,45 @@ console.log('== Bedienweg: Quellen im alten Feld „sources" ==');
   t('geschrieben wird in das vorhandene Feld',
     /\n {4}sources:\n {4}- Schublade\n {4}- Haken\n/.test(S.yamlText), S.yamlText);
   t('und kein zweites Feld daneben', !/source_systems/.test(S.yamlText), S.yamlText);
+}
+
+console.log('== Bedienweg: Alternativschlüssel (AK) anhaken ==');
+{
+  api.loadYaml([
+    'BusinessObjects:',
+    '  Dose:',
+    '    Domain: Haushalt',
+    '    business_keys:',
+    '    - DoseID',
+    '    source_systems:',
+    '    - Regal',
+    '    attributes:',
+    '    - name: DoseID',
+    '      primary_key: true',
+    '    - name: Etikett',
+    '      type: text',
+    ''
+  ].join('\n'), 'dose.yaml');
+  api.setMode('komplett'); api.setView();
+  if(!S.pflegeAn) S.pflegeAn = true;
+
+  t('das Formular lässt sich öffnen', formularOeffnen('o:Dose'));
+  const ak = detail().querySelectorAll('.pfa-ak');
+  t('jede Attributzeile hat ein Kästchen „AK"', ak.length === 2, ak.length + '');
+  ak[1].checked = true;
+  dispatch($('pfSave'), 'click', {});
+  t('AK steht im Modell', S.model.objects.Dose.attrs[1].ak === true, JSON.stringify(S.model.objects.Dose.attrs[1]));
+  t('und im Modelltext', /- name: Etikett\n {6}type: text\n {6}alternate_key: true\n/.test(S.yamlText), S.yamlText);
+  t('die Details zeigen „AK"', /<span class="alt">AK<\/span>/.test(detail().innerHTML), detail().innerHTML);
+  t('keine Prüfmeldung dazu', !S.model.messages.some(m => m.group === 'PK und AK zugleich'));
+
+  t('erneut geöffnet', formularOeffnen('o:Dose'));
+  t('ist „AK" vorbelegt', detail().querySelectorAll('.pfa-ak')[1].checked === true);
+  detail().querySelectorAll('.pfa-pk')[1].checked = true;
+  dispatch($('pfSave'), 'click', {});
+  t('PK dazu angehakt: die Prüfung meldet einen Fehler',
+    S.model.messages.some(m => m.level === 'err' && m.title === 'Dose.Etikett: PK und AK zugleich'),
+    S.model.messages.map(m => m.title).join(' | '));
 }
 
 /* Entwurf wie im Formular, aber ohne Oberfläche: `extra` sind die

@@ -445,7 +445,7 @@ function renderDetails(){
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
-          <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
+          <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
           + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`

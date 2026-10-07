@@ -25,7 +25,7 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Geschäftsobjekte und ihre Beziehungen
   im Reiter „Details"
   bearbeiten: Name, Domain, Beschreibung, Business Keys, Quellen, Attribute
-  (Typ, nullable, PK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
+  (Typ, nullable, PK/AK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
   Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
   „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus.
   Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,
@@ -148,6 +148,9 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
       type: bigint
       nullable: false
       primary_key: true                     # Primärschlüssel (PK)
+    - name: Auftragsnummer
+      type: char(10)
+      alternate_key: true                   # Alternativschlüssel (AK), nie zugleich PK
     - name: KundeID
       type: char(13)
       foreign_key: true                     # Fremdschlüssel (FK)

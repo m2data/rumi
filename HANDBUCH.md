@@ -140,7 +140,7 @@ Ausgeblendete Objekte sind nicht gelöscht: sie behalten ihre Lage und kommen
 
 Zu einem gewählten Geschäftsobjekt stehen dort Name, Domain, Beschreibung,
 Business Keys, Quellen, die Attribute (mit Typ, `?` für nullable und den
-Marken `PK`/`FK`, darunter gegebenenfalls das Verweisziel `→ Kunde.KundeID`)
+Marken `PK`/`AK`/`FK`, darunter gegebenenfalls das Verweisziel `→ Kunde.KundeID`)
 sowie die **ausgehenden und eingehenden Beziehungen** mit Name und
 Kardinalitäten.
 
@@ -301,7 +301,7 @@ gleichermaßen:
 - Business Keys
 - Quellen *(gesperrt, solange die Quellen als eigene Elemente stehen)*
 - Attribute
-  - nur Schlüsselattribute *(zeigt nur PK und FK)*
+  - nur Schlüsselattribute *(zeigt nur PK, AK und FK)*
   - Datentypen zeigen
 - **Beschriftung: Beziehungsnamen** — die Namen an den Kanten ein- und
   ausblenden
@@ -360,8 +360,9 @@ Beim Laden prüft das Werkzeug das Modell und sammelt Auffälligkeiten im Reiter
 **Prüfung**. Der Zähler am Reiter nennt die Gesamtzahl und ist grau, solange
 nur Infos dabei sind.
 
-Es gibt drei Stufen: **Fehler** (etwas wird nicht gezeichnet, z. B. ein
-unbekanntes Beziehungsziel), **Hinweis** (fehlende Domain, kein Business Key,
+Es gibt drei Stufen: **Fehler** (etwas wird nicht gezeichnet oder ist
+widersprüchlich, z. B. ein unbekanntes Beziehungsziel oder ein Attribut, das
+zugleich PK und AK ist), **Hinweis** (fehlende Domain, kein Business Key,
 keine Quelle, doppelte Beziehung, unbekannte Kardinalität, doppelter
 Attributname …) und **Info** (Selbstbezug, freistehendes Objekt, mehrfach
 genutzte Quelle, unbenannte Beziehungen).
@@ -385,7 +386,7 @@ bleiben davon unberührt.
 
 **Das Formular** (Details → Bearbeiten) umfasst Name, Domain, Beschreibung,
 Business Keys und Quellen (jeweils durch Komma getrennt), die **Attribute**
-(Name, Typ, `PK` / `FK` / `null`, Verweisziel in der Form `Objekt.Attribut`;
+(Name, Typ, `PK` / `AK` / `FK` / `null`, Verweisziel in der Form `Objekt.Attribut`;
 `×` entfernt eine Zeile, „＋ Attribut" hängt eine an) und die **ausgehenden
 Beziehungen** (Ziel aus der Liste, Name, Kardinalität an Quelle und Ziel).
 „Speichern" übernimmt, „Abbrechen" verwirft. Gespeichert wird nur, was
@@ -533,6 +534,9 @@ BusinessObjects:            # Pflichtabschnitt
       type: bigint
       nullable: false
       primary_key: true                        # PK
+    - name: Auftragsnummer
+      type: char(10)
+      alternate_key: true                      # AK (nie zugleich PK)
     - name: KundeID
       type: char(13)
       foreign_key: true                        # FK
@@ -559,7 +563,7 @@ BusinessObjects:            # Pflichtabschnitt
 | Attribut | `name` | Pflicht; ohne Namen wird der Eintrag übergangen |
 | | `type` | Datentyp, z. B. `char(13)` |
 | | `nullable` | `true` zeigt im Kasten ein `?` hinter dem Typ |
-| | `primary_key`, `foreign_key` | zeigen im Kasten `PK` bzw. `FK` |
+| | `primary_key`, `alternate_key`, `foreign_key` | zeigen im Kasten `PK`, `AK` bzw. `FK`; PK und AK zugleich ist ein Fehler |
 | | `references` | Verweisziel `Objekt.Attribut` |
 | Beziehung | `to` | Zielobjekt; Pflicht |
 | | `name` | Beschriftung an der Kante |
@@ -626,8 +630,8 @@ relationships:              # D: Abbildung statt Liste
 
 Der Reiter „Prüfung" meldet unter anderem: unbekanntes Beziehungsziel,
 unbekanntes Verweisziel, fehlende Domain, fehlender Business Key, fehlende
-Quelle, doppelter Attributname, unbekannte Kardinalität, doppelte Beziehung,
-Selbstbezug, freistehendes Objekt, mehrfach genutzte Quelle, unbenannte
+Quelle, doppelter Attributname, Attribut zugleich PK und AK, unbekannte
+Kardinalität, doppelte Beziehung, Selbstbezug, freistehendes Objekt, mehrfach genutzte Quelle, unbenannte
 Beziehungen sowie Schlüssel auf oberster Ebene, die zu keinem Objekt gehören.
 
 Als **doppelt** gilt eine Beziehung nur, wenn zwischen denselben Objekten eine

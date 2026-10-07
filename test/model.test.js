@@ -489,6 +489,56 @@ console.log('== buildModel: Quellen unter „source_systems", auch noch unter �
   t('und gilt als „keine Quelle"', M.messages.some(m => m.group === 'keine Quelle' && m.obj === 'Leer'));
 }
 
+console.log('== Alternativschlüssel (AK) ==');
+{
+  const y = [
+    'BusinessObjects:',
+    '  A:',
+    '    Domain: D',
+    '    business_keys:',
+    '    - K',
+    '    source_systems:',
+    '    - Q',
+    '    attributes:',
+    '    - name: ID',
+    '      primary_key: true',
+    '      alternate_key: true',
+    '    - name: PNr',
+    '      primary_key: true',
+    '    - name: Nr',
+    '      alternate_key: true',
+    '    - name: Ref',
+    '      alternate_key: true',
+    '      foreign_key: true',
+    '    - name: Aus',
+    '      alternate_key: false',
+    ''
+  ].join('\n');
+  const M = buildModel(y), at = n => M.objects.A.attrs.find(a => a.name === n);
+  t('alternate_key wird als AK gelesen', at('Nr').ak === true && !at('Nr').pk && !at('Nr').fk,
+    JSON.stringify(at('Nr')));
+  t('alternate_key ist kein Zusatzattribut', !('alternate_key' in at('Nr').extra)
+    && !M.zusatz.attribut.has('alternate_key'), JSON.stringify(at('Nr').extra));
+  t('alternate_key: false ergibt kein AK', at('Aus').ak === false);
+  const pkak = M.messages.filter(m => m.group === 'PK und AK zugleich');
+  t('PK und AK zugleich ist ein Fehler', has(M.messages, 'err', 'A.ID: PK und AK zugleich'),
+    M.messages.map(m => m.title).join(' | '));
+  t('gemeldet wird nur dieses eine Attribut', pkak.length === 1 && pkak[0].obj === 'A',
+    pkak.map(m => m.title).join(' | '));
+  t('AK und FK zugleich sind erlaubt', !has(M.messages, 'err', 'A.Ref'));
+
+  const {api: g, S: gs} = load(['yaml.js', 'model.js'], ['buildModel', 'attrText', 'makeGraph']);
+  const tag = (pk, ak, fk)=> g.attrText({name:'x', pk, ak, fk}, false).tags;
+  t('Kürzel im Kasten in der Reihenfolge PK AK FK',
+    tag(0,1,0) === 'AK' && tag(0,1,1) === 'AK FK' && tag(1,1,1) === 'PK AK FK' && tag(1,0,1) === 'PK FK',
+    [tag(0,1,0), tag(0,1,1), tag(1,1,1), tag(1,0,1)].join(' / '));
+  gs.content = {1: {attrs:true, keysOnly:true}};
+  const n = g.makeGraph(g.buildModel(y)).nodes.find(x => x.name === 'A');
+  const zeilen = n.rows.filter(r => r.kind === 'attr').map(r => r.a.name);
+  t('„nur Schlüsselattribute" zeigt auch reine AK', zeilen.includes('Nr') && !zeilen.includes('Aus'),
+    zeilen.join(','));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);
