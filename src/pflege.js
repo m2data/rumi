@@ -201,8 +201,8 @@ function pfFeldZeilen(rolle, f, col, e, alt){
 
 /* Ein Objekt nach dem Formularstand umschreiben. Felder, die die Pflege nicht
    verantwortet, bleiben an ihrem Platz stehen. */
-function goObjektAendern(text, name, e, alt){
-  const B = splitBusinessObjects(text);
+function goObjektAendern(text, name, e, alt, kopf){
+  const B = splitBusinessObjects(text, kopf);
   if(!B) return null;
   const idx = B.blocks.findIndex(b => b.name === name);
   if(idx < 0) return null;
@@ -283,8 +283,8 @@ function pfVerweise(lines, von, nach){
 
 /* Umbenennen heißt: Kopfzeile, jedes „to:" darauf und jedes „references:"
    darauf. Bliebe eines stehen, zerfiele das Modell in zwei Hälften. */
-function goUmbenennen(text, alt, neu){
-  const B = splitBusinessObjects(text);
+function goUmbenennen(text, alt, neu, kopf){
+  const B = splitBusinessObjects(text, kopf);
   if(!B) return null;
   B.blocks = B.blocks.map(b=>{
     let lines = b.lines;
@@ -299,16 +299,16 @@ function goUmbenennen(text, alt, neu){
    zeigen — sonst bliebe ein Ziel zurück, das es nicht mehr gibt. Ein
    „references:" auf das Objekt bleibt stehen und wird in der Prüfung
    gemeldet: es steckt in einem Attribut, das dem Nutzer gehört. */
-function goObjektLoeschen(text, name){
-  const B = splitBusinessObjects(text);
+function goObjektLoeschen(text, name, kopf){
+  const B = splitBusinessObjects(text, kopf);
   if(!B) return null;
   B.blocks = B.blocks.filter(b => b.name !== name)
     .map(b => ({name: b.name, lines: pfVerweise(b.lines, name, null)}));
   return pfZusammen(B);
 }
 
-function goObjektAnlegen(text, name){
-  const B = splitBusinessObjects(text);
+function goObjektAnlegen(text, name, kopf){
+  const B = splitBusinessObjects(text, kopf);
   if(!B) return null;
   const col = B.childCol != null ? B.childCol : 2;
   B.blocks.push({name, lines: [' '.repeat(col) + name + ':']});
@@ -452,7 +452,7 @@ function pfLesen(){
 
 function pflegeFormular(box){
   const e = pfEntwurf;
-  const ziele = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
+  const ziele = Object.keys(aktModell().objects).sort((a,b)=> a.localeCompare(b, 'de'));
   const wahl = (klasse, i, werte, titel)=>
     `<select class="${klasse}" data-i="${i}" aria-label="${titel}">`
     + werte.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
@@ -536,7 +536,7 @@ function pfZeileNeu(art){
   pfLesen();
   if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
   else {
-    const ziele = Object.keys(S.model.objects);
+    const ziele = Object.keys(aktModell().objects);
     pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
   }
   renderDetails();
@@ -550,11 +550,11 @@ function pfZeileWeg(art, i){
 
 function pflegeSpeichern(){
   pfLesen();
-  const e = pfEntwurf, altName = S.pflege.slice(2), alt = S.model.objects[altName];
+  const e = pfEntwurf, altName = S.pflege.slice(2), alt = aktModell().objects[altName];
   if(!alt) return;
   const neuName = e.name;
   if(!pfNamePruefen(neuName)) return;
-  if(neuName !== altName && S.model.objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
+  if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
 
@@ -578,7 +578,7 @@ function pflegeNeu(){
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
   if(!S.pflegeAn || !pfNamePruefen(name)) return;
-  if(S.model.objects[name]){ toast(`„${name}" gibt es schon`); return; }
+  if(aktModell().objects[name]){ toast(`„${name}" gibt es schon`); return; }
   const text = goObjektAnlegen(S.yamlText, name);
   if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return; }
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
@@ -593,11 +593,11 @@ function pflegeLoeschen(id = S.pflege){
   if(confirm(`„${name}" aus dem Modell löschen?`
     + (rein ? ` ${rein} eingehende Beziehung(en) werden mit entfernt.` : ''))) pflegeObjektWeg(name);
 }
-const pfEingehend = name => Object.values(S.model.objects)
+const pfEingehend = name => Object.values(aktModell().objects)
   .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
 function pflegeObjektWeg(name){
-  if(!S.pflegeAn || !S.model.objects[name]) return;
+  if(!S.pflegeAn || !aktModell().objects[name]) return;
   const text = goObjektLoeschen(S.yamlText, name);
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
@@ -628,7 +628,7 @@ function pflegeSchalten(an){
    ausgeschaltet bleiben sie in der Datei unberührt stehen. */
 function zusatzAuf(){
   closeMenus();
-  const z = S.model.zusatz;
+  const z = aktModell().zusatz;
   const gruppe = (ebene, titel, einheit)=>{
     const liste = [...z[ebene]];
     return `<div class="grouphead">${titel}</div>` + (liste.length
@@ -655,7 +655,7 @@ function zusatzSchalten(ebene, k, an){
   if(an) liste.push(k);
   S.zusatzAn = Object.assign({}, S.zusatzAn, {[ebene]: liste});
   if(pfEntwurf && ebene === 'objekt'){
-    const o = S.model.objects[S.pflege.slice(2)], alt = pfEntwurf.extra;
+    const o = aktModell().objects[S.pflege.slice(2)], alt = pfEntwurf.extra;
     pfEntwurf.extra = Object.fromEntries(liste.map(x =>
       [x, x in alt ? alt[x] : (o && x in o.extra ? o.extra[x] : '')]));
   }

@@ -186,7 +186,7 @@ function hierExportHeader(b){
 /* ---------- Übersicht aus dem eingebetteten/geladenen YAML aufbauen ---------- */
 function parseOutline(){
   if(!S.outlineText) S.outlineText = (typeof DEFAULT_UEBERSICHT !== 'undefined') ? DEFAULT_UEBERSICHT : '';
-  S.outline = buildOutline(S.outlineText, S.model);
+  S.outline = buildOutline(S.outlineText, aktModell());
   // Ordner anfangs aufgeklappt
   S.hierOpen = new Set(outlineFlat(S.outline.roots).filter(n => n.kinder.length).map(n => n.id));
 }
@@ -330,7 +330,7 @@ function selectDiagram(id){
    angeordnet und diese Erstanordnung gemerkt. Über die Objektliste je
    Diagramm ausgeblendete Objekte bleiben verborgen, mit ihnen ihre Anhängsel. */
 function showDiagram(node){
-  S.graph = makeGraph(S.model);
+  S.graph = makeGraph(aktModell());
   const shown = S.hierShown[node.id]
     ? new Set(S.hierShown[node.id])
     : new Set(node.objekte.map(o => 'o:' + o));

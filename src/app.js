@@ -23,16 +23,30 @@ const S = {
   fileName:'willibald.yaml',
   // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht
   mode:'komplett',          // 'komplett' | 'hierarchie'
-  outline:null,             // Baum aus buildOutline()
-  outlineText:'',           // Quelle der Übersicht (YAML)
-  hierSel:null,             // Kennung des gewählten Diagramms
-  hierOpen:null,            // Set aufgeklappter Knoten
-  hierSaved:{},             // je Diagramm: Knotenpositionen {id:{x,y}}
-  hierRoutes:{},            // je Diagramm: Kantenzüge
-  hierShown:{},             // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
-  hierText:{},              // je Diagramm: Beschreibung (Markdown), überschreibt die YAML-Vorlage
-  hierEditing:false         // Beschreibung gerade im Bearbeiten-Modus?
+  bereiche:{hierarchie: neuerBaum()}
 };
+
+/* Ein Diagrammbaum mit allem, was an ihm hängt. Die Hierarchie hat einen;
+   die Felder S.outline, S.hierSel … zeigen auf den Baum des aktiven Bereichs,
+   damit hierarchie.js für jeden Baum dasselbe tut. */
+function neuerBaum(){
+  return {
+    outline:null,           // Baum aus buildOutline()
+    outlineText:'',         // Quelle der Übersicht (YAML)
+    hierSel:null,           // Kennung des gewählten Diagramms
+    hierOpen:null,          // Set aufgeklappter Knoten
+    hierSaved:{},           // je Diagramm: Knotenpositionen {id:{x,y}}
+    hierRoutes:{},          // je Diagramm: Kantenzüge
+    hierShown:{},           // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
+    hierText:{},            // je Diagramm: Beschreibung (Markdown), überschreibt die YAML-Vorlage
+    hierEditing:false       // Beschreibung gerade im Bearbeiten-Modus?
+  };
+}
+const aktBaum = ()=> S.bereiche.hierarchie;
+Object.keys(neuerBaum()).forEach(k => Object.defineProperty(S, k, {
+  get(){ return aktBaum()[k]; }, set(v){ aktBaum()[k] = v; }, enumerable:true
+}));
+const aktModell = ()=> S.model;
 
 const $ = id => document.getElementById(id);
 const svg = $('canvas');

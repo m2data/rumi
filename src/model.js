@@ -62,13 +62,21 @@ function readRels(raw, objName, messages){
   return list.filter(Boolean);
 }
 
-function buildModel(text){
+/* Zwei Arten von Modelldateien teilen sich Aufbau und Prüfungen: die
+   Geschäftsobjekte und die Quelltabellen. Sie unterscheiden sich im
+   Abschnittsnamen und darin, wie ein Eintrag in den Meldungen heißt. */
+const MODELL_ARTEN = {
+  go: {roots:['BusinessObjects','businessObjects','business_objects','Geschaeftsobjekte'],
+       abschnitt:'BusinessObjects', keinem:'keinem Geschäftsobjekt', diesem:'diesem Geschäftsobjekt', das:'das Geschäftsobjekt'}
+};
+
+function buildModel(text, art = 'go'){
+  const A = MODELL_ARTEN[art];
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
 
-  const rootKey = ['BusinessObjects','businessObjects','business_objects','Geschaeftsobjekte']
-    .find(k => doc && doc[k] && typeof doc[k] === 'object');
-  if(!rootKey) throw new Error('Kein Abschnitt "BusinessObjects" gefunden.');
+  const rootKey = A.roots.find(k => doc && doc[k] && typeof doc[k] === 'object');
+  if(!rootKey) throw new Error(`Kein Abschnitt "${A.abschnitt}" gefunden.`);
 
   /* Optionaler Kopf: Herkunft und Lizenz des Modells. Gehört zu den Daten,
      nicht zum Werkzeug — deshalb steht es in der Modelldatei. */
@@ -84,7 +92,7 @@ function buildModel(text){
 
   Object.keys(doc).forEach(k=>{
     if(!META_KEYS.has(k)) messages.push({level:'err', group:'Verwaister Schlüssel', title:`Verwaister Schlüssel "${k}"`,
-      body:`"${k}" steht auf oberster Ebene, also außerhalb von ${rootKey}, und gehört zu keinem Geschäftsobjekt. Der Block wird ignoriert.`});
+      body:`"${k}" steht auf oberster Ebene, also außerhalb von ${rootKey}, und gehört zu ${A.keinem}. Der Block wird ignoriert.`});
   });
 
   /* Zusatzattribute: was an einem Objekt oder Attribut steht, das die App
@@ -154,7 +162,7 @@ function buildModel(text){
     o.attrs.forEach(a=>{ if(attrSeen.has(a.name)) attrDup.add(a.name); else attrSeen.add(a.name); });
     attrDup.forEach(n => messages.push({level:'warn', group:'Attribut doppelt', obj:o.name,
       title:`${o.name}.${n}: Attribut doppelt`,
-      body:`Der Attributname "${n}" kommt in diesem Geschäftsobjekt mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
+      body:`Der Attributname "${n}" kommt in ${A.diesem} mehrfach vor. Verweise über "references" treffen dann nicht eindeutig.`}));
     // Ein Alternativschlüssel steht neben dem Primärschlüssel, nicht auf ihm.
     o.attrs.filter(a => a.pk && a.ak).forEach(a => messages.push({level:'err', group:'PK und AK zugleich', obj:o.name,
       title:`${o.name}.${a.name}: PK und AK zugleich`,
@@ -199,7 +207,7 @@ function buildModel(text){
       const [tObj, tAttr] = String(a.ref).split('.');
       if(!names.has(tObj)){
         messages.push({level:'err', group:'Verweisziel unbekannt', obj:o.name, title:`${o.name}.${a.name}: Verweisziel unbekannt`,
-          body:`"${a.ref}" zeigt auf das Geschäftsobjekt "${tObj}", das unter ${rootKey} nicht definiert ist.`});
+          body:`"${a.ref}" zeigt auf ${A.das} "${tObj}", das unter ${rootKey} nicht definiert ist.`});
         continue;
       }
       if(tAttr && objects[tObj].attrs.length && !objects[tObj].attrs.some(x => x.name === tAttr))

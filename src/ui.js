@@ -416,7 +416,7 @@ function renderDetails(){
   if(n.eltern){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
-    const nutzer = Object.values(S.model.objects)
+    const nutzer = Object.values(aktModell().objects)
       .filter(o => quelle ? o.sources.includes(n.name) : o.domain === n.name).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
@@ -427,7 +427,7 @@ function renderDetails(){
   } else {
     const o = n.ref;
     const incoming = [];
-    Object.values(S.model.objects).forEach(src=>
+    Object.values(aktModell().objects).forEach(src=>
       src.rels.forEach(r=>{ if(r.to === o.name) incoming.push({from:src.name, r}); }));
     box.innerHTML =
       `<div class="grouphead">GESCHÄFTSOBJEKT</div>
@@ -478,7 +478,7 @@ function renderDetails(){
 const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur diese Sitzung)
 
 function renderMessages(){
-  const list = S.model.messages;
+  const list = aktModell().messages;
   const bad = list.filter(m => m.level !== 'info').length;
   const badge = $('msgBadge');
   badge.textContent = list.length;
@@ -1210,11 +1210,11 @@ $('deltaInput').addEventListener('change', e=>{
    Zusammenführung auf Textebene (Objektblöcke), damit Attribute, Beschreibungen
    und Kommentare erhalten bleiben; danach wird das Ganze neu geprüft. */
 const BO_HEAD = /^\s*(BusinessObjects|businessObjects|business_objects|Geschaeftsobjekte)\s*:\s*(#.*)?$/;
-function splitBusinessObjects(text){
+function splitBusinessObjects(text, kopf = BO_HEAD){
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const col = s => s.replace(/\t/g, '    ').match(/^ */)[0].length;
   const isBlank = s => s.trim() === '' || /^\s*#/.test(s);
-  const hi = lines.findIndex(l => BO_HEAD.test(l));
+  const hi = lines.findIndex(l => kopf.test(l));
   if(hi < 0) return null;
   const headCol = col(lines[hi]);
   let childCol = null, firstIdx = -1;
