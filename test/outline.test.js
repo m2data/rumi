@@ -100,20 +100,31 @@ console.log('== Quelltabellen: Diagramme der Quellsysteme ==');
   t('je Quellsystem ein Kind, alphabetisch', wurzel.kinder.map(k => k.name).join(',') === 'Referenzdaten,Roadshow,Webshop',
     wurzel.kinder.map(k => k.name).join(','));
   const rs = wurzel.kinder.find(k => k.name === 'Roadshow');
-  t('Roadshow zeigt genau seine Tabellen', rs.objekte.slice().sort().join(',') === 'Bestellung_VRS,Position_VRS,VereinsPartner',
+  t('Roadshow zeigt genau seine Tabellen, qualifiziert',
+    rs.objekte.slice().sort().join(',') === 'Roadshow.Bestellung_VRS,Roadshow.Position_VRS,Roadshow.VereinsPartner',
     rs.objekte.join(','));
   t('Kennungen als Pfad', rs.id === 'Quellsysteme›Roadshow' && rs.auto);
 
-  const text = 'Gegenüberstellung:\n  beschreibung: "Webshop gegen Roadshow"\n  tabellen:\n    - Bestellung\n    - Bestellung_VRS\n';
+  const text = 'Gegenüberstellung:\n  beschreibung: "Webshop gegen Roadshow"\n  tabellen:\n    - Webshop.Bestellung\n    - Roadshow.Bestellung_VRS\n';
   const o = q.buildOutline(text, tab);
-  t('„tabellen:" wird gelesen', o.roots[0].objekte.join(',') === 'Bestellung,Bestellung_VRS', o.roots[0].objekte.join(','));
+  t('„tabellen:" mit System.Tabelle wird gelesen', o.roots[0].objekte.join(',') === 'Webshop.Bestellung,Roadshow.Bestellung_VRS',
+    o.roots[0].objekte.join(','));
   qs.mode = 'quellen';
   const aus = q.outlineToYaml([wurzel, ...o.roots]);
-  t('geschrieben wird „tabellen:"', /^  tabellen:$/m.test(aus) && !/objekte:/.test(aus), aus);
+  t('geschrieben wird „tabellen:" mit System.Tabelle', /^  tabellen:\n {4}- Webshop\.Bestellung$/m.test(aus) && !/objekte:/.test(aus), aus);
   t('die automatischen Diagramme stehen nicht in der Datei', !/Quellsysteme|Roadshow:/.test(aus), aus);
   t('Rundlauf ergibt denselben Baum', JSON.stringify(q.buildOutline(aus, tab).roots) === JSON.stringify(o.roots));
   qs.mode = undefined;
   t('in der Hierarchie bleibt es bei „objekte:"', /objekte:/.test(q.outlineToYaml(o.roots)));
+
+  const alt = q.buildOutline('Alt:\n  tabellen:\n    - Bestellung_VRS\n', tab);
+  t('ein eindeutiger Name ohne System wird aufgelöst', alt.roots[0].objekte.join(',') === 'Roadshow.Bestellung_VRS'
+    && !alt.messages.length, alt.roots[0].objekte.join(',') + ' / ' + alt.messages.map(m => m.title).join(' | '));
+  const zwei = q.buildModel('SourceTables:\n  Webshop:\n    Bestellung:\n      Domain: D\n  Roadshow:\n    Bestellung:\n      Domain: D\n', 'quelle');
+  const mehr = q.buildOutline('Alt:\n  tabellen:\n    - Bestellung\n', zwei);
+  t('ein mehrdeutiger Name wird gemeldet', mehr.messages.length === 1 && /mehrdeutig/.test(mehr.messages[0].title)
+    && /Webshop, Roadshow/.test(mehr.messages[0].body), mehr.messages.map(m => m.title + ' ' + m.body).join(' | '));
+  t('und nicht gezeigt', mehr.roots[0].objekte.every(n => !zwei.objects[n]));
 }
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`

@@ -82,6 +82,48 @@ const ersterWert = (def, keys)=>{
   return k ? String(def[k]).trim() : null;
 };
 
+/* Felder, an denen ein Eintrag direkt unter SourceTables als Tabelle der
+   flachen Form erkannt wird (so bis 2026-10-07 geschrieben); alle anderen
+   Einträge sind Quellsysteme mit ihren Tabellen darunter. */
+const QT_TABELLENFELDER = new Set([...QT_KEYS, 'attributes', 'relationships', 'business_keys', 'BusinessKeys',
+  'Domain', 'domain', 'desc', 'beschreibung', 'description']);
+const istFlacheTabelle = def => !!def && typeof def === 'object' && !Array.isArray(def)
+  && Object.keys(def).some(k => QT_TABELLENFELDER.has(k));
+
+/* Die Einträge eines Modellabschnitts. Geschäftsobjekte stehen direkt darin.
+   Quelltabellen sind erst mit ihrem Quellsystem eindeutig — „Bestellung" kann
+   es im Webshop und in der Roadshow geben — und stehen darum gruppiert:
+   SourceTables › System › Tabelle, Kennung „System.Tabelle". */
+function eintraegeAus(abschnitt, quelle, messages){
+  const leer = d => (d && typeof d === 'object' && !Array.isArray(d)) ? d : {};
+  if(!quelle) return Object.entries(abschnitt).map(([name, d]) => ({name, def: leer(d)}));
+  const out = [];
+  const punkt = (wert, wo, name)=>{
+    if(String(wert).includes('.')) messages.push({level:'err', group:'Punkt im Namen', obj:name, title:`${name}: Punkt im Namen`,
+      body:`Der Name ${wo} "${wert}" enthält einen Punkt. Der Punkt trennt Quellsystem und Tabelle — Verweise auf diese Tabelle lassen sich so nicht eindeutig schreiben.`});
+  };
+  for(const [schluessel, roh] of Object.entries(abschnitt)){
+    if(istFlacheTabelle(roh)){
+      const system = ersterWert(roh, QT_SYSTEM);
+      const name = system ? system + '.' + schluessel : schluessel;
+      punkt(schluessel, 'der Tabelle', name);
+      out.push({name, def: roh, system, tabelle: schluessel});
+      continue;
+    }
+    for(const [tabelle, d] of Object.entries(leer(roh))){
+      const def = leer(d), name = schluessel + '.' + tabelle;
+      punkt(schluessel, 'des Quellsystems', name);
+      punkt(tabelle, 'der Tabelle', name);
+      const feld = ersterWert(def, QT_SYSTEM);
+      if(feld && feld !== schluessel) messages.push({level:'warn', group:'Quellsystem widersprüchlich', obj:name,
+        title:`${name}: Quellsystem widersprüchlich`,
+        body:`Die Tabelle steht unter "${schluessel}", nennt aber source_system "${feld}". Es gilt der Abschnitt "${schluessel}".`});
+      out.push({name, def, system: schluessel, tabelle});
+    }
+  }
+  return out;
+}
+
 /* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
    „business_object" geprüft. */
 function buildModel(text, art = 'go', goModell = null){
@@ -128,9 +170,20 @@ function buildModel(text, art = 'go', goModell = null){
   };
 
   const objects = {};
-  for(const [name, defRaw] of Object.entries(doc[rootKey])){
-    const def = defRaw || {};
+  for(const {name, def, system, tabelle} of eintraegeAus(doc[rootKey], quelle, messages)){
     const rels = readRels(def.relationships, name, messages);
+    // Quelltabellen verweisen voll qualifiziert (System.Tabelle). Ohne System
+    // — so in der flachen Form — gilt das eigene System, und es wird gemeldet.
+    if(quelle && system){
+      const ohne = [];
+      rels.forEach(r=>{ if(!String(r.to).includes('.')){ ohne.push(r.to); r.to = system + '.' + r.to; } });
+      (Array.isArray(def.attributes) ? def.attributes : []).forEach(a=>{
+        if(a && a.references && String(a.references).split('.').length === 2){ ohne.push(a.references); a.references = system + '.' + a.references; }
+      });
+      if(ohne.length) messages.push({level:'warn', group:'Verweis ohne Quellsystem', obj:name,
+        title:`${name}: Verweis ohne Quellsystem`,
+        body:`${ohne.map(v => '"' + v + '"').join(', ')} nennt kein Quellsystem und wird in "${system}" gesucht. Verweise auf Quelltabellen werden voll qualifiziert geschrieben: System.Tabelle bzw. System.Tabelle.Spalte.`});
+    }
     // „BusinessKeys" schreiben andere Werkzeuge groß, wie „Domain". Ungelesen
     // fehlte der Business Key still — samt Warnung, obwohl er dasteht.
     const keysRaw = Array.isArray(def.business_keys) ? def.business_keys : def.BusinessKeys;
@@ -148,7 +201,7 @@ function buildModel(text, art = 'go', goModell = null){
     }));
     objects[name] = {
       name,
-      ...(quelle ? {system: ersterWert(def, QT_SYSTEM), bo: ersterWert(def, QT_GO)} : {}),
+      ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
       domain: def.Domain || def.domain || null,
@@ -230,7 +283,10 @@ function buildModel(text, art = 'go', goModell = null){
   for(const o of Object.values(objects))
     for(const a of o.attrs){
       if(!a.ref) continue;
-      const [tObj, tAttr] = String(a.ref).split('.');
+      // Quelltabellen: System.Tabelle.Spalte — das Ziel sind die ersten beiden Teile
+      const teile = String(a.ref).split('.');
+      const tObj = quelle ? teile.slice(0, 2).join('.') : teile[0];
+      const tAttr = quelle ? teile[2] : teile[1];
       if(!names.has(tObj)){
         messages.push({level:'err', group:'Verweisziel unbekannt', obj:o.name, title:`${o.name}.${a.name}: Verweisziel unbekannt`,
           body:`"${a.ref}" zeigt auf ${A.das} "${tObj}", das unter ${rootKey} nicht definiert ist.`});

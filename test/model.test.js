@@ -539,7 +539,81 @@ console.log('== Alternativschlüssel (AK) ==');
     zeilen.join(','));
 }
 
-console.log('== Quelltabellen: eigene Modellart ==');
+console.log('== Quelltabellen: gruppiert nach Quellsystem ==');
+{
+  const go = buildModel('BusinessObjects:\n  Kunde:\n    Domain: D\n  Bestellung:\n    Domain: D\n');
+  const Q = buildModel([
+    'SourceTables:',
+    '  Webshop:',
+    '    Bestellung:',
+    '      business_object: Bestellung',
+    '      Domain: D',
+    '      business_keys:',
+    '      - ID',
+    '      attributes:',
+    '      - name: KundeID',
+    '        foreign_key: true',
+    '        references: Webshop.Kunde.KundeID',
+    '      relationships:',
+    '      - to: Webshop.Kunde',
+    '      - to: Roadshow.Bestellung',
+    '        name: entspricht',
+    '    Kunde:',
+    '      business_object: Kunde',
+    '      Domain: D',
+    '      business_keys:',
+    '      - KundeID',
+    '      attributes:',
+    '      - name: KundeID',
+    '  Roadshow:',
+    '    Bestellung:',
+    '      business_object: Gibtsnicht',
+    '      Domain: D',
+    '      business_keys:',
+    '      - ID',
+    '      attributes:',
+    '      - name: Ref',
+    '        references: Webshop.Gibtsnicht.ID'
+  ].join('\n') + '\n', 'quelle', go);
+  const namen = Object.keys(Q.objects).join(',');
+  t('gleichnamige Tabellen in zwei Systemen', namen === 'Webshop.Bestellung,Webshop.Kunde,Roadshow.Bestellung', namen);
+  t('keine Meldung „doppelt"', !Q.messages.some(m => /doppelt/.test(m.title)), Q.messages.map(m => m.title).join(' | '));
+  const WB = Q.objects['Webshop.Bestellung'], RB = Q.objects['Roadshow.Bestellung'];
+  t('System und Tabelle je Tabelle', WB.system === 'Webshop' && WB.tabelle === 'Bestellung'
+    && RB.system === 'Roadshow' && RB.tabelle === 'Bestellung');
+  t('die Zuordnung je Tabelle eigen', WB.bo === 'Bestellung' && RB.bo === 'Gibtsnicht');
+  t('eine Tabelle hat keine Quellenliste', Array.isArray(WB.sources) && !WB.sources.length);
+  t('qualifizierte Verweise treffen', !Q.messages.some(m => m.obj === 'Webshop.Bestellung' && m.level !== 'info'),
+    Q.messages.filter(m => m.obj === 'Webshop.Bestellung').map(m => m.title).join(' | '));
+  t('Verweis ins andere System gilt', WB.rels.some(r => r.to === 'Roadshow.Bestellung')
+    && !has(Q.messages, 'err', 'Ziel unbekannt'));
+  t('Verweisziel unbekannt wird gemeldet', has(Q.messages, 'err', 'Roadshow.Bestellung.Ref: Verweisziel unbekannt'));
+  t('unbekanntes Geschäftsobjekt wird gemeldet', has(Q.messages, 'warn', 'Roadshow.Bestellung → Gibtsnicht: Geschäftsobjekt unbekannt'));
+  t('Quellsystem und Zuordnung sind keine Zusatzattribute',
+    !Q.zusatz.objekt.has('source_system') && !Q.zusatz.objekt.has('business_object'), [...Q.zusatz.objekt.keys()].join(','));
+  t('„keine Quelle" gilt nicht für Tabellen', !Q.messages.some(m => m.group === 'keine Quelle'));
+
+  const U = buildModel('SourceTables:\n  Webshop:\n    A:\n      relationships:\n      - to: B\n      attributes:\n      - name: X\n        references: B.ID\n    B:\n      attributes:\n      - name: ID\n', 'quelle');
+  t('unqualifizierte Verweise gelten im eigenen System',
+    U.objects['Webshop.A'].rels[0].to === 'Webshop.B' && U.objects['Webshop.A'].attrs[0].ref === 'Webshop.B.ID',
+    JSON.stringify(U.objects['Webshop.A'].rels));
+  t('und werden gemeldet', has(U.messages, 'warn', 'Webshop.A: Verweis ohne Quellsystem')
+    && !has(U.messages, 'err', 'unbekannt'), U.messages.map(m => m.title).join(' | '));
+
+  const P = buildModel('SourceTables:\n  Web.shop:\n    T:\n      Domain: D\n', 'quelle');
+  t('Punkt im Namen ist ein Fehler', has(P.messages, 'err', 'Web.shop.T: Punkt im Namen'), P.messages.map(m => m.title).join(' | '));
+  const X = buildModel('SourceTables:\n  Webshop:\n    T:\n      source_system: Roadshow\n', 'quelle');
+  t('widersprüchliches Quellsystem wird gemeldet, es gilt der Abschnitt',
+    has(X.messages, 'warn', 'Webshop.T: Quellsystem widersprüchlich') && X.objects['Webshop.T'].system === 'Webshop');
+
+  let fehler = '';
+  try{ buildModel('BusinessObjects:\n  A:\n    Domain: D\n', 'quelle'); }catch(e){ fehler = e.message; }
+  t('ohne Abschnitt SourceTables ein Fehler', /Kein Abschnitt "SourceTables"/.test(fehler), fehler);
+  const G = buildModel('BusinessObjects:\n  A:\n    source_system: X\n');
+  t('an Geschäftsobjekten bleibt source_system ein Zusatzattribut', G.objects.A.extra.source_system === 'X' && G.objects.A.system === undefined);
+}
+
+console.log('== Quelltabellen: flache Form vom 2026-10-07 ==');
 {
   const go = buildModel('BusinessObjects:\n  Kunde:\n    Domain: D\n');
   const Q = buildModel([
@@ -550,49 +624,46 @@ console.log('== Quelltabellen: eigene Modellart ==');
     '    Domain: D',
     '    business_keys:',
     '    - ID',
+    '    relationships:',
+    '    - to: T3',
     '  T2:',
     '    Domain: D',
     '    business_keys:',
     '    - ID',
-    '    business_object: Gibtsnicht',
     '  T3:',
     '    source_system: S1',
     '    Domain: D',
     '    business_keys:',
     '    - ID'
   ].join('\n') + '\n', 'quelle', go);
-  const T1 = Q.objects.T1;
-  t('Tabelle liest Quellsystem und Geschäftsobjekt', T1.system === 'S1' && T1.bo === 'Kunde', JSON.stringify(T1));
-  t('eine Tabelle hat keine Quellenliste', Array.isArray(T1.sources) && !T1.sources.length);
-  t('Quellsystem und Zuordnung sind keine Zusatzattribute',
-    !Q.zusatz.objekt.has('source_system') && !Q.zusatz.objekt.has('business_object'), [...Q.zusatz.objekt.keys()].join(','));
+  t('Tabellen der flachen Form bekommen ihr System vorangestellt',
+    Object.keys(Q.objects).join(',') === 'S1.T1,T2,S1.T3', Object.keys(Q.objects).join(','));
+  const T1 = Q.objects['S1.T1'];
+  t('Quellsystem und Zuordnung aus den Feldern', T1.system === 'S1' && T1.tabelle === 'T1' && T1.bo === 'Kunde');
+  t('ihr unqualifizierter Verweis trifft', T1.rels[0].to === 'S1.T3' && !has(Q.messages, 'err', 'Ziel unbekannt'));
   t('kein Quellsystem wird gemeldet', has(Q.messages, 'warn', 'T2: kein Quellsystem'), Q.messages.map(m => m.title).join(' | '));
-  t('unbekanntes Geschäftsobjekt wird gemeldet', has(Q.messages, 'warn', 'T2 → Gibtsnicht: Geschäftsobjekt unbekannt'));
-  t('ohne Geschäftsobjekt ist ein Info-Hinweis', has(Q.messages, 'info', 'T3: ohne Geschäftsobjekt'));
-  t('„keine Quelle" gilt nicht für Tabellen', !Q.messages.some(m => m.group === 'keine Quelle'));
-
+  t('ohne Geschäftsobjekt ist ein Info-Hinweis', has(Q.messages, 'info', 'S1.T3: ohne Geschäftsobjekt'));
   const V = buildModel('Quelltabellen:\n  T:\n    Source_System: S9\n    Geschäftsobjekt: Kunde\n', 'quelle', go);
   t('Schreibvarianten Quelltabellen / Source_System / Geschäftsobjekt',
-    V.objects.T && V.objects.T.system === 'S9' && V.objects.T.bo === 'Kunde', JSON.stringify(V.objects.T));
+    V.objects['S9.T'] && V.objects['S9.T'].bo === 'Kunde', JSON.stringify(Object.keys(V.objects)));
+}
 
-  let fehler = '';
-  try{ buildModel('BusinessObjects:\n  A:\n    Domain: D\n', 'quelle'); }catch(e){ fehler = e.message; }
-  t('ohne Abschnitt SourceTables ein Fehler', /Kein Abschnitt "SourceTables"/.test(fehler), fehler);
-  const G = buildModel('BusinessObjects:\n  A:\n    source_system: X\n');
-  t('an Geschäftsobjekten bleibt source_system ein Zusatzattribut', G.objects.A.extra.source_system === 'X' && G.objects.A.system === undefined);
-
+console.log('== Quelltabellen: Beispieldatei ==');
+{
   const dir = path.join(__dirname, '..', 'models');
   const W = buildModel(fs.readFileSync(path.join(dir, 'willibald-attr.yaml'), 'utf8'));
   const WQ = buildModel(fs.readFileSync(path.join(dir, 'willibald-quelltabellen.yaml'), 'utf8'), 'quelle', W);
   const systeme = [...new Set(Object.values(WQ.objects).map(o => o.system))].sort();
-  t('Beispieldatei: 13 Tabellen', Object.keys(WQ.objects).length === 13, Object.keys(WQ.objects).length);
-  t('Beispieldatei: drei Quellsysteme', systeme.join(',') === 'Referenzdaten,Roadshow,Webshop', systeme.join(','));
-  t('Beispieldatei: keine Fehler und Hinweise', !WQ.messages.some(m => m.level !== 'info'),
+  t('13 Tabellen', Object.keys(WQ.objects).length === 13, Object.keys(WQ.objects).length);
+  t('drei Quellsysteme', systeme.join(',') === 'Referenzdaten,Roadshow,Webshop', systeme.join(','));
+  t('Kennungen System.Tabelle', Object.values(WQ.objects).every(o => o.name === o.system + '.' + o.tabelle));
+  t('keine Fehler und Hinweise', !WQ.messages.some(m => m.level !== 'info'),
     WQ.messages.filter(m => m.level !== 'info').map(m => m.title).join(' | '));
-  t('Beispieldatei: jede Tabelle steht unter source_systems ihres Geschäftsobjekts',
-    Object.values(WQ.objects).every(o => W.objects[o.bo] && W.objects[o.bo].sources.includes(o.name)));
+  t('jede Tabelle steht unter source_systems ihres Geschäftsobjekts',
+    Object.values(WQ.objects).every(o => W.objects[o.bo] && W.objects[o.bo].sources.includes(o.tabelle)));
 }
 
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);
+

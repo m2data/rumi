@@ -41,7 +41,8 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Quelltabellen verwenden"; ausgeschaltet bleibt alles wie zuvor). Die Einträge
   unter `source_systems` ausformuliert: Tabellen mit denselben Feldern wie ein
   Geschäftsobjekt, dazu genau ein Quellsystem und das zugeordnete
-  Geschäftsobjekt, in einer eigenen Datei. Ein eigener Bereich wie die
+  Geschäftsobjekt, in einer eigenen Datei. Eindeutig ist eine Tabelle erst mit
+  ihrem System: `Webshop.Bestellung`. Ein eigener Bereich wie die
   Hierarchie: je Quellsystem ein automatisches Diagramm, daneben frei angelegte
   Gegenüberstellungen (eigene YAML). „Einstellungen → Geschäftsobjekt" stellt
   das zugeordnete Objekt als Kasten ins Diagramm, einmal je Diagramm und mit
@@ -137,7 +138,9 @@ Mit eingeschalteten Quelltabellen kommen zwei weitere dazu (Format siehe
 [Handbuch, Anhang D und E](HANDBUCH.md#anhang-d--quelltabellen-yaml)):
 
 4. **Quelltabellen** – YAML (`models/willibald-quelltabellen.yaml`), Abschnitt
-   `SourceTables`, je Tabelle `source_system` und `business_object`
+   `SourceTables`, darunter je Quellsystem die Tabellen mit `business_object`;
+   eindeutig ist `System.Tabelle` (etwa `Webshop.Bestellung`), Verweise sind
+   voll qualifiziert
 5. **Quelltabellen-Diagramme** – YAML wie die Hierarchiebeschreibung, Liste
    `tabellen`; die Diagramme der Quellsysteme entstehen aus den Tabellen
 

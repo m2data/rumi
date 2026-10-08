@@ -470,7 +470,8 @@ function renderDetails(){
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
        ${pflegeErlaubt() ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
-       ${tabelle ? `<dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
+       ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
+       <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
        <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
@@ -1298,6 +1299,71 @@ function splitBusinessObjects(text, kopf = BO_HEAD){
   const preEnd = firstIdx < 0 ? hi + 1 : firstIdx;
   return {childCol, blocks, pre: lines.slice(0, preEnd), post: lines.slice(endIdx)};
 }
+/* Die Quelltabellen-Datei zerlegen wie splitBusinessObjects, aber zwei Ebenen
+   tief: SourceTables › System › Tabelle. Heraus kommt dieselbe Form — pre,
+   blocks, post —, damit die Eingriffe der Pflege unverändert arbeiten: jede
+   Tabelle ist ein Block mit Kennung „System.Tabelle", die Kopfzeile eines
+   Systemabschnitts (samt Kommentaren bis zur ersten Tabelle) ein namenloser
+   Block dazwischen. Eine Tabelle der flachen Form (direkt unter SourceTables,
+   System im Feld source_system) ist ein Block mit flach: true. Dazu die
+   Werkzeuge, die nur hier gebraucht werden: Kopfname beim Umbenennen,
+   Umhängen in ein anderes System, Einhängen einer neuen Tabelle. */
+function splitQuellTabellen(text){
+  const B = splitBusinessObjects(text, QT_HEAD);
+  if(!B) return null;
+  const blocks = [];
+  let tabCol = null;
+  B.blocks.forEach(b=>{
+    const F = splitObjectFields(b.lines);
+    if(F.fields.some(f => QT_TABELLENFELDER.has(f.key))){
+      const sf = F.fields.find(f => QT_SYSTEM.includes(f.key));
+      const m = sf && sf.lines[0].match(/:\s*"?([^"#]*?)"?\s*(#.*)?$/);
+      const system = m && m[1].trim() ? m[1].trim() : null;
+      blocks.push({name: system ? system + '.' + b.name : b.name, system, flach: true, lines: b.lines});
+      return;
+    }
+    blocks.push({name: null, system: b.name, lines: [F.head, ...F.vorspann]});
+    F.fields.forEach(f=>{
+      if(tabCol == null) tabCol = yCol(f.lines[0]);
+      blocks.push({name: b.name + '.' + f.key, system: b.name, flach: false, lines: f.lines});
+    });
+  });
+  const sysCol = B.childCol != null ? B.childCol : 2;
+  const spalte = () => tabCol != null ? tabCol : sysCol + 2;
+  const R = {pre: B.pre, post: B.post, blocks, childCol: sysCol};
+  // Im Kopf einer Tabelle steht nur ihr eigener Name, das System steht darüber
+  R.kopfName = neu => neu.includes('.') ? neu.slice(neu.indexOf('.') + 1) : neu;
+  // Eine Tabelle in den Abschnitt ihres Systems setzen; fehlt er, am Ende anlegen
+  R.einhaengen = (blk, system)=>{
+    let kopf = blocks.findIndex(x => !x.name && x.system === system);
+    if(kopf < 0){
+      blocks.push({name: null, system, lines: [' '.repeat(sysCol) + system + ':']});
+      kopf = blocks.length - 1;
+    }
+    let i = kopf + 1;
+    while(i < blocks.length && blocks[i].name && blocks[i].system === system && !blocks[i].flach) i++;
+    const lines = shiftLines(blk.lines, spalte() - yCol(blk.lines[0]));
+    blocks.splice(i, 0, Object.assign({}, blk, {system, flach: false, lines}));
+  };
+  // Nach einem Systemwechsel die Tabelle umhängen; ein leerer Abschnitt entfällt
+  R.umhaengen = name=>{
+    const i = blocks.findIndex(x => x.name === name);
+    const system = name.slice(0, name.indexOf('.'));
+    if(i < 0 || blocks[i].flach || blocks[i].system === system) return;
+    const [blk] = blocks.splice(i, 1);
+    pfNachspann(blk.lines);
+    R.einhaengen(blk, system);
+    R.aufraeumen();
+  };
+  R.aufraeumen = ()=>{
+    for(let i = blocks.length - 1; i >= 0; i--){
+      const b = blocks[i];
+      if(!b.name && b.system && !blocks.some(x => x.name && x.system === b.system && !x.flach)) blocks.splice(i, 1);
+    }
+  };
+  return R;
+}
+
 const yCol = s => s.replace(/\t/g, '    ').match(/^ */)[0].length;
 const yBlank = s => s.trim() === '' || /^\s*#/.test(s);
 const shiftLines = (lines, d)=> d === 0 ? lines.slice() : lines.map(l => l.trim() === '' ? l

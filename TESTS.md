@@ -83,8 +83,10 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   verwenden" (Vorgabe aus, im Verlauf), Bereich mit den automatischen
   Diagrammen je Quellsystem (geschützt) und eigenen Gegenüberstellungen, das
   Geschäftsobjekt als eigenes Element (einmal je Diagramm, nur dort),
-  „Quelltabellen bearbeiten" (Quellsystem, Zuordnung, nur geänderte Zeilen,
-  Umbenennen, Anlegen, Löschen), das Nachziehen der Zuordnung beim Umbenennen
+  Kennungen `System.Tabelle` (zwei gleichnamige Tabellen in verschiedenen
+  Systemen), „Quelltabellen bearbeiten" (Systemwechsel hängt die Tabelle um,
+  Zuordnung, nur geänderte Zeilen, Umbenennen, Punkt im Namen, Anlegen,
+  Löschen, die flache Form vom 2026-10-07), das Nachziehen der Zuordnung beim Umbenennen
   eines Geschäftsobjekts, die beiden Dateien laden und speichern, Stand und
   ältere Positionsinformationen.
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell

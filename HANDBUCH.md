@@ -515,6 +515,10 @@ das **Geschäftsobjekt**, dem sie zugeordnet ist. Eine oder mehrere Tabellen
 können demselben Geschäftsobjekt zugeordnet sein. Die Tabellen stehen in einer
 eigenen Datei (Anhang D).
 
+Eindeutig ist eine Tabelle erst **mit ihrem Quellsystem**: `Bestellung` kann es
+im Webshop und in der Roadshow geben. Überall — im Kasten, in der Liste, in den
+Details, in Verweisen und Diagrammen — heißt sie darum `Webshop.Bestellung`.
+
 **Einschalten.** Die Ebene ist zunächst **aus** — das Werkzeug verhält sich
 dann genau wie ohne sie. „Einstellungen → Quelltabellen verwenden" schaltet sie
 ein: in der Kopfzeile erscheint der Knopf **Quelltabellen**, im Menü „Datei &
@@ -552,11 +556,16 @@ Quelltabellen.
 
 **Bearbeiten.** „Einstellungen → Quelltabellen bearbeiten" funktioniert wie
 „Geschäftsobjekte bearbeiten" (Kapitel 13), nur für die Tabellen: Formular im
-Reiter „Details", „＋ Objekt" über der Liste, Löschen, Strg+Z. Statt „Quellen"
-gibt es ein Feld **Quellsystem** und eine Auswahl **Geschäftsobjekt**.
+Reiter „Details", „＋ Objekt" über der Liste, Löschen, Strg+Z. Im Formular
+stehen **Tabelle** (der Name ohne System) und **Quellsystem** getrennt, statt
+„Quellen" gibt es eine Auswahl **Geschäftsobjekt**. Ein Punkt ist in beiden
+Namen nicht erlaubt, er trennt System und Tabelle. „＋ Objekt" fragt nach
+`System.Tabelle` und setzt die Tabelle in den Abschnitt ihres Systems.
 Geschrieben wird in die Tabellen-YAML, nur an der bearbeiteten Stelle.
 Umbenennen einer Tabelle zieht `to:`, `references:`, die Diagramme und die
-Anordnung mit. Wird ein **Geschäftsobjekt** umbenannt, zieht seine Zuordnung in
+Anordnung mit. Ein anderes Quellsystem **hängt die Tabelle um**: sie wandert in
+den Abschnitt des neuen Systems (fehlt er, entsteht er am Ende; ein leer
+gewordener Abschnitt entfällt), und alle Verweise auf sie ziehen mit. Wird ein **Geschäftsobjekt** umbenannt, zieht seine Zuordnung in
 den Tabellen mit; wird es gelöscht, bleibt die Zuordnung stehen und die Prüfung
 meldet „Geschäftsobjekt unbekannt".
 
@@ -783,43 +792,63 @@ enthält auch die Quelltabellen-YAML.
 ## Anhang D — Quelltabellen (YAML)
 
 Eine eigene Datei, aufgebaut wie die Geschäftsobjekte (Anhang A) — nur heißt
-der Abschnitt `SourceTables`, und jede Tabelle trägt statt der Liste
-`source_systems` genau ein Quellsystem und ihre Zuordnung:
+der Abschnitt `SourceTables`, darunter steht **je Quellsystem ein Abschnitt**
+mit seinen Tabellen, und jede Tabelle trägt statt der Liste `source_systems`
+ihre Zuordnung zu einem Geschäftsobjekt:
 
 ```yaml
-SourceTables:                   # auch: Quelltabellen, source_tables
-  Bestellung_VRS:
-    source_system: Roadshow     # auch: Source_System
-    business_object: Bestellung # auch: Geschäftsobjekt
-    Domain: Willibald
-    business_keys:
-    - BestellungID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      primary_key: true
-    relationships:              # zwischen Tabellen
-    - to: Position_VRS
-      name: enthält
+SourceTables:                       # auch: Quelltabellen, source_tables
+  Webshop:                          # Quellsystem
+    Bestellung:                     # Tabelle, Kennung Webshop.Bestellung
+      business_object: Bestellung   # auch: Geschäftsobjekt
+      Domain: Willibald
+      business_keys:
+      - BestellungID
+      attributes:
+      - name: KundeID
+        foreign_key: true
+        references: Webshop.Kunde.KundeID   # System.Tabelle.Spalte
+      relationships:                # zwischen Tabellen, auch über Systeme hinweg
+      - to: Webshop.Position        # System.Tabelle
+        name: enthält
+  Roadshow:
+    Bestellung:                     # gleicher Name, andere Tabelle: Roadshow.Bestellung
+      business_object: Bestellung
 ```
 
-- Der Tabellenname ist dateiweit eindeutig; `references:` und `to:` nennen
-  Tabellen.
+- Eindeutig ist `System.Tabelle`. Ein Punkt im System- oder Tabellennamen ist
+  ein Fehler.
+- Verweise werden **voll qualifiziert** geschrieben: `to: System.Tabelle`,
+  `references: System.Tabelle.Spalte`. Ein Verweis ohne System wird im eigenen
+  System gesucht und als „Verweis ohne Quellsystem" gemeldet.
+- Ältere Dateien (bis 2026-10-07) führen die Tabellen direkt unter
+  `SourceTables` und das System im Feld `source_system:` (auch
+  `Source_System:`). Sie werden weiter gelesen und gepflegt; ein Eintrag gilt
+  als solche Tabelle, sobald er Tabellenfelder trägt (`source_system`,
+  `business_object`, `attributes`, `business_keys`, `Domain`, `desc`,
+  `relationships`).
 - Geprüft wird wie bei den Geschäftsobjekten, dazu: **kein Quellsystem**
-  (Hinweis), **Geschäftsobjekt unbekannt** (Hinweis: die Zuordnung nennt ein
+  (Hinweis, nur in der älteren Form möglich), **Quellsystem widersprüchlich**
+  (Hinweis: `source_system:` passt nicht zum Abschnitt — es gilt der
+  Abschnitt), **Geschäftsobjekt unbekannt** (Hinweis: die Zuordnung nennt ein
   Objekt, das es im Modell nicht gibt) und **ohne Geschäftsobjekt** (Info).
 
 ## Anhang E — Quelltabellen-Diagramme (YAML)
 
 Die eigenen Diagramme des Bereichs Quelltabellen, aufgebaut wie die
 Hierarchiebeschreibung (Anhang B); die Liste heißt `tabellen` (`objekte` wird
-auch gelesen). Die Diagramme der Quellsysteme stehen **nicht** darin, sie
-entstehen aus den Tabellen.
+auch gelesen) und nennt `System.Tabelle`. Die Diagramme der Quellsysteme
+stehen **nicht** darin, sie entstehen aus den Tabellen.
 
 ```yaml
 Bestellung Webshop/Roadshow:
   beschreibung: "Dieselbe Bestellung aus zwei Systemen"
   tabellen:
-    - Bestellung
-    - Bestellung_VRS
+    - Webshop.Bestellung
+    - Roadshow.Bestellung_VRS
 ```
+
+Ein Name ohne System (ältere Dateien) gilt, wenn genau eine Tabelle so heißt;
+gibt es ihn in mehreren Systemen, wird er gemeldet und nicht gezeigt.
+Anordnungen, die vor dem 2026-10-08 in diesen Diagrammen gelegt wurden, hängen
+an den alten Kennungen und werden neu gelegt.

@@ -8,14 +8,25 @@ function buildOutline(text, model){
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
   const known = model && model.objects ? new Set(Object.keys(model.objects)) : null;
+  const tabellen = known ? Object.values(model.objects).filter(o => o.tabelle) : null;   // leer bei Geschäftsobjekten
   const TRENNER = '›';                       // › im Pfad, wie edgeKey es nutzt
 
   function node(name, raw, pfad){
     const def = (raw && typeof raw === 'object') ? raw : {};
     // „tabellen" in den Diagrammen der Quelltabellen, sonst „objekte"
     const liste = ['objekte','objects','tabellen','tables'].map(k => def[k]).find(Array.isArray) || [];
-    const objekte = liste.filter(Boolean).map(String);
+    // Quelltabellen heißen System.Tabelle. Ein Name ohne System (Diagramme
+    // vom 2026-10-07) gilt, wenn genau eine Tabelle so heißt.
+    const objekte = liste.filter(Boolean).map(String).map(o=>{
+      if(!known || known.has(o) || !tabellen) return o;
+      const treffer = tabellen.filter(t => t.tabelle === o);
+      if(treffer.length === 1) return treffer[0].name;
+      if(treffer.length > 1) messages.push({level:'warn', title:`${name}: Tabelle „${o}“ mehrdeutig`,
+        body:`„${o}“ gibt es in ${treffer.map(t => t.system).join(', ')}. Im Diagramm mit Quellsystem angeben, etwa „${treffer[0].name}“.`});
+      return o;
+    });
     if(known) objekte.forEach(o=>{
+      if(tabellen && tabellen.some(t => t.tabelle === o) && !known.has(o)) return;   // schon als mehrdeutig gemeldet
       if(!known.has(o)) messages.push({level:'warn', title:`${name}: Objekt „${o}“ unbekannt`,
         body:`„${o}“ ist im Modell nicht definiert und erscheint im Diagramm nicht.`});
     });

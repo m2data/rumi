@@ -40,7 +40,7 @@ const PF_EINZEL = ['domain','desc','system','bo'];
    deren YAML, sonst das Geschäftsobjekt-Modell. */
 const QT_HEAD = /^\s*(SourceTables|sourceTables|source_tables|Quelltabellen)\s*:\s*(#.*)?$/;
 const aktText = ()=> S.mode === 'quellen' ? quellTextAkt() : S.yamlText;
-const aktKopf = ()=> S.mode === 'quellen' ? QT_HEAD : BO_HEAD;
+const aktZerleger = ()=> S.mode === 'quellen' ? splitQuellTabellen : splitBusinessObjects;
 const pfRolle = key => (PF_FELDER.find(f => f.keys.includes(key)) || {}).rolle || null;
 const pfStd   = rolle => PF_FELDER.find(f => f.rolle === rolle).keys[0];
 
@@ -210,8 +210,8 @@ function pfFeldZeilen(rolle, f, col, e, alt){
 
 /* Ein Objekt nach dem Formularstand umschreiben. Felder, die die Pflege nicht
    verantwortet, bleiben an ihrem Platz stehen. */
-function goObjektAendern(text, name, e, alt, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektAendern(text, name, e, alt, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
   const idx = B.blocks.findIndex(b => b.name === name);
   if(idx < 0) return null;
@@ -221,6 +221,9 @@ function goObjektAendern(text, name, e, alt, kopf){
   const zeilen = [F.head, ...F.vorspann];
   const fertig = new Set();
   const extra = e.extra || {};
+  // Eine gruppierte Quelltabelle hat ihr System im Abschnitt, nicht im Feld:
+  // ein Systemwechsel hängt sie um (goUmbenennen), statt source_system zu schreiben.
+  if(blk.flach === false) fertig.add('system');
   F.fields.forEach(f=>{
     const rolle = pfRolle(f.key);
     if(!rolle && f.key in extra && !fertig.has('+' + f.key)){
@@ -242,14 +245,16 @@ function goObjektAendern(text, name, e, alt, kopf){
     if(!fertig.has('+' + k)) zeilen.push(...pfZusatzZeilen(k, null, col, e, alt));
   });
   zeilen.push(...nachspann);
-  B.blocks[idx] = {name, lines: zeilen};
+  blk.lines = zeilen;
   return pfZusammen(B);
 }
 
 /* Verweise auf ein Objekt in einem fremden Block umschreiben (`nach`) oder die
    Beziehung entfernen (`nach === null`). „to:" gilt nur auf der Eintragsebene:
    unter „cardinality:" steht dasselbe Wort für etwas ganz anderes. */
-function pfVerweise(lines, von, nach){
+function pfVerweise(lines, von, nach, system){
+  // Eine Quelltabelle der flachen Form verweist ohne System; gemeint ist ihr eigenes
+  const voll = (w, teile)=> system && w.split('.').length === teile ? system + '.' + w : w;
   const F = splitObjectFields(lines);
   if(F.fieldCol == null) return lines;
   const out = [F.head, ...F.vorspann];
@@ -262,7 +267,7 @@ function pfVerweise(lines, von, nach){
       items.forEach(it=>{
         const k = listItemKey(it);
         const ziel = k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null;
-        if(ziel !== von){ behalten.push(...it.lines); return; }
+        if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...it.lines); return; }
         if(nach === null) return;
         const ic = yCol(it.lines[0]);
         behalten.push(...it.lines.map(l=>{
@@ -278,10 +283,10 @@ function pfVerweise(lines, von, nach){
       out.push(...f.lines.map(l=>{
         const m = l.match(/^(\s*references\s*:\s*)"?([^"#]*?)"?\s*$/);
         if(!m) return l;
-        const teile = m[2].split('.');
-        if(teile[0] !== von) return l;
-        teile[0] = nach;
-        return m[1] + yWert(teile.join('.'));
+        // Ziel ist alles vor der Spalte: Kunde.KundeID wie Webshop.Kunde.KundeID
+        const w = voll(m[2], 2);
+        if(!w.startsWith(von + '.')) return l;
+        return m[1] + yWert(nach + w.slice(von.length));
       }));
       return;
     }
@@ -291,16 +296,21 @@ function pfVerweise(lines, von, nach){
 }
 
 /* Umbenennen heißt: Kopfzeile, jedes „to:" darauf und jedes „references:"
-   darauf. Bliebe eines stehen, zerfiele das Modell in zwei Hälften. */
-function goUmbenennen(text, alt, neu, kopf){
-  const B = splitBusinessObjects(text, kopf);
+   darauf. Bliebe eines stehen, zerfiele das Modell in zwei Hälften. Bei den
+   Quelltabellen steht im Kopf nur der Tabellenname; wechselt das System, wird
+   die Tabelle in dessen Abschnitt umgehängt. */
+function goUmbenennen(text, alt, neu, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
-  B.blocks = B.blocks.map(b=>{
-    let lines = b.lines;
-    if(b.name === alt)
-      lines = [lines[0].replace(/^(\s*)"?[^":]+"?\s*:/, '$1' + neu + ':'), ...lines.slice(1)];
-    return {name: b.name === alt ? neu : b.name, lines: pfVerweise(lines, alt, neu)};
+  const kopf = B.kopfName ? B.kopfName(neu) : neu;
+  B.blocks.forEach(b=>{
+    if(b.name === alt){
+      b.lines = [b.lines[0].replace(/^(\s*)"?[^":]+"?\s*:/, '$1' + kopf + ':'), ...b.lines.slice(1)];
+      b.name = neu;
+    }
+    b.lines = pfVerweise(b.lines, alt, neu, b.system);
   });
+  if(B.umhaengen) B.umhaengen(neu);
   return pfZusammen(B);
 }
 
@@ -308,17 +318,24 @@ function goUmbenennen(text, alt, neu, kopf){
    zeigen — sonst bliebe ein Ziel zurück, das es nicht mehr gibt. Ein
    „references:" auf das Objekt bleibt stehen und wird in der Prüfung
    gemeldet: es steckt in einem Attribut, das dem Nutzer gehört. */
-function goObjektLoeschen(text, name, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektLoeschen(text, name, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
-  B.blocks = B.blocks.filter(b => b.name !== name)
-    .map(b => ({name: b.name, lines: pfVerweise(b.lines, name, null)}));
+  const i = B.blocks.findIndex(b => b.name === name);
+  if(i >= 0) B.blocks.splice(i, 1);
+  B.blocks.forEach(b=>{ b.lines = pfVerweise(b.lines, name, null, b.system); });
+  if(B.aufraeumen) B.aufraeumen();            // ein leerer Systemabschnitt entfällt
   return pfZusammen(B);
 }
 
-function goObjektAnlegen(text, name, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektAnlegen(text, name, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
+  if(B.einhaengen){                           // Quelltabelle: in den Abschnitt ihres Systems
+    const p = name.indexOf('.');
+    B.einhaengen({name, lines: [name.slice(p + 1) + ':']}, name.slice(0, p));
+    return pfZusammen(B);
+  }
   const col = B.childCol != null ? B.childCol : 2;
   B.blocks.push({name, lines: [' '.repeat(col) + name + ':']});
   return pfZusammen(B);
@@ -397,19 +414,19 @@ function pfUebernehmen(text, selId, meldung){
    nachziehen („business_object:"). Nur das Feld selbst, kein gleichlautender
    Wert anderswo; ändert sich nichts, bleibt der Text unberührt. */
 function quellBoUmbenennen(text, alt, neu){
-  const B = splitBusinessObjects(text, QT_HEAD);
+  const B = splitQuellTabellen(text);
   if(!B) return text;
   let geaendert = false;
-  B.blocks = B.blocks.map(b=>{
+  B.blocks.forEach(b=>{
+    if(!b.name) return;                         // Kopf eines Systemabschnitts
     const F = splitObjectFields(b.lines);
-    const lines = b.lines.map(l=>{
+    b.lines = b.lines.map(l=>{
       const m = !yBlank(l) && yCol(l) === F.fieldCol
         && l.match(/^(\s*"?(?:business_object|Business_Object|Geschäftsobjekt|Geschaeftsobjekt)"?\s*:\s*)"?([^"#]*?)"?(\s+#.*)?\s*$/);
       if(!m || m[2].trim() !== alt) return l;
       geaendert = true;
       return m[1] + yWert(neu) + (m[3] || '');
     });
-    return {name: b.name, lines};
   });
   return geaendert ? pfZusammen(B) : text;
 }
@@ -418,6 +435,15 @@ const PF_VERBOTEN = /[:#"]/;
 function pfNamePruefen(name){
   if(!name){ toast('Der Name darf nicht leer sein'); return false; }
   if(PF_VERBOTEN.test(name)){ toast('Ein Name darf kein :, # oder " enthalten'); return false; }
+  return true;
+}
+/* Quelltabellen: Tabellenname und Quellsystem einzeln geprüft — der Punkt
+   ist ihr Trenner und darf in keinem der beiden stehen. */
+function qtNamePruefen(tabelle, system){
+  if(!pfNamePruefen(tabelle)) return false;
+  if(!system){ toast('Eine Quelltabelle braucht ein Quellsystem'); return false; }
+  if(!pfNamePruefen(system)) return false;
+  if(tabelle.includes('.') || system.includes('.')){ toast('Tabelle und Quellsystem dürfen keinen Punkt enthalten'); return false; }
   return true;
 }
 
@@ -433,7 +459,8 @@ function pflegeStart(id){
   if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
-    name: o.name, domain: o.domain || '', desc: o.desc || '',
+    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
+    domain: o.domain || '', desc: o.desc || '',
     keys: o.keys.slice(), sources: o.sources.slice(),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
@@ -443,6 +470,9 @@ function pflegeStart(id){
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
   };
   S.pflege = id;
+  // Das Formular steht in den Details des gewählten Objekts. Nach dem Anlegen
+  // hat der Neuaufbau des Diagramms die Auswahl aufgehoben — dann blieb es leer.
+  if(S.selected !== id || S.sel.size !== 1){ S.sel = new Set([id]); S.selected = id; draw(); }
   setSidePane('details');
   renderDetails();
 }
@@ -511,7 +541,7 @@ function pflegeFormular(box){
        <span class="hd-actions"><button class="hd-btn ok" id="pfSave">Speichern</button>
        <button class="hd-btn" id="pfCancel">Abbrechen</button></span></div>
      <div class="pf">
-       <label class="pfr"><span>Name</span><input id="pfName"></label>
+       <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
        <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
@@ -604,16 +634,17 @@ function pflegeSpeichern(){
   pfLesen();
   const e = pfEntwurf, altName = S.pflege.slice(2), alt = aktModell().objects[altName];
   if(!alt) return;
-  const neuName = e.name;
-  if(!pfNamePruefen(neuName)) return;
+  const quellen = S.mode === 'quellen';
+  if(quellen ? !qtNamePruefen(e.name, e.system) : !pfNamePruefen(e.name)) return;
+  const neuName = quellen ? e.system + '.' + e.name : e.name;   // Kennung System.Tabelle
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
 
-  let text = goObjektAendern(aktText(), altName, e, alt, aktKopf());
+  let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   if(neuName !== altName){
-    text = goUmbenennen(text, altName, neuName, aktKopf());
+    text = goUmbenennen(text, altName, neuName, aktZerleger());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
     S.outlineText = uebersichtObjekt(S.outlineText, altName, neuName);
     S.outline = null;
@@ -629,14 +660,20 @@ function pflegeSpeichern(){
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in
    pflegeObjektNeu/pflegeObjektWeg, damit sie auch ohne Dialog prüfbar ist. */
 function pflegeNeu(){
-  const name = (prompt(S.mode === 'quellen' ? 'Name der neuen Quelltabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
+  const name = (prompt(S.mode === 'quellen' ? 'Neue Quelltabelle als System.Tabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
   if(name) pflegeObjektNeu(name);
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!pflegeErlaubt() || !pfNamePruefen(name)) return;
+  if(!pflegeErlaubt()) return;
+  if(S.mode === 'quellen'){
+    const teile = name.split('.');
+    if(teile.length !== 2){ toast('Eine neue Quelltabelle als System.Tabelle angeben, etwa Webshop.Bestellung'); return; }
+    if(!qtNamePruefen(teile[1].trim(), teile[0].trim())) return;
+    name = teile[0].trim() + '.' + teile[1].trim();
+  } else if(!pfNamePruefen(name)) return;
   if(aktModell().objects[name]){ toast(`„${name}" gibt es schon`); return; }
-  const text = goObjektAnlegen(aktText(), name, aktKopf());
+  const text = goObjektAnlegen(aktText(), name, aktZerleger());
   if(text == null){ toast(`Im Modelltext fehlt der Abschnitt "${S.mode === 'quellen' ? 'SourceTables' : 'BusinessObjects'}"`); return; }
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
@@ -655,7 +692,7 @@ const pfEingehend = name => Object.values(aktModell().objects)
 
 function pflegeObjektWeg(name){
   if(!pflegeErlaubt() || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(aktText(), name, aktKopf());
+  const text = goObjektLoeschen(aktText(), name, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
   S.outline = null;

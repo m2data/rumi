@@ -927,6 +927,48 @@ const ersterWert = (def, keys)=>{
   return k ? String(def[k]).trim() : null;
 };
 
+/* Felder, an denen ein Eintrag direkt unter SourceTables als Tabelle der
+   flachen Form erkannt wird (so bis 2026-10-07 geschrieben); alle anderen
+   Einträge sind Quellsysteme mit ihren Tabellen darunter. */
+const QT_TABELLENFELDER = new Set([...QT_KEYS, 'attributes', 'relationships', 'business_keys', 'BusinessKeys',
+  'Domain', 'domain', 'desc', 'beschreibung', 'description']);
+const istFlacheTabelle = def => !!def && typeof def === 'object' && !Array.isArray(def)
+  && Object.keys(def).some(k => QT_TABELLENFELDER.has(k));
+
+/* Die Einträge eines Modellabschnitts. Geschäftsobjekte stehen direkt darin.
+   Quelltabellen sind erst mit ihrem Quellsystem eindeutig — „Bestellung" kann
+   es im Webshop und in der Roadshow geben — und stehen darum gruppiert:
+   SourceTables › System › Tabelle, Kennung „System.Tabelle". */
+function eintraegeAus(abschnitt, quelle, messages){
+  const leer = d => (d && typeof d === 'object' && !Array.isArray(d)) ? d : {};
+  if(!quelle) return Object.entries(abschnitt).map(([name, d]) => ({name, def: leer(d)}));
+  const out = [];
+  const punkt = (wert, wo, name)=>{
+    if(String(wert).includes('.')) messages.push({level:'err', group:'Punkt im Namen', obj:name, title:`${name}: Punkt im Namen`,
+      body:`Der Name ${wo} "${wert}" enthält einen Punkt. Der Punkt trennt Quellsystem und Tabelle — Verweise auf diese Tabelle lassen sich so nicht eindeutig schreiben.`});
+  };
+  for(const [schluessel, roh] of Object.entries(abschnitt)){
+    if(istFlacheTabelle(roh)){
+      const system = ersterWert(roh, QT_SYSTEM);
+      const name = system ? system + '.' + schluessel : schluessel;
+      punkt(schluessel, 'der Tabelle', name);
+      out.push({name, def: roh, system, tabelle: schluessel});
+      continue;
+    }
+    for(const [tabelle, d] of Object.entries(leer(roh))){
+      const def = leer(d), name = schluessel + '.' + tabelle;
+      punkt(schluessel, 'des Quellsystems', name);
+      punkt(tabelle, 'der Tabelle', name);
+      const feld = ersterWert(def, QT_SYSTEM);
+      if(feld && feld !== schluessel) messages.push({level:'warn', group:'Quellsystem widersprüchlich', obj:name,
+        title:`${name}: Quellsystem widersprüchlich`,
+        body:`Die Tabelle steht unter "${schluessel}", nennt aber source_system "${feld}". Es gilt der Abschnitt "${schluessel}".`});
+      out.push({name, def, system: schluessel, tabelle});
+    }
+  }
+  return out;
+}
+
 /* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
    „business_object" geprüft. */
 function buildModel(text, art = 'go', goModell = null){
@@ -973,9 +1015,20 @@ function buildModel(text, art = 'go', goModell = null){
   };
 
   const objects = {};
-  for(const [name, defRaw] of Object.entries(doc[rootKey])){
-    const def = defRaw || {};
+  for(const {name, def, system, tabelle} of eintraegeAus(doc[rootKey], quelle, messages)){
     const rels = readRels(def.relationships, name, messages);
+    // Quelltabellen verweisen voll qualifiziert (System.Tabelle). Ohne System
+    // — so in der flachen Form — gilt das eigene System, und es wird gemeldet.
+    if(quelle && system){
+      const ohne = [];
+      rels.forEach(r=>{ if(!String(r.to).includes('.')){ ohne.push(r.to); r.to = system + '.' + r.to; } });
+      (Array.isArray(def.attributes) ? def.attributes : []).forEach(a=>{
+        if(a && a.references && String(a.references).split('.').length === 2){ ohne.push(a.references); a.references = system + '.' + a.references; }
+      });
+      if(ohne.length) messages.push({level:'warn', group:'Verweis ohne Quellsystem', obj:name,
+        title:`${name}: Verweis ohne Quellsystem`,
+        body:`${ohne.map(v => '"' + v + '"').join(', ')} nennt kein Quellsystem und wird in "${system}" gesucht. Verweise auf Quelltabellen werden voll qualifiziert geschrieben: System.Tabelle bzw. System.Tabelle.Spalte.`});
+    }
     // „BusinessKeys" schreiben andere Werkzeuge groß, wie „Domain". Ungelesen
     // fehlte der Business Key still — samt Warnung, obwohl er dasteht.
     const keysRaw = Array.isArray(def.business_keys) ? def.business_keys : def.BusinessKeys;
@@ -993,7 +1046,7 @@ function buildModel(text, art = 'go', goModell = null){
     }));
     objects[name] = {
       name,
-      ...(quelle ? {system: ersterWert(def, QT_SYSTEM), bo: ersterWert(def, QT_GO)} : {}),
+      ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
       domain: def.Domain || def.domain || null,
@@ -1075,7 +1128,10 @@ function buildModel(text, art = 'go', goModell = null){
   for(const o of Object.values(objects))
     for(const a of o.attrs){
       if(!a.ref) continue;
-      const [tObj, tAttr] = String(a.ref).split('.');
+      // Quelltabellen: System.Tabelle.Spalte — das Ziel sind die ersten beiden Teile
+      const teile = String(a.ref).split('.');
+      const tObj = quelle ? teile.slice(0, 2).join('.') : teile[0];
+      const tAttr = quelle ? teile[2] : teile[1];
       if(!names.has(tObj)){
         messages.push({level:'err', group:'Verweisziel unbekannt', obj:o.name, title:`${o.name}.${a.name}: Verweisziel unbekannt`,
           body:`"${a.ref}" zeigt auf ${A.das} "${tObj}", das unter ${rootKey} nicht definiert ist.`});
@@ -3693,504 +3749,496 @@ const DEFAULT_QUELLTABELLEN = `meta:
   lizenz: CC BY 4.0
   lizenz_url: https://creativecommons.org/licenses/by/4.0/
 
+# Eindeutig ist eine Tabelle erst mit ihrem Quellsystem: Webshop.Bestellung.
+# Verweise (to, references) nennen darum stets System.Tabelle.
 SourceTables:
-  Bestellung:
-    source_system: Webshop
-    business_object: Bestellung
-    Domain: Willibald
-    desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
-    business_keys:
-    - BestellungID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true
-    - name: KundeID
-      type: char(13)
-      nullable: false
-      foreign_key: true
-      references: Kunde.KundeID
-    - name: AllgLieferAdrID
-      type: int
-      nullable: false
-      foreign_key: true
-      references: Lieferadresse.LieferAdrID
-    - name: Bestelldatum
-      type: date
-      nullable: false
-    - name: Wunschdatum
-      type: date
-      nullable: false
-    - name: Rabatt
-      type: numeric(5,2)
-      nullable: false
-    relationships:
-    - to: Position
-      name: enthält
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Bestellung_VRS:
-    source_system: Roadshow
-    business_object: Bestellung
-    Domain: Willibald
-    desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
-    business_keys:
-    - BestellungID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true
-    - name: KundeID
-      type: char(13)
-      nullable: false
-      foreign_key: true
-      references: Kunde.KundeID
-    - name: AllgLieferAdrID
-      type: int
-      nullable: false
-      foreign_key: true
-      references: Lieferadresse.LieferAdrID
-    - name: Bestelldatum
-      type: date
-      nullable: false
-    - name: Wunschdatum
-      type: date
-      nullable: false
-    - name: Rabatt
-      type: numeric(5,2)
-      nullable: false
-    relationships:
-    - to: Position_VRS
-      name: enthält
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Kategorie:
-    source_system: Webshop
-    business_object: Kategorie
-    Domain: Willibald
-    desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
-    business_keys:
-    - KatID
-    attributes:
-    - name: KatID
-      type: varchar(50)
-      nullable: false
-      primary_key: true
-    - name: OberKatID
-      type: varchar(50)
-      nullable: true
-      foreign_key: true
-      references: Kategorie.KatID
-    - name: Name
-      type: varchar(512)
-      nullable: false
-    relationships:
-    - to: Kategorie
-      name: ist Oberkategorie von
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-    - to: Produkt
-      name: enthält
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Kunde:
-    source_system: Webshop
-    business_object: Kunde
-    Domain: Willibald
-    desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
-    business_keys:
-    - KundeID
-    attributes:
-    - name: KundeID
-      type: char(13)
-      nullable: false
-      primary_key: true
-    - name: VereinsPartnerID
-      type: varchar(30)
-      nullable: true
-      foreign_key: true
-    - name: Vorname
-      type: varchar(128)
-      nullable: false
-    - name: Name
-      type: varchar(128)
-      nullable: false
-    - name: Geschlecht
-      type: char
-      nullable: true
-    - name: Geburtsdatum
-      type: date
-      nullable: false
-    - name: Telefon
-      type: varchar(20)
-      nullable: true
-    - name: Mobil
-      type: varchar(20)
-      nullable: true
-    - name: Email
-      type: varchar(128)
-      nullable: true
-    - name: Kreditkarte
-      type: varchar(30)
-      nullable: false
-    - name: GueltigBis
-      type: char(5)
-      nullable: false
-    - name: KKFirma
-      type: varchar(128)
-      nullable: false
-    relationships:
-    - to: Wohnort
-      name: hat
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-    - to: Lieferadresse
-      name: verwendet
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-    - to: Bestellung
-      name: gibt auf
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  LieferDienst:
-    source_system: Webshop
-    business_object: LieferDienst
-    Domain: Willibald
-    desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
-    business_keys:
-    - LieferDienstID
-    attributes:
-    - name: LieferDienstID
-      type: varchar(30)
-      nullable: false
-      primary_key: true
-    - name: Name
-      type: varchar(128)
-      nullable: false
-    - name: Telefon
-      type: varchar(20)
-      nullable: false
-    - name: Fax
-      type: varchar(20)
-      nullable: true
-    - name: Email
-      type: varchar(128)
-      nullable: false
-    - name: Strasse
-      type: varchar(128)
-      nullable: false
-    - name: Hausnummer
-      type: varchar(10)
-      nullable: false
-    - name: Plz
-      type: varchar(10)
-      nullable: false
-    - name: Ort
-      type: varchar(128)
-      nullable: false
-    - name: Land
-      type: varchar(128)
-      nullable: true
-    relationships:
-    - to: Lieferung
-      name: führt aus
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Lieferadresse:
-    source_system: Webshop
-    business_object: Lieferadresse
-    Domain: Willibald
-    desc: Enthält eine vom Kunden verwendete Adresse, an die Bestellungen oder einzelne Bestellpositionen geliefert werden können.
-    business_keys:
-    - LieferAdrID
-    attributes:
-    - name: LieferAdrID
-      type: int
-      nullable: false
-      primary_key: true
-    - name: KundeID
-      type: char(13)
-      nullable: false
-      foreign_key: true
-      references: Kunde.KundeID
-    - name: Strasse
-      type: varchar(128)
-      nullable: false
-    - name: Hausnummer
-      type: varchar(10)
-      nullable: false
-    - name: Adresszusatz
-      type: varchar(128)
-      nullable: true
-    - name: Plz
-      type: varchar(10)
-      nullable: false
-    - name: Ort
-      type: varchar(128)
-      nullable: false
-    - name: Land
-      type: varchar(128)
-      nullable: true
-    relationships:
-    - to: Bestellung
-      name: ist allgemeine Lieferadresse für
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-    - to: Position
-      name: ist spezielle Lieferadresse für
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-    - to: Lieferung
-      name: ist Zieladresse von
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Lieferung:
-    source_system: Webshop
-    business_object: Lieferung
-    Domain: Willibald
-    desc: Dokumentiert die Zustellung einer Bestellposition an eine Lieferadresse durch einen Lieferdienst zu einem Lieferdatum.
-    business_keys:
-    - BestellungID
-    - PosID
-    - LieferAdrID
-    - LieferDienstID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Position.BestellungID
-    - name: PosID
-      type: bigint
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Position.PosID
-    - name: LieferAdrID
-      type: int
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Lieferadresse.LieferAdrID
-    - name: LieferDienstID
-      type: varchar(30)
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: LieferDienst.LieferDienstID
-    - name: LieferDatum
-      type: date
-      nullable: false
-  Position:
-    source_system: Webshop
-    business_object: Position
-    Domain: Willibald
-    desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
-    business_keys:
-    - BestellungID
-    - PosID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Bestellung.BestellungID
-    - name: PosID
-      type: bigint
-      nullable: false
-      primary_key: true
-    - name: ProduktID
-      type: int
-      nullable: false
-      foreign_key: true
-      references: Produkt.ProduktID
-    - name: SpezLieferAdrID
-      type: int
-      nullable: true
-      foreign_key: true
-      references: Lieferadresse.LieferAdrID
-    - name: Menge
-      type: int
-      nullable: false
-    - name: Preis
-      type: numeric(10,2)
-      nullable: false
-    relationships:
-    - to: Lieferung
-      name: wird erfüllt durch
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Position_VRS:
-    source_system: Roadshow
-    business_object: Position
-    Domain: Willibald
-    desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
-    business_keys:
-    - BestellungID
-    - PosID
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Bestellung_VRS.BestellungID
-    - name: PosID
-      type: bigint
-      nullable: false
-      primary_key: true
-    - name: ProduktID
-      type: int
-      nullable: false
-      foreign_key: true
-      references: Produkt.ProduktID
-    - name: SpezLieferAdrID
-      type: int
-      nullable: true
-      foreign_key: true
-      references: Lieferadresse.LieferAdrID
-    - name: Menge
-      type: int
-      nullable: false
-    - name: Preis
-      type: numeric(10,2)
-      nullable: false
-  Produkt:
-    source_system: Webshop
-    business_object: Produkt
-    Domain: Willibald
-    desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
-    business_keys:
-    - ProduktID
-    attributes:
-    - name: ProduktID
-      type: int
-      nullable: false
-      primary_key: true
-    - name: KatID
-      type: varchar(50)
-      nullable: false
-      foreign_key: true
-      references: Kategorie.KatID
-    - name: Bezeichnung
-      type: varchar(512)
-      nullable: false
-    - name: Umfang
-      type: varchar(128)
-      nullable: false
-    - name: Typ
-      type: int
-      nullable: false
-    - name: Preis
-      type: decimal(5,2)
-      nullable: false
-    - name: Pflanzort
-      type: varchar(128)
-      nullable: false
-    - name: Pflanzabstand
-      type: varchar(128)
-      nullable: false
-    relationships:
-    - to: Position
-      name: wird bestellt in
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  VereinsPartner:
-    source_system: Roadshow
-    business_object: VereinsPartner
-    Domain: Willibald
-    desc: Beschreibt einen Vereinspartner mit verantwortlichem Kunden beziehungsweise Vereinsvorsitz und gestaffelten Rabatten.
-    business_keys:
-    - VereinsPartnerID
-    attributes:
-    - name: VereinsPartnerID
-      type: varchar(30)
-      nullable: false
-      primary_key: true
-    - name: KundeIDVerein
-      type: char(13)
-      nullable: false
-      foreign_key: true
-      references: Kunde.KundeID
-    - name: Rabatt1
-      type: int
-      nullable: false
-    - name: Rabatt2
-      type: int
-      nullable: false
-    - name: Rabatt3
-      type: int
-      nullable: false
-    relationships:
-    - to: Bestellung_VRS
-      name: begünstigt
-      cardinality:
-        from: exactly_one
-        to: zero_or_many
-  Wohnort:
-    source_system: Webshop
-    business_object: WohnHistorie
-    Domain: Willibald
-    desc: Dokumentiert die zeitliche Historie der Wohnadressen eines Kunden mit Gültigkeitsbeginn und optionalem Gültigkeitsende.
-    business_keys:
-    - KundeID
-    attributes:
-    - name: KundeID
-      type: char(13)
-      nullable: false
-      primary_key: true
-      foreign_key: true
-      references: Kunde.KundeID
-    - name: Von
-      type: date
-      nullable: false
-      primary_key: true
-    - name: Bis
-      type: date
-      nullable: true
-    - name: Strasse
-      type: varchar(128)
-      nullable: false
-    - name: Hausnummer
-      type: varchar(10)
-      nullable: false
-    - name: Adresszusatz
-      type: varchar(128)
-      nullable: true
-    - name: Plz
-      type: varchar(10)
-      nullable: false
-    - name: Ort
-      type: varchar(128)
-      nullable: false
-    - name: Land
-      type: varchar(128)
-      nullable: true
-  href_termintreue:
-    source_system: Referenzdaten
-    business_object: href_termintreue
-    Domain: Willibald
-    desc: Definiert Wertebereiche zur fachlichen Klassifizierung der Termintreue anhand der Anzahl von Tagen.
-    business_keys:
-    - Anzahl_Tage_von
-    - Anzahl_Tage_bis
+  Webshop:
+    Bestellung:
+      business_object: Bestellung
+      Domain: Willibald
+      desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
+      business_keys:
+      - BestellungID
+      attributes:
+      - name: BestellungID
+        type: bigint
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: char(13)
+        nullable: false
+        foreign_key: true
+        references: Webshop.Kunde.KundeID
+      - name: AllgLieferAdrID
+        type: int
+        nullable: false
+        foreign_key: true
+        references: Webshop.Lieferadresse.LieferAdrID
+      - name: Bestelldatum
+        type: date
+        nullable: false
+      - name: Wunschdatum
+        type: date
+        nullable: false
+      - name: Rabatt
+        type: numeric(5,2)
+        nullable: false
+      relationships:
+      - to: Webshop.Position
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Kategorie:
+      business_object: Kategorie
+      Domain: Willibald
+      desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
+      business_keys:
+      - KatID
+      attributes:
+      - name: KatID
+        type: varchar(50)
+        nullable: false
+        primary_key: true
+      - name: OberKatID
+        type: varchar(50)
+        nullable: true
+        foreign_key: true
+        references: Webshop.Kategorie.KatID
+      - name: Name
+        type: varchar(512)
+        nullable: false
+      relationships:
+      - to: Webshop.Kategorie
+        name: ist Oberkategorie von
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Webshop.Produkt
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Kunde:
+      business_object: Kunde
+      Domain: Willibald
+      desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
+      business_keys:
+      - KundeID
+      attributes:
+      - name: KundeID
+        type: char(13)
+        nullable: false
+        primary_key: true
+      - name: VereinsPartnerID
+        type: varchar(30)
+        nullable: true
+        foreign_key: true
+      - name: Vorname
+        type: varchar(128)
+        nullable: false
+      - name: Name
+        type: varchar(128)
+        nullable: false
+      - name: Geschlecht
+        type: char
+        nullable: true
+      - name: Geburtsdatum
+        type: date
+        nullable: false
+      - name: Telefon
+        type: varchar(20)
+        nullable: true
+      - name: Mobil
+        type: varchar(20)
+        nullable: true
+      - name: Email
+        type: varchar(128)
+        nullable: true
+      - name: Kreditkarte
+        type: varchar(30)
+        nullable: false
+      - name: GueltigBis
+        type: char(5)
+        nullable: false
+      - name: KKFirma
+        type: varchar(128)
+        nullable: false
+      relationships:
+      - to: Webshop.Wohnort
+        name: hat
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Webshop.Lieferadresse
+        name: verwendet
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Webshop.Bestellung
+        name: gibt auf
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    LieferDienst:
+      business_object: LieferDienst
+      Domain: Willibald
+      desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
+      business_keys:
+      - LieferDienstID
+      attributes:
+      - name: LieferDienstID
+        type: varchar(30)
+        nullable: false
+        primary_key: true
+      - name: Name
+        type: varchar(128)
+        nullable: false
+      - name: Telefon
+        type: varchar(20)
+        nullable: false
+      - name: Fax
+        type: varchar(20)
+        nullable: true
+      - name: Email
+        type: varchar(128)
+        nullable: false
+      - name: Strasse
+        type: varchar(128)
+        nullable: false
+      - name: Hausnummer
+        type: varchar(10)
+        nullable: false
+      - name: Plz
+        type: varchar(10)
+        nullable: false
+      - name: Ort
+        type: varchar(128)
+        nullable: false
+      - name: Land
+        type: varchar(128)
+        nullable: true
+      relationships:
+      - to: Webshop.Lieferung
+        name: führt aus
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Lieferadresse:
+      business_object: Lieferadresse
+      Domain: Willibald
+      desc: Enthält eine vom Kunden verwendete Adresse, an die Bestellungen oder einzelne Bestellpositionen geliefert werden können.
+      business_keys:
+      - LieferAdrID
+      attributes:
+      - name: LieferAdrID
+        type: int
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: char(13)
+        nullable: false
+        foreign_key: true
+        references: Webshop.Kunde.KundeID
+      - name: Strasse
+        type: varchar(128)
+        nullable: false
+      - name: Hausnummer
+        type: varchar(10)
+        nullable: false
+      - name: Adresszusatz
+        type: varchar(128)
+        nullable: true
+      - name: Plz
+        type: varchar(10)
+        nullable: false
+      - name: Ort
+        type: varchar(128)
+        nullable: false
+      - name: Land
+        type: varchar(128)
+        nullable: true
+      relationships:
+      - to: Webshop.Bestellung
+        name: ist allgemeine Lieferadresse für
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Webshop.Position
+        name: ist spezielle Lieferadresse für
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+      - to: Webshop.Lieferung
+        name: ist Zieladresse von
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Lieferung:
+      business_object: Lieferung
+      Domain: Willibald
+      desc: Dokumentiert die Zustellung einer Bestellposition an eine Lieferadresse durch einen Lieferdienst zu einem Lieferdatum.
+      business_keys:
+      - BestellungID
+      - PosID
+      - LieferAdrID
+      - LieferDienstID
+      attributes:
+      - name: BestellungID
+        type: bigint
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.Position.BestellungID
+      - name: PosID
+        type: bigint
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.Position.PosID
+      - name: LieferAdrID
+        type: int
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.Lieferadresse.LieferAdrID
+      - name: LieferDienstID
+        type: varchar(30)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.LieferDienst.LieferDienstID
+      - name: LieferDatum
+        type: date
+        nullable: false
+    Position:
+      business_object: Position
+      Domain: Willibald
+      desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
+      business_keys:
+      - BestellungID
+      - PosID
+      attributes:
+      - name: BestellungID
+        type: bigint
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.Bestellung.BestellungID
+      - name: PosID
+        type: bigint
+        nullable: false
+        primary_key: true
+      - name: ProduktID
+        type: int
+        nullable: false
+        foreign_key: true
+        references: Webshop.Produkt.ProduktID
+      - name: SpezLieferAdrID
+        type: int
+        nullable: true
+        foreign_key: true
+        references: Webshop.Lieferadresse.LieferAdrID
+      - name: Menge
+        type: int
+        nullable: false
+      - name: Preis
+        type: numeric(10,2)
+        nullable: false
+      relationships:
+      - to: Webshop.Lieferung
+        name: wird erfüllt durch
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Produkt:
+      business_object: Produkt
+      Domain: Willibald
+      desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
+      business_keys:
+      - ProduktID
+      attributes:
+      - name: ProduktID
+        type: int
+        nullable: false
+        primary_key: true
+      - name: KatID
+        type: varchar(50)
+        nullable: false
+        foreign_key: true
+        references: Webshop.Kategorie.KatID
+      - name: Bezeichnung
+        type: varchar(512)
+        nullable: false
+      - name: Umfang
+        type: varchar(128)
+        nullable: false
+      - name: Typ
+        type: int
+        nullable: false
+      - name: Preis
+        type: decimal(5,2)
+        nullable: false
+      - name: Pflanzort
+        type: varchar(128)
+        nullable: false
+      - name: Pflanzabstand
+        type: varchar(128)
+        nullable: false
+      relationships:
+      - to: Webshop.Position
+        name: wird bestellt in
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Wohnort:
+      business_object: WohnHistorie
+      Domain: Willibald
+      desc: Dokumentiert die zeitliche Historie der Wohnadressen eines Kunden mit Gültigkeitsbeginn und optionalem Gültigkeitsende.
+      business_keys:
+      - KundeID
+      attributes:
+      - name: KundeID
+        type: char(13)
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Webshop.Kunde.KundeID
+      - name: Von
+        type: date
+        nullable: false
+        primary_key: true
+      - name: Bis
+        type: date
+        nullable: true
+      - name: Strasse
+        type: varchar(128)
+        nullable: false
+      - name: Hausnummer
+        type: varchar(10)
+        nullable: false
+      - name: Adresszusatz
+        type: varchar(128)
+        nullable: true
+      - name: Plz
+        type: varchar(10)
+        nullable: false
+      - name: Ort
+        type: varchar(128)
+        nullable: false
+      - name: Land
+        type: varchar(128)
+        nullable: true
+  Roadshow:
+    Bestellung_VRS:
+      business_object: Bestellung
+      Domain: Willibald
+      desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
+      business_keys:
+      - BestellungID
+      attributes:
+      - name: BestellungID
+        type: bigint
+        nullable: false
+        primary_key: true
+      - name: KundeID
+        type: char(13)
+        nullable: false
+        foreign_key: true
+        references: Webshop.Kunde.KundeID
+      - name: AllgLieferAdrID
+        type: int
+        nullable: false
+        foreign_key: true
+        references: Webshop.Lieferadresse.LieferAdrID
+      - name: Bestelldatum
+        type: date
+        nullable: false
+      - name: Wunschdatum
+        type: date
+        nullable: false
+      - name: Rabatt
+        type: numeric(5,2)
+        nullable: false
+      relationships:
+      - to: Roadshow.Position_VRS
+        name: enthält
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+    Position_VRS:
+      business_object: Position
+      Domain: Willibald
+      desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
+      business_keys:
+      - BestellungID
+      - PosID
+      attributes:
+      - name: BestellungID
+        type: bigint
+        nullable: false
+        primary_key: true
+        foreign_key: true
+        references: Roadshow.Bestellung_VRS.BestellungID
+      - name: PosID
+        type: bigint
+        nullable: false
+        primary_key: true
+      - name: ProduktID
+        type: int
+        nullable: false
+        foreign_key: true
+        references: Webshop.Produkt.ProduktID
+      - name: SpezLieferAdrID
+        type: int
+        nullable: true
+        foreign_key: true
+        references: Webshop.Lieferadresse.LieferAdrID
+      - name: Menge
+        type: int
+        nullable: false
+      - name: Preis
+        type: numeric(10,2)
+        nullable: false
+    VereinsPartner:
+      business_object: VereinsPartner
+      Domain: Willibald
+      desc: Beschreibt einen Vereinspartner mit verantwortlichem Kunden beziehungsweise Vereinsvorsitz und gestaffelten Rabatten.
+      business_keys:
+      - VereinsPartnerID
+      attributes:
+      - name: VereinsPartnerID
+        type: varchar(30)
+        nullable: false
+        primary_key: true
+      - name: KundeIDVerein
+        type: char(13)
+        nullable: false
+        foreign_key: true
+        references: Webshop.Kunde.KundeID
+      - name: Rabatt1
+        type: int
+        nullable: false
+      - name: Rabatt2
+        type: int
+        nullable: false
+      - name: Rabatt3
+        type: int
+        nullable: false
+      relationships:
+      - to: Roadshow.Bestellung_VRS
+        name: begünstigt
+        cardinality:
+          from: exactly_one
+          to: zero_or_many
+  Referenzdaten:
+    href_termintreue:
+      business_object: href_termintreue
+      Domain: Willibald
+      desc: Definiert Wertebereiche zur fachlichen Klassifizierung der Termintreue anhand der Anzahl von Tagen.
+      business_keys:
+      - Anzahl_Tage_von
+      - Anzahl_Tage_bis
 `;
 
 const S = {
@@ -5302,14 +5350,25 @@ function buildOutline(text, model){
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
   const known = model && model.objects ? new Set(Object.keys(model.objects)) : null;
+  const tabellen = known ? Object.values(model.objects).filter(o => o.tabelle) : null;   // leer bei Geschäftsobjekten
   const TRENNER = '›';                       // › im Pfad, wie edgeKey es nutzt
 
   function node(name, raw, pfad){
     const def = (raw && typeof raw === 'object') ? raw : {};
     // „tabellen" in den Diagrammen der Quelltabellen, sonst „objekte"
     const liste = ['objekte','objects','tabellen','tables'].map(k => def[k]).find(Array.isArray) || [];
-    const objekte = liste.filter(Boolean).map(String);
+    // Quelltabellen heißen System.Tabelle. Ein Name ohne System (Diagramme
+    // vom 2026-10-07) gilt, wenn genau eine Tabelle so heißt.
+    const objekte = liste.filter(Boolean).map(String).map(o=>{
+      if(!known || known.has(o) || !tabellen) return o;
+      const treffer = tabellen.filter(t => t.tabelle === o);
+      if(treffer.length === 1) return treffer[0].name;
+      if(treffer.length > 1) messages.push({level:'warn', title:`${name}: Tabelle „${o}“ mehrdeutig`,
+        body:`„${o}“ gibt es in ${treffer.map(t => t.system).join(', ')}. Im Diagramm mit Quellsystem angeben, etwa „${treffer[0].name}“.`});
+      return o;
+    });
     if(known) objekte.forEach(o=>{
+      if(tabellen && tabellen.some(t => t.tabelle === o) && !known.has(o)) return;   // schon als mehrdeutig gemeldet
       if(!known.has(o)) messages.push({level:'warn', title:`${name}: Objekt „${o}“ unbekannt`,
         body:`„${o}“ ist im Modell nicht definiert und erscheint im Diagramm nicht.`});
     });
@@ -5923,7 +5982,7 @@ const PF_EINZEL = ['domain','desc','system','bo'];
    deren YAML, sonst das Geschäftsobjekt-Modell. */
 const QT_HEAD = /^\s*(SourceTables|sourceTables|source_tables|Quelltabellen)\s*:\s*(#.*)?$/;
 const aktText = ()=> S.mode === 'quellen' ? quellTextAkt() : S.yamlText;
-const aktKopf = ()=> S.mode === 'quellen' ? QT_HEAD : BO_HEAD;
+const aktZerleger = ()=> S.mode === 'quellen' ? splitQuellTabellen : splitBusinessObjects;
 const pfRolle = key => (PF_FELDER.find(f => f.keys.includes(key)) || {}).rolle || null;
 const pfStd   = rolle => PF_FELDER.find(f => f.rolle === rolle).keys[0];
 
@@ -6093,8 +6152,8 @@ function pfFeldZeilen(rolle, f, col, e, alt){
 
 /* Ein Objekt nach dem Formularstand umschreiben. Felder, die die Pflege nicht
    verantwortet, bleiben an ihrem Platz stehen. */
-function goObjektAendern(text, name, e, alt, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektAendern(text, name, e, alt, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
   const idx = B.blocks.findIndex(b => b.name === name);
   if(idx < 0) return null;
@@ -6104,6 +6163,9 @@ function goObjektAendern(text, name, e, alt, kopf){
   const zeilen = [F.head, ...F.vorspann];
   const fertig = new Set();
   const extra = e.extra || {};
+  // Eine gruppierte Quelltabelle hat ihr System im Abschnitt, nicht im Feld:
+  // ein Systemwechsel hängt sie um (goUmbenennen), statt source_system zu schreiben.
+  if(blk.flach === false) fertig.add('system');
   F.fields.forEach(f=>{
     const rolle = pfRolle(f.key);
     if(!rolle && f.key in extra && !fertig.has('+' + f.key)){
@@ -6125,14 +6187,16 @@ function goObjektAendern(text, name, e, alt, kopf){
     if(!fertig.has('+' + k)) zeilen.push(...pfZusatzZeilen(k, null, col, e, alt));
   });
   zeilen.push(...nachspann);
-  B.blocks[idx] = {name, lines: zeilen};
+  blk.lines = zeilen;
   return pfZusammen(B);
 }
 
 /* Verweise auf ein Objekt in einem fremden Block umschreiben (`nach`) oder die
    Beziehung entfernen (`nach === null`). „to:" gilt nur auf der Eintragsebene:
    unter „cardinality:" steht dasselbe Wort für etwas ganz anderes. */
-function pfVerweise(lines, von, nach){
+function pfVerweise(lines, von, nach, system){
+  // Eine Quelltabelle der flachen Form verweist ohne System; gemeint ist ihr eigenes
+  const voll = (w, teile)=> system && w.split('.').length === teile ? system + '.' + w : w;
   const F = splitObjectFields(lines);
   if(F.fieldCol == null) return lines;
   const out = [F.head, ...F.vorspann];
@@ -6145,7 +6209,7 @@ function pfVerweise(lines, von, nach){
       items.forEach(it=>{
         const k = listItemKey(it);
         const ziel = k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null;
-        if(ziel !== von){ behalten.push(...it.lines); return; }
+        if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...it.lines); return; }
         if(nach === null) return;
         const ic = yCol(it.lines[0]);
         behalten.push(...it.lines.map(l=>{
@@ -6161,10 +6225,10 @@ function pfVerweise(lines, von, nach){
       out.push(...f.lines.map(l=>{
         const m = l.match(/^(\s*references\s*:\s*)"?([^"#]*?)"?\s*$/);
         if(!m) return l;
-        const teile = m[2].split('.');
-        if(teile[0] !== von) return l;
-        teile[0] = nach;
-        return m[1] + yWert(teile.join('.'));
+        // Ziel ist alles vor der Spalte: Kunde.KundeID wie Webshop.Kunde.KundeID
+        const w = voll(m[2], 2);
+        if(!w.startsWith(von + '.')) return l;
+        return m[1] + yWert(nach + w.slice(von.length));
       }));
       return;
     }
@@ -6174,16 +6238,21 @@ function pfVerweise(lines, von, nach){
 }
 
 /* Umbenennen heißt: Kopfzeile, jedes „to:" darauf und jedes „references:"
-   darauf. Bliebe eines stehen, zerfiele das Modell in zwei Hälften. */
-function goUmbenennen(text, alt, neu, kopf){
-  const B = splitBusinessObjects(text, kopf);
+   darauf. Bliebe eines stehen, zerfiele das Modell in zwei Hälften. Bei den
+   Quelltabellen steht im Kopf nur der Tabellenname; wechselt das System, wird
+   die Tabelle in dessen Abschnitt umgehängt. */
+function goUmbenennen(text, alt, neu, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
-  B.blocks = B.blocks.map(b=>{
-    let lines = b.lines;
-    if(b.name === alt)
-      lines = [lines[0].replace(/^(\s*)"?[^":]+"?\s*:/, '$1' + neu + ':'), ...lines.slice(1)];
-    return {name: b.name === alt ? neu : b.name, lines: pfVerweise(lines, alt, neu)};
+  const kopf = B.kopfName ? B.kopfName(neu) : neu;
+  B.blocks.forEach(b=>{
+    if(b.name === alt){
+      b.lines = [b.lines[0].replace(/^(\s*)"?[^":]+"?\s*:/, '$1' + kopf + ':'), ...b.lines.slice(1)];
+      b.name = neu;
+    }
+    b.lines = pfVerweise(b.lines, alt, neu, b.system);
   });
+  if(B.umhaengen) B.umhaengen(neu);
   return pfZusammen(B);
 }
 
@@ -6191,17 +6260,24 @@ function goUmbenennen(text, alt, neu, kopf){
    zeigen — sonst bliebe ein Ziel zurück, das es nicht mehr gibt. Ein
    „references:" auf das Objekt bleibt stehen und wird in der Prüfung
    gemeldet: es steckt in einem Attribut, das dem Nutzer gehört. */
-function goObjektLoeschen(text, name, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektLoeschen(text, name, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
-  B.blocks = B.blocks.filter(b => b.name !== name)
-    .map(b => ({name: b.name, lines: pfVerweise(b.lines, name, null)}));
+  const i = B.blocks.findIndex(b => b.name === name);
+  if(i >= 0) B.blocks.splice(i, 1);
+  B.blocks.forEach(b=>{ b.lines = pfVerweise(b.lines, name, null, b.system); });
+  if(B.aufraeumen) B.aufraeumen();            // ein leerer Systemabschnitt entfällt
   return pfZusammen(B);
 }
 
-function goObjektAnlegen(text, name, kopf){
-  const B = splitBusinessObjects(text, kopf);
+function goObjektAnlegen(text, name, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
   if(!B) return null;
+  if(B.einhaengen){                           // Quelltabelle: in den Abschnitt ihres Systems
+    const p = name.indexOf('.');
+    B.einhaengen({name, lines: [name.slice(p + 1) + ':']}, name.slice(0, p));
+    return pfZusammen(B);
+  }
   const col = B.childCol != null ? B.childCol : 2;
   B.blocks.push({name, lines: [' '.repeat(col) + name + ':']});
   return pfZusammen(B);
@@ -6280,19 +6356,19 @@ function pfUebernehmen(text, selId, meldung){
    nachziehen („business_object:"). Nur das Feld selbst, kein gleichlautender
    Wert anderswo; ändert sich nichts, bleibt der Text unberührt. */
 function quellBoUmbenennen(text, alt, neu){
-  const B = splitBusinessObjects(text, QT_HEAD);
+  const B = splitQuellTabellen(text);
   if(!B) return text;
   let geaendert = false;
-  B.blocks = B.blocks.map(b=>{
+  B.blocks.forEach(b=>{
+    if(!b.name) return;                         // Kopf eines Systemabschnitts
     const F = splitObjectFields(b.lines);
-    const lines = b.lines.map(l=>{
+    b.lines = b.lines.map(l=>{
       const m = !yBlank(l) && yCol(l) === F.fieldCol
         && l.match(/^(\s*"?(?:business_object|Business_Object|Geschäftsobjekt|Geschaeftsobjekt)"?\s*:\s*)"?([^"#]*?)"?(\s+#.*)?\s*$/);
       if(!m || m[2].trim() !== alt) return l;
       geaendert = true;
       return m[1] + yWert(neu) + (m[3] || '');
     });
-    return {name: b.name, lines};
   });
   return geaendert ? pfZusammen(B) : text;
 }
@@ -6301,6 +6377,15 @@ const PF_VERBOTEN = /[:#"]/;
 function pfNamePruefen(name){
   if(!name){ toast('Der Name darf nicht leer sein'); return false; }
   if(PF_VERBOTEN.test(name)){ toast('Ein Name darf kein :, # oder " enthalten'); return false; }
+  return true;
+}
+/* Quelltabellen: Tabellenname und Quellsystem einzeln geprüft — der Punkt
+   ist ihr Trenner und darf in keinem der beiden stehen. */
+function qtNamePruefen(tabelle, system){
+  if(!pfNamePruefen(tabelle)) return false;
+  if(!system){ toast('Eine Quelltabelle braucht ein Quellsystem'); return false; }
+  if(!pfNamePruefen(system)) return false;
+  if(tabelle.includes('.') || system.includes('.')){ toast('Tabelle und Quellsystem dürfen keinen Punkt enthalten'); return false; }
   return true;
 }
 
@@ -6316,7 +6401,8 @@ function pflegeStart(id){
   if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
   const o = n.ref;
   pfEntwurf = {
-    name: o.name, domain: o.domain || '', desc: o.desc || '',
+    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
+    domain: o.domain || '', desc: o.desc || '',
     keys: o.keys.slice(), sources: o.sources.slice(),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
@@ -6326,6 +6412,9 @@ function pflegeStart(id){
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
   };
   S.pflege = id;
+  // Das Formular steht in den Details des gewählten Objekts. Nach dem Anlegen
+  // hat der Neuaufbau des Diagramms die Auswahl aufgehoben — dann blieb es leer.
+  if(S.selected !== id || S.sel.size !== 1){ S.sel = new Set([id]); S.selected = id; draw(); }
   setSidePane('details');
   renderDetails();
 }
@@ -6394,7 +6483,7 @@ function pflegeFormular(box){
        <span class="hd-actions"><button class="hd-btn ok" id="pfSave">Speichern</button>
        <button class="hd-btn" id="pfCancel">Abbrechen</button></span></div>
      <div class="pf">
-       <label class="pfr"><span>Name</span><input id="pfName"></label>
+       <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
        <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
@@ -6487,16 +6576,17 @@ function pflegeSpeichern(){
   pfLesen();
   const e = pfEntwurf, altName = S.pflege.slice(2), alt = aktModell().objects[altName];
   if(!alt) return;
-  const neuName = e.name;
-  if(!pfNamePruefen(neuName)) return;
+  const quellen = S.mode === 'quellen';
+  if(quellen ? !qtNamePruefen(e.name, e.system) : !pfNamePruefen(e.name)) return;
+  const neuName = quellen ? e.system + '.' + e.name : e.name;   // Kennung System.Tabelle
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
 
-  let text = goObjektAendern(aktText(), altName, e, alt, aktKopf());
+  let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   if(neuName !== altName){
-    text = goUmbenennen(text, altName, neuName, aktKopf());
+    text = goUmbenennen(text, altName, neuName, aktZerleger());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
     S.outlineText = uebersichtObjekt(S.outlineText, altName, neuName);
     S.outline = null;
@@ -6512,14 +6602,20 @@ function pflegeSpeichern(){
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in
    pflegeObjektNeu/pflegeObjektWeg, damit sie auch ohne Dialog prüfbar ist. */
 function pflegeNeu(){
-  const name = (prompt(S.mode === 'quellen' ? 'Name der neuen Quelltabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
+  const name = (prompt(S.mode === 'quellen' ? 'Neue Quelltabelle als System.Tabelle:' : 'Name des neuen Geschäftsobjekts:') || '').trim();
   if(name) pflegeObjektNeu(name);
 }
 function pflegeObjektNeu(name){
   name = String(name || '').trim();
-  if(!pflegeErlaubt() || !pfNamePruefen(name)) return;
+  if(!pflegeErlaubt()) return;
+  if(S.mode === 'quellen'){
+    const teile = name.split('.');
+    if(teile.length !== 2){ toast('Eine neue Quelltabelle als System.Tabelle angeben, etwa Webshop.Bestellung'); return; }
+    if(!qtNamePruefen(teile[1].trim(), teile[0].trim())) return;
+    name = teile[0].trim() + '.' + teile[1].trim();
+  } else if(!pfNamePruefen(name)) return;
   if(aktModell().objects[name]){ toast(`„${name}" gibt es schon`); return; }
-  const text = goObjektAnlegen(aktText(), name, aktKopf());
+  const text = goObjektAnlegen(aktText(), name, aktZerleger());
   if(text == null){ toast(`Im Modelltext fehlt der Abschnitt "${S.mode === 'quellen' ? 'SourceTables' : 'BusinessObjects'}"`); return; }
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
@@ -6538,7 +6634,7 @@ const pfEingehend = name => Object.values(aktModell().objects)
 
 function pflegeObjektWeg(name){
   if(!pflegeErlaubt() || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(aktText(), name, aktKopf());
+  const text = goObjektLoeschen(aktText(), name, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   S.outlineText = uebersichtObjekt(S.outlineText, name, null);
   S.outline = null;
@@ -7126,7 +7222,8 @@ function renderDetails(){
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
        ${pflegeErlaubt() ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
-       ${tabelle ? `<dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
+       ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
+       <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
        <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
        <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
@@ -7954,6 +8051,71 @@ function splitBusinessObjects(text, kopf = BO_HEAD){
   const preEnd = firstIdx < 0 ? hi + 1 : firstIdx;
   return {childCol, blocks, pre: lines.slice(0, preEnd), post: lines.slice(endIdx)};
 }
+/* Die Quelltabellen-Datei zerlegen wie splitBusinessObjects, aber zwei Ebenen
+   tief: SourceTables › System › Tabelle. Heraus kommt dieselbe Form — pre,
+   blocks, post —, damit die Eingriffe der Pflege unverändert arbeiten: jede
+   Tabelle ist ein Block mit Kennung „System.Tabelle", die Kopfzeile eines
+   Systemabschnitts (samt Kommentaren bis zur ersten Tabelle) ein namenloser
+   Block dazwischen. Eine Tabelle der flachen Form (direkt unter SourceTables,
+   System im Feld source_system) ist ein Block mit flach: true. Dazu die
+   Werkzeuge, die nur hier gebraucht werden: Kopfname beim Umbenennen,
+   Umhängen in ein anderes System, Einhängen einer neuen Tabelle. */
+function splitQuellTabellen(text){
+  const B = splitBusinessObjects(text, QT_HEAD);
+  if(!B) return null;
+  const blocks = [];
+  let tabCol = null;
+  B.blocks.forEach(b=>{
+    const F = splitObjectFields(b.lines);
+    if(F.fields.some(f => QT_TABELLENFELDER.has(f.key))){
+      const sf = F.fields.find(f => QT_SYSTEM.includes(f.key));
+      const m = sf && sf.lines[0].match(/:\s*"?([^"#]*?)"?\s*(#.*)?$/);
+      const system = m && m[1].trim() ? m[1].trim() : null;
+      blocks.push({name: system ? system + '.' + b.name : b.name, system, flach: true, lines: b.lines});
+      return;
+    }
+    blocks.push({name: null, system: b.name, lines: [F.head, ...F.vorspann]});
+    F.fields.forEach(f=>{
+      if(tabCol == null) tabCol = yCol(f.lines[0]);
+      blocks.push({name: b.name + '.' + f.key, system: b.name, flach: false, lines: f.lines});
+    });
+  });
+  const sysCol = B.childCol != null ? B.childCol : 2;
+  const spalte = () => tabCol != null ? tabCol : sysCol + 2;
+  const R = {pre: B.pre, post: B.post, blocks, childCol: sysCol};
+  // Im Kopf einer Tabelle steht nur ihr eigener Name, das System steht darüber
+  R.kopfName = neu => neu.includes('.') ? neu.slice(neu.indexOf('.') + 1) : neu;
+  // Eine Tabelle in den Abschnitt ihres Systems setzen; fehlt er, am Ende anlegen
+  R.einhaengen = (blk, system)=>{
+    let kopf = blocks.findIndex(x => !x.name && x.system === system);
+    if(kopf < 0){
+      blocks.push({name: null, system, lines: [' '.repeat(sysCol) + system + ':']});
+      kopf = blocks.length - 1;
+    }
+    let i = kopf + 1;
+    while(i < blocks.length && blocks[i].name && blocks[i].system === system && !blocks[i].flach) i++;
+    const lines = shiftLines(blk.lines, spalte() - yCol(blk.lines[0]));
+    blocks.splice(i, 0, Object.assign({}, blk, {system, flach: false, lines}));
+  };
+  // Nach einem Systemwechsel die Tabelle umhängen; ein leerer Abschnitt entfällt
+  R.umhaengen = name=>{
+    const i = blocks.findIndex(x => x.name === name);
+    const system = name.slice(0, name.indexOf('.'));
+    if(i < 0 || blocks[i].flach || blocks[i].system === system) return;
+    const [blk] = blocks.splice(i, 1);
+    pfNachspann(blk.lines);
+    R.einhaengen(blk, system);
+    R.aufraeumen();
+  };
+  R.aufraeumen = ()=>{
+    for(let i = blocks.length - 1; i >= 0; i--){
+      const b = blocks[i];
+      if(!b.name && b.system && !blocks.some(x => x.name && x.system === b.system && !x.flach)) blocks.splice(i, 1);
+    }
+  };
+  return R;
+}
+
 const yCol = s => s.replace(/\t/g, '    ').match(/^ */)[0].length;
 const yBlank = s => s.trim() === '' || /^\s*#/.test(s);
 const shiftLines = (lines, d)=> d === 0 ? lines.slice() : lines.map(l => l.trim() === '' ? l
