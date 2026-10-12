@@ -91,8 +91,9 @@ Kasten herausnehmen und als **eigener Kasten** daneben stellen:
 
 - **Quellen** — jede Quelle eines Objekts wird ein eigener Kasten, verbunden
   über eine Linie mit der Beschriftung „quelle".
-- **Domäne** — die Domäne eines Objekts wird ein eigener Kasten, verbunden über
-  eine Linie mit der Beschriftung „Domäne".
+- **Domäne** — die **führende** Domäne eines Objekts wird ein eigener Kasten,
+  verbunden über eine Linie mit der Beschriftung „Domäne". Ohne führende
+  Domäne (mehrere Domänen, keine festgelegt — Kapitel 13) gibt es keinen.
 
 Beide Haken sind unabhängig und gelten in der Komplettansicht **und** in der
 Hierarchie. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
@@ -121,7 +122,7 @@ nicht.
 ### Die Objektliste
 
 Der Reiter **Objekte** listet alle Objekte des Modells, gruppiert nach ihrer
-**Domain** (Objekte ohne Domain unter „Ohne Domain"). Zu jedem Eintrag steht
+**führenden Domäne** (Objekte ohne führende Domäne unter „Ohne Domain"). Zu jedem Eintrag steht
 rechts eine Kurzbilanz: `3 BK · 12 A · 4 B` — Business Keys, Attribute,
 Beziehungen. Quellen- und Domänenkästen (Kapitel 3) stehen nicht in der Liste,
 sie gehören zu ihrem Objekt.
@@ -387,13 +388,22 @@ bleiben davon unberührt.
 
 **Das Formular** (Details → Bearbeiten) umfasst Name, Domain, Beschreibung,
 Business Keys und Quellen (Domain, Keys und Quellen jeweils durch Komma
-getrennt; eine Domäne wird als Einzelwert geschrieben, mehrere als Liste), die **Attribute**
+getrennt; eine Domäne wird als Einzelwert geschrieben, mehrere als Liste), die
+**führende Domäne** (Auswahl aus den Domänen), die **Attribute**
 (Name, Typ, `PK` / `AK` / `FK` / `null`, Verweisziel in der Form `Objekt.Attribut`;
 `×` entfernt eine Zeile, „＋ Attribut" hängt eine an) und die **ausgehenden
 Beziehungen** (Ziel aus der Liste, Name, Kardinalität an Quelle und Ziel).
 „Speichern" übernimmt, „Abbrechen" verwirft. Gespeichert wird nur, was
 vollständig ist: jedes Attribut braucht einen Namen, jede Beziehung ein Ziel,
 und der Objektname darf nicht doppelt vorkommen.
+
+**Führende Domäne.** Hat ein Objekt mehrere Domänen, wird nur die führende
+angezeigt — als Unterzeile im Kasten, als Domänen-Element und als Gruppe der
+Objektliste; die Details nennen alle und markieren die führende. Ohne
+festgelegte führende Domäne wird keine angezeigt, und die Prüfung meldet
+„mehrere Domänen, keine führende". Bei genau einer Domäne ist diese von selbst
+führend. Gespeichert wird sie als `leading_domain`; steht sie nicht unter
+Domain, wird sie trotzdem angezeigt und gemeldet.
 
 **Anlegen und Löschen.** „＋ Objekt" über der Liste fragt nach einem Namen und
 öffnet das Formular gleich. „Objekt löschen …" unten im Formular nimmt das
@@ -579,7 +589,7 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 
 | | Objekt fehlt → **anlegen** | Objekt vorhanden → **ergänzen** |
 | --- | --- | --- |
-| Domain | die der Tabelle | fehlende Domänen kommen in die Liste |
+| Domain | die der Tabelle | fehlende Domänen kommen in die Liste; hatte das Objekt genau eine, wird sie `leading_domain`, damit die Anzeige bleibt |
 | Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` — **nicht**, wenn derselbe Text schon dasteht |
 | Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
 | Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle **nur, wenn das Objekt keine hat**; die Primärschlüssel immer (s. u.) |
@@ -668,7 +678,8 @@ BusinessObjects:            # Pflichtabschnitt
 | Ebene | Feld | Bedeutung |
 | --- | --- | --- |
 | `meta` | `titel`, `urheber`, `lizenz`, `lizenz_url`, `hinweis` | Herkunft der Daten; wird beim Speichern mitgeführt |
-| Objekt | `Domain` | fachliche Domäne, eine (`Domain: Willibald`) oder mehrere als Liste; gruppiert die Objektliste — mit mehreren steht das Objekt in jeder Gruppe |
+| Objekt | `Domain` | fachliche Domäne, eine (`Domain: Willibald`) oder mehrere als Liste |
+| | `leading_domain` | die führende Domäne (auch `Leading_Domain`, `Führende_Domäne`); nur sie wird angezeigt und gruppiert die Objektliste. Bei genau einer Domain ist diese führend |
 | | `desc` | Beschreibung (auch mehrzeilig) |
 | | `business_keys` | Liste fachlicher Schlüssel |
 | | `source_systems` | Liste der Quellsysteme oder -tabellen |

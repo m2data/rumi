@@ -276,26 +276,58 @@ console.log('== Quelltabellen ohne Business Keys ==');
   api.setMode('komplett');
 }
 
-console.log('== Domain als Liste in der Oberfläche ==');
+console.log('== Führende Domäne: die Übernahme hält die Anzeige ==');
 {
-  const gruppen = [...$('objectList').querySelectorAll('.gname')].map(g => g.textContent);
-  t('Kunde steht in beiden Domänengruppen', ['WILLIBALD','CRM'].every(g => gruppen.includes(g))
-    && $('objectList').querySelectorAll('.ochk[data-id="o:Kunde"]').length === 2, gruppen.join(','));
+  const K = S.model.objects.Kunde;
+  t('aus einer Domäne wurde eine Liste, die bisherige ist führend', K.domains.join(',') === 'Willibald,CRM' && K.leading === 'Willibald',
+    K.leading);
+  t('geschrieben als leading_domain', /\n    leading_domain: Willibald\n/.test(block('Kunde')), block('Kunde'));
+  t('ein neues Objekt mit einer Domäne bekommt kein Feld', !/leading_domain/.test(block('Auftrag')) && !/leading_domain/.test(block('Lager')));
+}
+
+console.log('== Führende Domäne in der Oberfläche ==');
+{
+  api.setMode('komplett');
+  // Die Gruppen, in denen ein Objekt steht — aus dem Listenmarkup, Gruppe für Gruppe
+  const gruppenVon = id => $('objectList').innerHTML.split('<li class="grouphead').slice(1)
+    .filter(g => g.includes('data-id="' + id + '"')).map(g => (g.match(/class="gname"[^>]*>([^<]*)</) || [])[1]);
+  t('Kunde steht nur in der Gruppe seiner führenden Domäne', gruppenVon('o:Kunde').join(',') === 'WILLIBALD', gruppenVon('o:Kunde').join(','));
   S.content[1] = {domain:true}; api.applyContent();
-  t('die Unterzeile nennt beide', S.graph.byId.get('o:Kunde').sub === 'Willibald, CRM', S.graph.byId.get('o:Kunde').sub);
+  t('die Unterzeile nennt nur die führende', S.graph.byId.get('o:Kunde').sub === 'Willibald', S.graph.byId.get('o:Kunde').sub);
   klick('optDomaene');
-  const d = S.graph.nodes.filter(n => n.eltern === 'o:Kunde' && n.kind === 'domain');
-  t('ein Domänen-Kasten je Domäne, der erste mit der alten Kennung',
-    d.map(n => n.id).join(',') === 'd:Kunde,d:Kunde|CRM', d.map(n => n.id).join(','));
+  t('ein Domänen-Kasten, mit der alten Kennung',
+    S.graph.nodes.filter(n => n.eltern === 'o:Kunde' && n.kind === 'domain').map(n => n.id + '=' + n.name).join(',') === 'd:Kunde=Willibald');
   klick('optDomaene');
   S.filter = 'crm'; api.draw();
-  t('die Suche trifft auch die zweite Domäne', $('searchHits').textContent.startsWith('1/'), $('searchHits').textContent);
+  t('die Suche trifft weiter alle Domänen', $('searchHits').textContent.startsWith('1/'), $('searchHits').textContent);
   S.filter = ''; api.draw();
+  S.pflegeAn = true;                              // Strg+Z oben hat den direkt gesetzten Schalter mit zurückgenommen
   api.setSelection(['o:Kunde']);
-  t('die Details nennen beide', /<dt>Domain<\/dt><dd>Willibald, CRM<\/dd>/.test($('detailBody').innerHTML));
+  t('die Details nennen alle, die führende markiert',
+    $('detailBody').innerHTML.includes('<dt>Domain</dt><dd>Willibald (führend), CRM</dd>'), $('detailBody').innerHTML.slice(0, 600));
   t('die Details zeigen Table_Sources', /TABLE_SOURCES/.test($('detailBody').innerHTML) && /Webshop\.Kunde/.test($('detailBody').innerHTML));
 
-  S.pflegeAn = true;                              // Strg+Z oben hat den direkt gesetzten Schalter mit zurückgenommen
+  klick($('detailBody').querySelector('[data-edit]'));
+  t('das Formular hat eine Auswahl „Führende Domäne"', !!$('pfLeading') && $('pfLeading').value === 'Willibald'
+    && [...$('pfLeading').querySelectorAll('option')].map(o => o.getAttribute('value')).join(',') === ',Willibald,CRM');
+  const vorher = S.yamlText;
+  $('pfLeading').value = 'CRM';
+  klick('pfSave');
+  const a = vorher.split('\n'), b = S.yamlText.split('\n');
+  t('nur die Zeile leading_domain ändert sich', b.length === a.length && b.filter(l => !a.includes(l)).join('|') === '    leading_domain: CRM',
+    b.filter(l => !a.includes(l)).join('|'));
+  t('Unterzeile und Gruppe folgen', S.graph.byId.get('o:Kunde').sub === 'CRM' && gruppenVon('o:Kunde').join(',') === 'CRM');
+  api.setSelection(['o:Kunde']);
+  klick($('detailBody').querySelector('[data-edit]'));
+  $('pfLeading').value = '';
+  klick('pfSave');
+  t('ohne führende: das Feld entfällt', !/leading_domain/.test(block('Kunde')));
+  t('ohne führende: keine Unterzeile, Gruppe „Ohne Domain"', !S.graph.byId.get('o:Kunde').sub && gruppenVon('o:Kunde').join(',') === 'OHNE DOMAIN');
+  t('und die Prüfung erklärt es', S.model.messages.some(m => m.title === 'Kunde: mehrere Domänen, keine führende'));
+  api.undo(); api.undo();
+  t('Strg+Z bringt die führende zurück', S.model.objects.Kunde.leading === 'Willibald');
+
+  S.pflegeAn = true;                              // auch hier: Strg+Z nahm den direkt gesetzten Schalter mit
   api.setSelection(['o:Produkt']);
   klick($('detailBody').querySelector('[data-edit]'));
   $('pfDomain').value = 'Willibald, Lager';

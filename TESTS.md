@@ -88,7 +88,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   ohne Business Keys, die
   Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
   Überspringen beim Wiederholen, ein Verlaufsschritt, Erhalt der Herkunft beim
-  Bearbeiten; dazu Domain als Liste in Objektliste, Kasten, Domänen-Element,
+  Bearbeiten; dazu Domain als Liste und die führende Domäne (leading_domain) in
+  Objektliste, Kasten, Domänen-Element,
   Suche, Details und Formular.
 - **`quellen.js`** — die Ebene der Quelltabellen: Schalter „Quelltabellen
   verwenden" (Vorgabe aus, im Verlauf), Bereich mit den automatischen

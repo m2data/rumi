@@ -256,16 +256,12 @@ function renderObjectList(){
   $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
   const ul = $('objectList');
   const groups = new Map();
-  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne — mit
-  // mehreren Domänen steht ein Objekt in jeder ihrer Gruppen
+  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach ihrer führenden Domäne
   const quellen = S.mode === 'quellen';
   listedNodes().forEach(n=>{
-    const gs = quellen ? [n.ref.system || 'Ohne Quellsystem']
-             : (n.ref.domains.length ? n.ref.domains : ['Ohne Domain']);
-    gs.forEach(g=>{
-      if(!groups.has(g)) groups.set(g, []);
-      groups.get(g).push(n);
-    });
+    const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.fuehrend || 'Ohne Domain');
+    if(!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(n);
   });
   let html = '';
   const gidx = [];
@@ -456,7 +452,7 @@ function renderDetails(){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domains.includes(n.name)).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.fuehrend === n.name).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
@@ -477,7 +473,9 @@ function renderDetails(){
        ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
        <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
        <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
-       <dl class="kv"><dt>Domain</dt><dd>${o.domains.length ? esc(o.domains.join(', ')) : '—'}</dd></dl>
+       <dl class="kv"><dt>Domain</dt><dd>${o.domains.length
+         ? o.domains.map(d => esc(d) + (o.domains.length > 1 && d === o.leading ? ' (führend)' : '')).join(', ') : '—'}</dd></dl>
+       ${o.leading && !o.domains.includes(o.leading) ? `<dl class="kv"><dt>Führende Domäne</dt><dd>${esc(o.leading)}</dd></dl>` : ''}
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>

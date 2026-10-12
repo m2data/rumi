@@ -664,6 +664,44 @@ console.log('== Domain als Liste ==');
     && !has(M.messages, 'warn', 'A: keine Domain') && !has(M.messages, 'warn', 'B: keine Domain'));
 }
 
+console.log('== Führende Domäne ==');
+{
+  const M = buildModel([
+    'BusinessObjects:',
+    '  A:',
+    '    Domain:',
+    '    - A1',
+    '    - A2',
+    '    leading_domain: A2',
+    '  B:',
+    '    Domain: B1',
+    '  C:',
+    '    Domain:',
+    '    - C1',
+    '    - C2',
+    '  D:',
+    '    Domain: D1',
+    '    leading_domain: X',
+    '  E:',
+    '    Domain:',
+    '    - E1',
+    '    - E2',
+    '    Leading_Domain: E1',
+    '  F:',
+    '    Domain:',
+    '    - F1',
+    '    - F2',
+    '    Führende_Domäne: F2'
+  ].join('\n') + '\n');
+  const o = M.objects;
+  t('festgelegt: sie führt', o.A.fuehrend === 'A2' && !M.messages.some(m => m.obj === 'A' && /führend/.test(m.title)));
+  t('eine Domain führt ohne Feld', o.B.fuehrend === 'B1' && o.B.leading === null);
+  t('mehrere ohne Feld: keine führende, mit Info', o.C.fuehrend === null && has(M.messages, 'info', 'C: mehrere Domänen, keine führende'));
+  t('nicht gelistet: führt trotzdem, mit Hinweis', o.D.fuehrend === 'X' && has(M.messages, 'warn', 'D: führende Domäne nicht unter Domain'));
+  t('Schreibvarianten Leading_Domain und Führende_Domäne', o.E.fuehrend === 'E1' && o.F.fuehrend === 'F2');
+  t('kein Zusatzattribut', !['leading_domain','Leading_Domain','Führende_Domäne'].some(k => M.zusatz.objekt.has(k)));
+}
+
 console.log('== Herkunftsfelder aus der Übernahme ==');
 {
   const M = buildModel([

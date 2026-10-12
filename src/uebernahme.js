@@ -64,7 +64,11 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
     }
     if(e.tabQuellen.includes(t.name)){ r.uebersprungen++; continue; }
 
+    // Wird aus einer Domäne eine Liste, bleibt die bisherige führend — sonst
+    // verschwände die Anzeige bei einem Objekt, das bisher eine hatte
+    const bisher = e.domains.length === 1 && !e.leading ? e.domains[0] : null;
     t.domains.forEach(d=>{ if(!e.domains.includes(d)) e.domains.push(d); });
+    if(bisher && e.domains.length > 1) e.leading = bisher;
     // Eine Beschreibung, die schon dasteht, wird nicht noch einmal angehängt
     const text = String(t.desc || '').trim();
     if(text && !descEnthalten(e.desc, text)){

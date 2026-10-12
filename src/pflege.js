@@ -25,6 +25,7 @@ function yWert(v){
    Schlüssel weiterbenutzt, sonst der erste als Vorgabe. */
 const PF_FELDER = [
   {rolle:'domain',  keys:['Domain','domain']},
+  {rolle:'leading', keys:['leading_domain','Leading_Domain','Führende_Domäne']},
   {rolle:'desc',    keys:['desc','beschreibung','description']},
   {rolle:'keys',    keys:['business_keys','BusinessKeys']},
   {rolle:'sources', keys:['source_systems','sources']},
@@ -36,7 +37,7 @@ const PF_FELDER = [
   {rolle:'system',  keys:['source_system','Source_System']},
   {rolle:'bo',      keys:['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt']}
 ];
-const PF_EINZEL = ['desc','system','bo'];
+const PF_EINZEL = ['desc','leading','system','bo'];
 
 /* Welche Datei die Pflege gerade bearbeitet: im Bereich der Quelltabellen
    deren YAML, sonst das Geschäftsobjekt-Modell. */
@@ -495,7 +496,7 @@ function pflegeStart(id){
 function pfEntwurfAus(o){
   return {
     name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
-    domains: o.domains.slice(), desc: o.desc || '', tabQuellen: o.tabQuellen.slice(),
+    domains: o.domains.slice(), leading: o.leading || '', desc: o.desc || '', tabQuellen: o.tabQuellen.slice(),
     keys: o.keys.slice(), sources: o.sources.slice(),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
@@ -521,6 +522,7 @@ function pfLesen(){
   const liste = s => s.split(',').map(x => x.trim()).filter(Boolean);
   e.name = $('pfName').value.trim();
   e.domains = liste($('pfDomain').value);
+  e.leading = $('pfLeading').value;
   e.desc = $('pfDesc').value.trim();
   if($('pfKeys')) e.keys = liste($('pfKeys').value);
   if($('pfSources')) e.sources = liste($('pfSources').value);
@@ -562,6 +564,10 @@ function pflegeFormular(box){
   const quellen = S.mode === 'quellen';
   const gos = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
   if(e.bo && !gos.includes(e.bo)) gos.push(e.bo);        // unbekannte Zuordnung bleibt wählbar
+  // Führende Domäne: eine der Domänen; eine nicht gelistete bleibt wählbar
+  const leit = e.domains.concat(e.leading && !e.domains.includes(e.leading) ? [e.leading] : []);
+  const wahlLeading = `<select id="pfLeading" aria-label="Führende Domäne">`
+    + [['', '—'], ...leit.map(d => [d, d])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
   const wahlGO = `<select id="pfBO" aria-label="Geschäftsobjekt">`
     + [['', '—'], ...gos.map(g => [g, g])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
 
@@ -572,6 +578,7 @@ function pflegeFormular(box){
      <div class="pf">
        <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
        <label class="pfr"><span>Domain</span><input id="pfDomain" placeholder="eine oder mehrere, durch Komma getrennt"></label>
+       <label class="pfr"><span>Führende Domäne</span>${wahlLeading}</label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        ${quellen ? '' : '<label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>'}
        ${quellen
@@ -612,6 +619,7 @@ function pflegeFormular(box){
   // und Zeilenumbrüche durch die Maskierung verloren.
   $('pfName').value = e.name;
   $('pfDomain').value = e.domains.join(', ');
+  $('pfLeading').value = e.leading;
   $('pfDesc').value = e.desc;
   if(!quellen) $('pfKeys').value = e.keys.join(', ');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }

@@ -24,7 +24,9 @@ const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinali
    attribut_sources halten fest, aus welchen Quelltabellen ein Geschäftsobjekt
    übernommen wurde (uebernahme.js). */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
-  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships','Table_Sources']);
+  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships','Table_Sources',
+  'leading_domain','Leading_Domain','Führende_Domäne']);
+const LEADING_KEYS = ['leading_domain','Leading_Domain','Führende_Domäne'];
 const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references','attribut_sources']);
 
 // Ein Feld, das als Einzelwert oder als Liste stehen darf
@@ -206,6 +208,7 @@ function buildModel(text, art = 'go'){
     }));
     // Domain darf eine Liste sein; domain bleibt die erste für alles, was eine braucht
     const domains = alsListe(def.Domain != null ? def.Domain : def.domain);
+    const leading = ersterWert(def, LEADING_KEYS);
     objects[name] = {
       name,
       ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),
@@ -213,6 +216,9 @@ function buildModel(text, art = 'go'){
       attrs,
       domains,
       domain: domains[0] || null,
+      // Angezeigt wird nur die führende Domäne: festgelegt, oder die einzige
+      leading,
+      fuehrend: leading || (domains.length === 1 ? domains[0] : null),
       // Quelltabellen haben keine Business Keys: die des Geschäftsobjekts kommen aus ihren PKs
       keys: !quelle && Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
@@ -230,6 +236,12 @@ function buildModel(text, art = 'go'){
 
   for(const o of Object.values(objects)){
     if(!o.domains.length) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
+    if(o.leading && !o.domains.includes(o.leading)) messages.push({level:'warn', group:'führende Domäne nicht unter Domain', obj:o.name,
+      title:`${o.name}: führende Domäne nicht unter Domain`,
+      body:`"leading_domain: ${o.leading}" steht nicht in der Liste unter "Domain". Angezeigt wird sie trotzdem.`});
+    if(!o.leading && o.domains.length > 1) messages.push({level:'info', group:'mehrere Domänen, keine führende', obj:o.name,
+      title:`${o.name}: mehrere Domänen, keine führende`,
+      body:`${o.domains.join(', ')} — ohne "leading_domain" wird keine Domäne angezeigt (Kasten, Objektliste, Domänen-Element).`});
     if(!quelle && !o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
     if(quelle){
       if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
@@ -391,7 +403,7 @@ function makeGraph(model){
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
       }
     }
-    const showSub = C.domain && !E.domaene && o.domains.length ? o.domains.join(', ') : null;
+    const showSub = C.domain && !E.domaene && o.fuehrend ? o.fuehrend : null;   // nur die führende Domäne
     const showDesc = C.desc && !!o.desc;
 
     let rowW = 0;
@@ -451,8 +463,7 @@ function makeGraph(model){
     edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
   };
   for(const o of Object.values(model.objects)){
-    // Je Domäne ein Kasten; die erste behält die Kennung von früher, gelegte Positionen bleiben
-    if(E.domaene) o.domains.forEach((d, i)=> anhaengsel(o, 'd:'+o.name + (i ? '|' + d : ''), 'domain', d, 'domaene', 'Domäne'));
+    if(E.domaene && o.fuehrend) anhaengsel(o, 'd:'+o.name, 'domain', o.fuehrend, 'domaene', 'Domäne');   // nur die führende
     if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
   }
 
