@@ -210,7 +210,8 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     const neu = liste(e), vor = liste(alt);
     if(neu.join('\u0000') === vor.join('\u0000')) return f ? f.lines : [];
     if(!neu.length) return [];
-    if(neu.length === 1 && !(f && splitListItems(f).items.length)) return [' '.repeat(col) + key + ': ' + yWert(neu[0])];
+    // Eine Quelltabelle hat genau eine Domäne: immer als Einzelwert, auch statt einer älteren Liste
+    if(neu.length === 1 && (alt.tabelle !== undefined || !(f && splitListItems(f).items.length))) return [' '.repeat(col) + key + ': ' + yWert(neu[0])];
     return pfListe(f, col, key, neu, w => vor.includes(w) ? 'wert:' + w : null, (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
   }
   if(rolle === 'tabquellen' && !e.tabQuellen) return f ? f.lines : [];
@@ -522,7 +523,7 @@ function pfLesen(){
   const liste = s => s.split(',').map(x => x.trim()).filter(Boolean);
   e.name = $('pfName').value.trim();
   e.domains = liste($('pfDomain').value);
-  e.leading = $('pfLeading').value;
+  if($('pfLeading')) e.leading = $('pfLeading').value;
   e.desc = $('pfDesc').value.trim();
   if($('pfKeys')) e.keys = liste($('pfKeys').value);
   if($('pfSources')) e.sources = liste($('pfSources').value);
@@ -577,8 +578,8 @@ function pflegeFormular(box){
        <button class="hd-btn" id="pfCancel">Abbrechen</button></span></div>
      <div class="pf">
        <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
-       <label class="pfr"><span>Domain</span><input id="pfDomain" placeholder="eine oder mehrere, durch Komma getrennt"></label>
-       <label class="pfr"><span>Führende Domäne</span>${wahlLeading}</label>
+       <label class="pfr"><span>Domain</span><input id="pfDomain"${quellen ? '' : ' placeholder="eine oder mehrere, durch Komma getrennt"'}></label>
+       ${quellen ? '' : `<label class="pfr"><span>Führende Domäne</span>${wahlLeading}</label>`}
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        ${quellen ? '' : '<label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>'}
        ${quellen
@@ -619,7 +620,7 @@ function pflegeFormular(box){
   // und Zeilenumbrüche durch die Maskierung verloren.
   $('pfName').value = e.name;
   $('pfDomain').value = e.domains.join(', ');
-  $('pfLeading').value = e.leading;
+  if(!quellen) $('pfLeading').value = e.leading;
   $('pfDesc').value = e.desc;
   if(!quellen) $('pfKeys').value = e.keys.join(', ');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
@@ -673,6 +674,7 @@ function pflegeSpeichern(){
   if(!alt) return;
   const quellen = S.mode === 'quellen';
   if(quellen ? !qtNamePruefen(e.name, e.system) : !pfNamePruefen(e.name)) return;
+  if(quellen && e.domains.length > 1){ toast('Eine Quelltabelle hat genau eine Domäne'); return; }
   const neuName = quellen ? e.system + '.' + e.name : e.name;   // Kennung System.Tabelle
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }

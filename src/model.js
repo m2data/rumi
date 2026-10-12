@@ -206,9 +206,15 @@ function buildModel(text, art = 'go'){
       quellen: alsListe(a.attribut_sources),        // Herkunft System.Tabelle.Spalte, auch als Einzelwert lesbar
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
     }));
-    // Domain darf eine Liste sein; domain bleibt die erste für alles, was eine braucht
-    const domains = alsListe(def.Domain != null ? def.Domain : def.domain);
-    const leading = ersterWert(def, LEADING_KEYS);
+    // Domain darf am Geschäftsobjekt eine Liste sein; domain bleibt die erste
+    // für alles, was eine braucht. Eine Quelltabelle gehört zu genau einer
+    // Domäne — die Liste entsteht erst am Objekt, aus mehreren Tabellen.
+    const alleDomains = alsListe(def.Domain != null ? def.Domain : def.domain);
+    const domains = quelle ? alleDomains.slice(0, 1) : alleDomains;
+    if(quelle && alleDomains.length > 1) messages.push({level:'warn', group:'mehrere Domänen an einer Quelltabelle', obj:name,
+      title:`${name}: mehrere Domänen an einer Quelltabelle`,
+      body:`${alleDomains.join(', ')} — eine Quelltabelle gehört zu genau einer Domäne. Es gilt "${alleDomains[0]}".`});
+    const leading = quelle ? null : ersterWert(def, LEADING_KEYS);
     objects[name] = {
       name,
       ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),

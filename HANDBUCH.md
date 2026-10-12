@@ -519,11 +519,13 @@ Browser **neu laden** — sonst läuft weiter die zuvor geladene Fassung.
 ## 17. Quelltabellen
 
 Unter `source_systems` steht bei einem Geschäftsobjekt nur ein Name. Die Ebene
-der **Quelltabellen** formuliert diese Einträge aus: jede Tabelle mit denselben
-Feldern wie ein Geschäftsobjekt (Domain, Beschreibung, Business Keys,
-Attribute, Beziehungen zwischen Tabellen), dazu genau **ein Quellsystem** und
-das **Geschäftsobjekt**, dem sie zugeordnet ist. Eine oder mehrere Tabellen
-können demselben Geschäftsobjekt zugeordnet sein. Die Tabellen stehen in einer
+der **Quelltabellen** formuliert diese Einträge aus: jede Tabelle mit fast
+denselben Feldern wie ein Geschäftsobjekt (Beschreibung, Attribute,
+Beziehungen zwischen Tabellen), dazu genau **ein Quellsystem**, genau **eine
+Domäne** und das **Geschäftsobjekt**, dem sie zugeordnet ist. Eine oder
+mehrere Tabellen können demselben Geschäftsobjekt zugeordnet sein — kommen
+sie aus verschiedenen Domänen, führt das Geschäftsobjekt die Liste dieser
+Domänen samt einer führenden (Kapitel 13). Die Tabellen stehen in einer
 eigenen Datei (Anhang D).
 
 Eindeutig ist eine Tabelle erst **mit ihrem Quellsystem**: `Bestellung` kann es
@@ -569,8 +571,10 @@ Quelltabellen.
 „Geschäftsobjekte bearbeiten" (Kapitel 13), nur für die Tabellen: Formular im
 Reiter „Details", „＋ Objekt" über der Liste, Löschen, Strg+Z. Im Formular
 stehen **Tabelle** (der Name ohne System) und **Quellsystem** getrennt, statt
-„Quellen" gibt es eine Auswahl **Geschäftsobjekt**. Ein Punkt ist in beiden
-Namen nicht erlaubt, er trennt System und Tabelle. „＋ Objekt" fragt nach
+„Quellen" gibt es eine Auswahl **Geschäftsobjekt**. **Domain** nimmt genau
+einen Wert auf (mehrere werden abgelehnt), eine führende Domäne gibt es an
+Tabellen nicht. Ein Punkt ist in Tabelle und Quellsystem nicht erlaubt, er
+trennt beide. „＋ Objekt" fragt nach
 `System.Tabelle` und setzt die Tabelle in den Abschnitt ihres Systems.
 Geschrieben wird in die Tabellen-YAML, nur an der bearbeiteten Stelle.
 Umbenennen einer Tabelle zieht `to:`, `references:`, die Diagramme und die
@@ -871,6 +875,11 @@ SourceTables:                       # auch: Quelltabellen, source_tables
       business_object: Bestellung
 ```
 
+- `Domain` ist an einer Quelltabelle **ein Wert**. Steht doch eine Liste da,
+  gilt die erste Domäne, und die Prüfung meldet „mehrere Domänen an einer
+  Quelltabelle"; `leading_domain` wird an Tabellen nicht ausgewertet. Die
+  Domänenliste mit führender Domäne gehört ans Geschäftsobjekt: die Übernahme
+  hängt die Domäne jeder Tabelle an dessen Liste an.
 - Quelltabellen haben **keine Business Keys**: die des Geschäftsobjekts kommen
   aus den Attributen mit `primary_key`. Ein `business_keys` aus älteren Dateien
   wird nicht gelesen und bleibt beim Bearbeiten unverändert stehen.

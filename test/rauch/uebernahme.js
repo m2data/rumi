@@ -283,6 +283,7 @@ console.log('== Führende Domäne: die Übernahme hält die Anzeige ==');
     K.leading);
   t('geschrieben als leading_domain', /\n    leading_domain: Willibald\n/.test(block('Kunde')), block('Kunde'));
   t('ein neues Objekt mit einer Domäne bekommt kein Feld', !/leading_domain/.test(block('Auftrag')) && !/leading_domain/.test(block('Lager')));
+  t('und seine Domäne steht als Einzelwert', /\n  Auftrag:\n    Domain: Vertrieb\n/.test(S.yamlText), block('Auftrag'));
 }
 
 console.log('== Führende Domäne in der Oberfläche ==');
@@ -337,6 +338,53 @@ console.log('== Führende Domäne in der Oberfläche ==');
   api.undo();
   t('eine Domäne bleibt ein Einzelwert', /\n  Produkt:\n    Domain: Willibald\n/.test(S.yamlText));
   S.pflegeAn = false;
+}
+
+console.log('== Folgeläufe ergänzen die Domänenliste am Geschäftsobjekt ==');
+{
+  S.pflegeAn = true;
+  api.setMode('komplett');
+  api.setSelection(['o:Kunde']);
+  klick($('detailBody').querySelector('[data-edit]'));
+  $('pfLeading').value = 'CRM';
+  klick('pfSave');
+  const vorherQ = S.quellText;
+  // Zwei neue Tabellen: eine auf Kunde, eine auf Produkt
+  S.quellText = 'SourceTables:\n  Webshop:\n    Kunde_Log:\n      business_object: Kunde\n      Domain: Logistik\n'
+    + '    Artikel_Lager:\n      business_object: Produkt\n      Domain: Lager\n';
+  S.quellModell = api.buildModel(S.quellText, 'quelle');
+  klick(akt('uebernehmen'));
+  const K = S.model.objects.Kunde, P = S.model.objects.Produkt;
+  t('die Domäne wird angehängt, die bisherigen bleiben in ihrer Reihenfolge', K.domains.join(',') === 'Willibald,CRM,Logistik', K.domains.join(','));
+  t('eine gesetzte führende Domäne bleibt', K.leading === 'CRM' && /\n    leading_domain: CRM\n/.test(block('Kunde')), block('Kunde'));
+  t('im Folgelauf entsteht die Liste, die bisherige führt', P.domains.join(',') === 'Willibald,Lager' && P.leading === 'Willibald',
+    P.domains.join(',') + ' / ' + P.leading);
+  api.undo(); api.undo();
+  t('Strg+Z nimmt Übernahme und Formular zurück', S.model.objects.Kunde.leading === 'Willibald'
+    && S.model.objects.Kunde.domains.join(',') === 'Willibald,CRM', S.model.objects.Kunde.leading);
+  S.quellText = vorherQ; S.quellModell = api.buildModel(S.quellText, 'quelle');
+}
+
+console.log('== Formular der Quelltabelle: genau eine Domäne ==');
+{
+  api.loadQuellen(TAB, 'tabellen.yaml');          // eigener Ausgangsstand für diesen Abschnitt
+  api.setMode('quellen');
+  S.quellPflegeAn = true;
+  api.selectDiagram('Quellsysteme');
+  api.setSelection(['o:Webshop.Lager']);
+  klick($('detailBody').querySelector('[data-edit]'));
+  t('Feld Domain ja, Auswahl „Führende Domäne" nein', !!$('pfDomain') && $('pfDomain').value === 'Logistik' && !$('pfLeading'));
+  const vorher = S.quellText;
+  $('pfDomain').value = 'Logistik, Lager';
+  klick('pfSave');
+  t('zwei Domänen werden abgelehnt', S.quellText === vorher && /genau eine Domäne/.test($('toast').textContent), $('toast').textContent);
+  $('pfDomain').value = 'Lagerhaus';
+  klick('pfSave');
+  const a = vorher.split('\n'), b = S.quellText.split('\n');
+  t('eine Domäne wird als Einzelwert geschrieben, nur diese Zeile',
+    b.length === a.length && b.filter(l => !a.includes(l)).join('|') === '      Domain: Lagerhaus', b.filter(l => !a.includes(l)).join('|'));
+  api.undo();
+  api.setMode('komplett');
 }
 
 finish();

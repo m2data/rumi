@@ -702,6 +702,32 @@ console.log('== Führende Domäne ==');
   t('kein Zusatzattribut', !['leading_domain','Leading_Domain','Führende_Domäne'].some(k => M.zusatz.objekt.has(k)));
 }
 
+console.log('== Quelltabelle: genau eine Domäne ==');
+{
+  const Q = buildModel([
+    'SourceTables:',
+    '  Webshop:',
+    '    Einzeln:',
+    '      Domain: Vertrieb',
+    '    Liste:',
+    '      Domain:',
+    '      - A',
+    '      - B',
+    '    Fuehrend:',
+    '      Domain: A',
+    '      leading_domain: B'
+  ].join('\n') + '\n', 'quelle');
+  const o = Q.objects;
+  t('Einzelwert: die Domäne führt', o['Webshop.Einzeln'].domains.join(',') === 'Vertrieb' && o['Webshop.Einzeln'].fuehrend === 'Vertrieb'
+    && !Q.messages.some(m => m.obj === 'Webshop.Einzeln' && /Domän/.test(m.title)));
+  t('eine Liste an der Tabelle: es gilt die erste, mit Hinweis', o['Webshop.Liste'].domains.join(',') === 'A'
+    && has(Q.messages, 'warn', 'Webshop.Liste: mehrere Domänen an einer Quelltabelle'), Q.messages.map(m => m.title).join(' | '));
+  t('leading_domain an der Tabelle wird nicht ausgewertet', o['Webshop.Fuehrend'].fuehrend === 'A' && o['Webshop.Fuehrend'].leading === null
+    && !Q.messages.some(m => m.obj === 'Webshop.Fuehrend' && /führend/.test(m.title)) && !Q.zusatz.objekt.has('leading_domain'));
+  const G = buildModel('BusinessObjects:\n  A:\n    Domain:\n    - X\n    - Y\n    leading_domain: Y\n');
+  t('am Geschäftsobjekt bleibt die Liste samt führender', G.objects.A.domains.join(',') === 'X,Y' && G.objects.A.fuehrend === 'Y');
+}
+
 console.log('== Herkunftsfelder aus der Übernahme ==');
 {
   const M = buildModel([
