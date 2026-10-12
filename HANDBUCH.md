@@ -386,16 +386,28 @@ Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an de
 sich nichts verstellen lässt. Anordnen, Kanten umlenken und die Hierarchie
 bleiben davon unberührt.
 
-**Das Formular** (Details → Bearbeiten) umfasst Name, Domain, Beschreibung,
-Business Keys und Quellen (Domain, Keys und Quellen jeweils durch Komma
-getrennt; eine Domäne wird als Einzelwert geschrieben, mehrere als Liste), die
-**führende Domäne** (Auswahl aus den Domänen), die **Attribute**
+**Das Formular** (Details → Bearbeiten) umfasst Name, Domain, Beschreibung und
+Business Keys (Domain und Keys jeweils durch Komma getrennt; eine Domäne wird
+als Einzelwert geschrieben, mehrere als Liste), die **führende Domäne**
+(Auswahl aus den Domänen), die **Quellen** (siehe unten), die **Attribute**
 (Name, Typ, `PK` / `AK` / `FK` / `null`, Verweisziel in der Form `Objekt.Attribut`;
 `×` entfernt eine Zeile, „＋ Attribut" hängt eine an) und die **ausgehenden
 Beziehungen** (Ziel aus der Liste, Name, Kardinalität an Quelle und Ziel).
 „Speichern" übernimmt, „Abbrechen" verwirft. Gespeichert wird nur, was
 vollständig ist: jedes Attribut braucht einen Namen, jede Beziehung ein Ziel,
 und der Objektname darf nicht doppelt vorkommen.
+
+**Quellen ordnen und gruppieren.** Die Quellen stehen als Liste, die
+**wichtigste zuerst**; ↑ und ↓ verschieben eine Zeile, „＋ Quelle“ hängt eine
+an, × entfernt sie. Quellen können sich **überschneiden** (dieselben Kunden im
+Webshop und in der Roadshow): mindestens zwei markieren und „Markierte
+gruppieren“ — sie bilden eine Gruppe und tragen deren Marke („∩1“). Quellen
+einer Gruppe überschneiden sich, Gruppen untereinander und Quellen ohne Gruppe
+sind **disjunkt**. „Gruppe auflösen“ macht die markierten wieder disjunkt;
+bleibt eine Gruppe mit nur einer Quelle übrig, entfällt sie beim Speichern.
+Unter der Liste steht, wie viele disjunkte Einheiten es sind — bei fünf
+Quellen mit zwei Gruppen zu je zwei sind es drei. Die Details zeigen die
+Quellen nummeriert mit ihrer Gruppenmarke.
 
 **Führende Domäne.** Hat ein Objekt mehrere Domänen, wird nur die führende
 angezeigt — als Unterzeile im Kasten, als Domänen-Element und als Gruppe der
@@ -686,7 +698,7 @@ BusinessObjects:            # Pflichtabschnitt
 | | `leading_domain` | die führende Domäne (auch `Leading_Domain`, `Führende_Domäne`); nur sie wird angezeigt und gruppiert die Objektliste. Bei genau einer Domain ist diese führend |
 | | `desc` | Beschreibung (auch mehrzeilig) |
 | | `business_keys` | Liste fachlicher Schlüssel |
-| | `source_systems` | Liste der Quellsysteme oder -tabellen |
+| | `source_systems` | Liste der Quellsysteme oder -tabellen, **die wichtigste zuerst**. Ein Eintrag ist ein Name (`- Kunde`) oder, wenn die Quelle zu einer Gruppe sich überschneidender Quellen gehört, `- name: Bestellung` mit `overlap_group: 1`. Quellen derselben Gruppe überschneiden sich, alle anderen sind disjunkt; eine Gruppe mit nur einer Quelle wird gemeldet |
 | | `Table_Sources` | Liste der Quelltabellen (`System.Tabelle`), aus denen das Objekt übernommen wurde (Kapitel 17) |
 | | `attributes` | Liste der Attribute |
 | | `relationships` | Liste der ausgehenden Beziehungen; je Beziehung optional `Relation_Sources`: Liste der Quellbeziehungen `System.Tabelle→System.Tabelle` |

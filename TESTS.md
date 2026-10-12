@@ -74,7 +74,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download).
 - **`pflege.js`** — Geschäftsobjekte bearbeiten: Einstellung „Geschäftsobjekte
   bearbeiten" (Vorgabe aus, Haken im Menü „Einstellungen", nicht im Verlauf),
-  Formular im Reiter „Details", Text-Chirurgie am Modell-YAML (Kommentare und
+  Formular im Reiter „Details" (Quellen ordnen und überschneidend gruppieren),
+  Text-Chirurgie am Modell-YAML (Kommentare und
   Formatierung unberührter Stellen bleiben), Umbenennen samt Verweisen und
   Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben

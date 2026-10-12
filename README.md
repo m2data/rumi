@@ -25,7 +25,8 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Geschäftsobjekte und ihre Beziehungen
   im Reiter „Details"
   bearbeiten: Name, Domain (eine oder mehrere, dazu die führende, die als
-  einzige angezeigt wird), Beschreibung, Business Keys, Quellen, Attribute
+  einzige angezeigt wird), Beschreibung, Business Keys, Quellen (nach
+  Wichtigkeit sortiert, sich überschneidende als Gruppe markiert), Attribute
   (Typ, nullable, PK/AK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
   Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
   „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus.

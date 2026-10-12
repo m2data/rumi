@@ -481,7 +481,9 @@ function renderDetails(){
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
        ${tabelle ? '' : `<div class="grouphead">QUELLEN</div>
-       <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>`}
+       <div>${o.sources.length ? o.sources.map((s, i)=>`<span class="chip src">${i + 1}. ${esc(s)}${o.quellGruppe[s]
+           ? ` <span class="grp" title="überschneidet sich mit den anderen Quellen der Gruppe ${esc(o.quellGruppe[s])}">∩${esc(o.quellGruppe[s])}</span>` : ''}</span>`).join('') : '<span class="empty">keine</span>'}</div>
+       ${Object.keys(o.quellGruppe).length ? (n => `<div class="pfq-info">${n} disjunkte Einheit${n === 1 ? '' : 'en'}</div>`)(disjunkteEinheiten(o.sources, o.quellGruppe)) : ''}`}
        ${o.tabQuellen.length ? `<div class="grouphead">ÜBERNOMMEN AUS (TABLE_SOURCES)</div>
        <div>${o.tabQuellen.map(s=>`<span class="chip src">${esc(s)}</span>`).join('')}</div>` : ''}
        <div class="grouphead">ATTRIBUTE${o.attrs.length ? ' (' + o.attrs.length + ')' : ''}</div>

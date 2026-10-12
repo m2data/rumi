@@ -702,6 +702,39 @@ console.log('== Führende Domäne ==');
   t('kein Zusatzattribut', !['leading_domain','Leading_Domain','Führende_Domäne'].some(k => M.zusatz.objekt.has(k)));
 }
 
+console.log('== source_systems: Reihenfolge und überschneidende Gruppen ==');
+{
+  const {api: q} = load(['yaml.js', 'model.js'], ['buildModel', 'disjunkteEinheiten']);
+  const M = q.buildModel([
+    'BusinessObjects:',
+    '  A:',
+    '    source_systems:',
+    '    - name: S1',
+    '      overlap_group: 1',
+    '    - S2',
+    '    - name: S3',
+    '      overlap_group: 1',
+    '  B:',
+    '    source_systems:',
+    '    - X',
+    '    - Y',
+    '  C:',
+    '    source_systems:',
+    '    - name: Z',
+    '      overlap_group: 7',
+    '    - W'
+  ].join('\n') + '\n');
+  const o = M.objects;
+  t('gemischte Liste: Namen in Dateireihenfolge', o.A.sources.join(',') === 'S1,S2,S3', o.A.sources.join(','));
+  t('gemischte Liste: Gruppen', JSON.stringify(o.A.quellGruppe) === '{"S1":"1","S3":"1"}', JSON.stringify(o.A.quellGruppe));
+  t('ältere Datei: nur Kurzform, keine Gruppen', o.B.sources.join(',') === 'X,Y' && !Object.keys(o.B.quellGruppe).length);
+  t('Gruppe mit einer Quelle wird gemeldet', M.messages.some(m => m.level === 'info' && m.title === 'C: Gruppe mit einer Quelle'));
+  t('kein Zusatzattribut, keine Warnung „keine Quelle"', !M.messages.some(m => /keine Quelle/.test(m.title) && /^[AB]/.test(m.title)));
+  t('5 Quellen, zweimal zwei überschneidend: 3 disjunkte Einheiten',
+    q.disjunkteEinheiten(['A','B','C','D','E'], {A:'1', B:'1', C:'2', D:'2'}) === 3);
+  t('ohne Gruppen ist jede Quelle eine Einheit', q.disjunkteEinheiten(['A','B','C'], {}) === 3);
+}
+
 console.log('== Quelltabelle: genau eine Domäne ==');
 {
   const Q = buildModel([

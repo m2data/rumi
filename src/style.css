@@ -330,6 +330,13 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
   font:600 12px var(--ui);line-height:1;padding:2px 6px;cursor:pointer;
 }
 .pfx:hover{border-color:var(--err);color:var(--err)}
+.pfx[disabled]{opacity:.35;cursor:default;border-color:var(--hair);color:var(--muted)}
+/* Quellenliste: Reihenfolge und überschneidende Gruppen */
+.pfq .pfq-mark{width:12px;height:12px;margin:0;accent-color:var(--obj);flex:none}
+.pfq .pfq-nr{font-family:var(--mono);font-size:10px;color:var(--muted);flex:none;width:18px;text-align:right}
+.pfq .pfq-name{flex:1 1 auto;min-width:0}
+.pfq-grp,.chip .grp{font-family:var(--mono);font-size:10px;color:var(--hot);flex:none;min-width:18px}
+.pfq-info{font-size:10.5px;color:var(--muted);padding:2px 0 6px}
 .pfadd{
   background:none;border:0;padding:4px 2px;font:500 11px var(--ui);color:var(--obj);
   cursor:pointer;text-decoration:underline;text-underline-offset:2px;

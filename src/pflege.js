@@ -215,9 +215,21 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     return pfListe(f, col, key, neu, w => vor.includes(w) ? 'wert:' + w : null, (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
   }
   if(rolle === 'tabquellen' && !e.tabQuellen) return f ? f.lines : [];
-  if(rolle === 'keys' || rolle === 'sources' || rolle === 'tabquellen'){
-    const werte = {keys: e.keys, sources: e.sources, tabquellen: e.tabQuellen}[rolle];
-    const alte = new Set({keys: alt.keys, sources: alt.sources, tabquellen: alt.tabQuellen || []}[rolle]);
+  if(rolle === 'sources'){
+    // Reihenfolge = Wichtigkeit. Ein unveränderter Eintrag (gleicher Name,
+    // gleiche Gruppe) kommt mit seinen Zeilen zurück, auch verschoben; die
+    // Kurzform heißt bei listItemKey „wert:", die Langform „attr:" (name:)
+    const gNeu = e.quellGruppe || {}, gAlt = alt.quellGruppe || {}, alte = new Set(alt.sources);
+    const gruppeWert = g => /^[\w-]+$/.test(g) ? g : yWert(g);
+    return pfListe(f, col, key, e.sources,
+      w => !alte.has(w) || (gNeu[w] || null) !== (gAlt[w] || null) ? null : (gAlt[w] ? 'attr:' : 'wert:') + w,
+      (w, ic)=> gNeu[w]
+        ? [' '.repeat(ic) + '- name: ' + yWert(w), ' '.repeat(ic + 2) + 'overlap_group: ' + gruppeWert(gNeu[w])]
+        : [' '.repeat(ic) + '- ' + yWert(w)]);
+  }
+  if(rolle === 'keys' || rolle === 'tabquellen'){
+    const werte = {keys: e.keys, tabquellen: e.tabQuellen}[rolle];
+    const alte = new Set({keys: alt.keys, tabquellen: alt.tabQuellen || []}[rolle]);
     return pfListe(f, col, key, werte,
       w => alte.has(w) ? 'wert:' + w : null,
       (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
@@ -498,7 +510,9 @@ function pfEntwurfAus(o){
   return {
     name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
     domains: o.domains.slice(), leading: o.leading || '', desc: o.desc || '', tabQuellen: o.tabQuellen.slice(),
-    keys: o.keys.slice(), sources: o.sources.slice(),
+    keys: o.keys.slice(), sources: o.sources.slice(), quellGruppe: Object.assign({}, o.quellGruppe),
+    // Arbeitsliste fürs Formular: Zeile für Zeile, die Gruppe hängt an der Zeile, nicht am Namen
+    quellListe: (o.sources || []).map(s => ({name: s, gruppe: (o.quellGruppe || {})[s] || null})),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
@@ -526,7 +540,7 @@ function pfLesen(){
   if($('pfLeading')) e.leading = $('pfLeading').value;
   e.desc = $('pfDesc').value.trim();
   if($('pfKeys')) e.keys = liste($('pfKeys').value);
-  if($('pfSources')) e.sources = liste($('pfSources').value);
+  e.quellListe.forEach((q, i)=>{ const f = box.querySelector('.pfq-name[data-i="' + i + '"]'); if(f) q.name = f.value.trim(); });
   if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = feld('.pfo-extra', z).value.trim(); });
@@ -585,7 +599,7 @@ function pflegeFormular(box){
        ${quellen
          ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
             <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
-         : `<label class="pfr col"><span>Quellen</span><input id="pfSources" placeholder="durch Komma getrennt"></label>`}
+         : pfQuellenMarkup(e)}
        ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><input class="pfo-extra" data-i="${z}"></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
@@ -623,9 +637,9 @@ function pflegeFormular(box){
   if(!quellen) $('pfLeading').value = e.leading;
   $('pfDesc').value = e.desc;
   if(!quellen) $('pfKeys').value = e.keys.join(', ');
-  if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
-  else $('pfSources').value = e.sources.join(', ');
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
+  if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
+  else e.quellListe.forEach((q, i)=>{ feld('.pfq-name', i).value = q.name; });
   S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = e.extra[k]; });
   e.attrs.forEach((a,i)=>{
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
@@ -650,11 +664,72 @@ function pflegeFormular(box){
   $('pfDelete').addEventListener('click', ()=> pflegeLoeschen());
   box.querySelectorAll('[data-neu]').forEach(b=> b.addEventListener('click', ()=> pfZeileNeu(b.dataset.neu)));
   box.querySelectorAll('[data-weg]').forEach(b=> b.addEventListener('click', ()=> pfZeileWeg(b.dataset.weg, +b.dataset.i)));
+  box.querySelectorAll('[data-qzug]').forEach(b=> b.addEventListener('click', ()=> pfQuelleVerschieben(+b.dataset.i, +b.dataset.qzug)));
+  if($('pfqGruppieren')) $('pfqGruppieren').addEventListener('click', ()=> pfQuellenGruppieren(true));
+  if($('pfqLoesen')) $('pfqLoesen').addEventListener('click', ()=> pfQuellenGruppieren(false));
+}
+
+/* ---------- Quellen: Reihenfolge und überschneidende Gruppen ----------
+   Je Quelle eine Zeile; oben steht die wichtigste. Markierte lassen sich zu
+   einer Gruppe zusammenfassen: Quellen einer Gruppe überschneiden sich,
+   Gruppen untereinander und Quellen ohne Gruppe sind disjunkt. */
+function pfQuellenMarkup(e){
+  const zeilen = e.quellListe.map((q, i)=>`<div class="pfz pfq">
+      <input type="checkbox" class="pfq-mark" data-i="${i}" aria-label="Quelle markieren">
+      <span class="pfq-nr">${i + 1}.</span>
+      <input class="pfq-name" data-i="${i}" placeholder="Quelle" aria-label="Quelle">
+      <span class="pfq-grp" title="${q.gruppe ? 'überschneidet sich mit den anderen Quellen der Gruppe ' + esc(q.gruppe) : 'disjunkt'}">${q.gruppe ? '∩' + esc(q.gruppe) : ''}</span>
+      <button class="pfx" data-qzug="-1" data-i="${i}" title="wichtiger: nach oben" aria-label="nach oben"${i ? '' : ' disabled'}>↑</button>
+      <button class="pfx" data-qzug="1" data-i="${i}" title="weniger wichtig: nach unten" aria-label="nach unten"${i < e.quellListe.length - 1 ? '' : ' disabled'}>↓</button>
+      <button class="pfx" data-weg="src" data-i="${i}" title="Quelle entfernen" aria-label="Quelle entfernen">×</button></div>`).join('');
+  const n = new Set(e.quellListe.map((q, i)=> q.gruppe ? 'g:' + q.gruppe : 'q:' + i)).size;   // je Gruppe eine, sonst je Quelle
+  return `<div class="grouphead">QUELLEN (WICHTIGSTE ZUERST)</div>${zeilen}
+     <div class="pfz"><button class="pfadd" data-neu="src">＋ Quelle</button>
+       <button class="pfadd" id="pfqGruppieren" title="Die markierten Quellen überschneiden sich">Markierte gruppieren</button>
+       <button class="pfadd" id="pfqLoesen" title="Die markierten Quellen werden wieder disjunkt">Gruppe auflösen</button></div>
+     ${e.quellListe.length ? `<div class="pfq-info">${n} disjunkte Einheit${n === 1 ? '' : 'en'}</div>` : ''}`;
+}
+
+function pfQuelleVerschieben(i, d){
+  pfLesen();
+  const l = pfEntwurf.quellListe, j = i + d;
+  if(j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]];
+  renderDetails();
+}
+
+/* Gruppieren: die markierten bilden eine neue Gruppe (kleinste freie Nummer)
+   und verlassen ihre bisherige. Auflösen: die markierten werden disjunkt. */
+function pfQuellenGruppieren(zusammen){
+  pfLesen();
+  const box = $('detailBody'), l = pfEntwurf.quellListe;
+  const mark = l.map((_, i)=> !!(box.querySelector('.pfq-mark[data-i="' + i + '"]') || {}).checked);
+  const gew = l.filter((_, i)=> mark[i]);
+  if(zusammen && gew.length < 2){ toast('Mindestens zwei Quellen markieren'); return; }
+  if(!gew.length){ toast('Erst Quellen markieren'); return; }
+  let neu = null;
+  if(zusammen){
+    const belegt = new Set(l.filter((_, i)=> !mark[i]).map(q => q.gruppe).filter(Boolean));
+    for(let k = 1; !neu; k++) if(!belegt.has(String(k))) neu = String(k);
+  }
+  gew.forEach(q => q.gruppe = neu);
+  renderDetails();
+}
+
+/* Vor dem Schreiben: Namensliste und Gruppen aus der Arbeitsliste; eine Gruppe
+   mit nur einer Quelle bedeutet nichts und entfällt. */
+function pfQuellenUebernehmen(e){
+  const l = e.quellListe.filter(q => q.name);
+  const anzahl = {};
+  l.forEach(q => { if(q.gruppe) anzahl[q.gruppe] = (anzahl[q.gruppe] || 0) + 1; });
+  e.sources = l.map(q => q.name);
+  e.quellGruppe = Object.fromEntries(l.filter(q => q.gruppe && anzahl[q.gruppe] > 1).map(q => [q.name, q.gruppe]));
 }
 
 function pfZeileNeu(art){
   pfLesen();
-  if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
+  if(art === 'src') pfEntwurf.quellListe.push({name:'', gruppe:null});
+  else if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
   else {
     const ziele = Object.keys(aktModell().objects);
     pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
@@ -664,7 +739,7 @@ function pfZeileNeu(art){
 
 function pfZeileWeg(art, i){
   pfLesen();
-  (art === 'attr' ? pfEntwurf.attrs : pfEntwurf.rels).splice(i, 1);
+  ({src: pfEntwurf.quellListe, attr: pfEntwurf.attrs, rel: pfEntwurf.rels})[art].splice(i, 1);
   renderDetails();
 }
 
@@ -675,6 +750,7 @@ function pflegeSpeichern(){
   const quellen = S.mode === 'quellen';
   if(quellen ? !qtNamePruefen(e.name, e.system) : !pfNamePruefen(e.name)) return;
   if(quellen && e.domains.length > 1){ toast('Eine Quelltabelle hat genau eine Domäne'); return; }
+  if(!quellen) pfQuellenUebernehmen(e);
   const neuName = quellen ? e.system + '.' + e.name : e.name;   // Kennung System.Tabelle
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }

@@ -29,6 +29,17 @@ const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
 const LEADING_KEYS = ['leading_domain','Leading_Domain','Führende_Domäne'];
 const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references','attribut_sources']);
 
+/* source_systems: Kurzform „- Kunde" oder Eintrag mit name und overlap_group.
+   Quellen derselben Gruppe überschneiden sich, alles andere ist disjunkt. */
+function quellEintraege(roh){
+  return (Array.isArray(roh) ? roh : []).map(q =>
+    q && typeof q === 'object' ? {name: q.name != null ? String(q.name) : '', gruppe: q.overlap_group != null && q.overlap_group !== '' ? String(q.overlap_group) : null}
+                               : {name: q == null ? '' : String(q), gruppe: null}).filter(q => q.name);
+}
+/* Wie viele disjunkte Einheiten: jede Gruppe zählt einmal, jede Quelle ohne Gruppe einmal. */
+const disjunkteEinheiten = (sources, gruppe)=>
+  new Set(sources.map(s => gruppe[s] != null ? 'g:' + gruppe[s] : 'q:' + s)).size;
+
 // Ein Feld, das als Einzelwert oder als Liste stehen darf
 const alsListe = v => (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])).filter(x => x != null && x !== '').map(String);
 
@@ -227,7 +238,10 @@ function buildModel(text, art = 'go'){
       fuehrend: leading || (domains.length === 1 ? domains[0] : null),
       // Quelltabellen haben keine Business Keys: die des Geschäftsobjekts kommen aus ihren PKs
       keys: !quelle && Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
-      sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
+      // Reihenfolge = Wichtigkeit; ein Eintrag mit name/overlap_group gehört
+      // zu einer Gruppe sich überschneidender Quellen
+      sources: quellEintraege(quelle ? null : srcRaw).map(q => q.name),
+      quellGruppe: Object.fromEntries(quellEintraege(quelle ? null : srcRaw).filter(q => q.gruppe).map(q => [q.name, q.gruppe])),
       tabQuellen: alsListe(def.Table_Sources),
       rels,
       extra: extraAus(def, objKeys, zusatz.objekt)
@@ -261,6 +275,12 @@ function buildModel(text, art = 'go'){
       if(!srcUsage.has(s)) srcUsage.set(s, []);
       srcUsage.get(s).push(o.name);
     });
+    // Eine Gruppe aus einer einzigen Quelle überschneidet sich mit nichts
+    const proGruppe = {};
+    Object.values(o.quellGruppe || {}).forEach(g => proGruppe[g] = (proGruppe[g] || 0) + 1);
+    Object.entries(proGruppe).filter(([, n]) => n === 1).forEach(([g])=> messages.push({level:'info', group:'Gruppe mit einer Quelle', obj:o.name,
+      title:`${o.name}: Gruppe mit einer Quelle`,
+      body:`In overlap_group "${g}" steht nur eine Quelle — sie gilt als disjunkt.`}));
     // Attributnamen müssen im Objekt eindeutig sein: sonst ist nicht bestimmbar,
     // welchen Eintrag ein "references" meint, und die Anzeige wiederholt sich.
     const attrSeen = new Set(), attrDup = new Set();

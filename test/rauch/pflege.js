@@ -588,7 +588,8 @@ console.log('== Bedienweg: erste Quelle bei „source_systems: []" pflegen ==');
 
   t('das Objekt hat noch keine Quelle', S.model.objects.Topflappen.sources.length === 0);
   t('das Formular lässt sich öffnen', formularOeffnen('o:Topflappen'));
-  $('pfSources').value = 'Küchenschrank';
+  dispatch($('detailBody').querySelector('[data-neu="src"]'), 'click', {});   // „＋ Quelle"
+  $('detailBody').querySelector('.pfq-name[data-i="0"]').value = 'Küchenschrank';
   dispatch($('pfSave'), 'click', {});
 
   t('die gepflegte Quelle steht im Modell',
@@ -653,7 +654,8 @@ console.log('== Bedienweg: Quellen im alten Feld „sources" ==');
   t('die vorhandene Quelle ist gelesen', S.model.objects.Sieb.sources.join(',') === 'Schublade',
     JSON.stringify(S.model.objects.Sieb.sources));
   t('das Formular lässt sich öffnen', formularOeffnen('o:Sieb'));
-  $('pfSources').value = 'Schublade, Haken';
+  dispatch($('detailBody').querySelector('[data-neu="src"]'), 'click', {});   // „＋ Quelle"
+  $('detailBody').querySelector('.pfq-name[data-i="1"]').value = 'Haken';
   dispatch($('pfSave'), 'click', {});
 
   t('die zweite Quelle steht im Modell', S.model.objects.Sieb.sources.join(',') === 'Schublade,Haken',
@@ -875,6 +877,89 @@ console.log('== Bedienweg: Zusatzattribut an einem Attribut ==');
     /\n {6}schema\.org: https:\/\/schema\.org\/productID\n/.test(S.yamlText), S.yamlText);
   t('eine Liste am Attribut bleibt mit ihren Zeilen stehen', /\n {6}herkunft:\n {6}- Q1/.test(S.yamlText), S.yamlText);
   t('die Details zeigen den Wert', /productID/.test(detail().textContent));
+}
+
+console.log('== Bedienweg: Quellen ordnen und überschneidend gruppieren ==');
+{
+  const GO = [
+    'BusinessObjects:',
+    '  Bestellung:',
+    '    Domain: Willibald',
+    '    source_systems:',
+    '    - Bestellung   # Shop',
+    '    - Bestellung_VRS',
+    ''
+  ].join('\n');
+  await api.loadYaml(GO, 'quellen.yaml');
+  api.setMode('komplett'); api.setView();
+  S.pflegeAn = true;
+  const zeilen = ()=> [...detail().querySelectorAll('.pfq-name')].map(f => f.value);
+  const knopf = sel => dispatch(detail().querySelector(sel), 'click', {});
+  const markiere = (...is)=> is.forEach(i => { detail().querySelector('.pfq-mark[data-i="' + i + '"]').checked = true; });
+  const quellBlock = ()=> S.yamlText.slice(S.yamlText.indexOf('    source_systems:'));
+
+  t('das Formular hat eine Quellenliste statt des Kommafeldes', formularOeffnen('o:Bestellung')
+    && !$('pfSources') && zeilen().join(',') === 'Bestellung,Bestellung_VRS', zeilen().join(','));
+  t('oben kein ↑, unten kein ↓', detail().querySelector('[data-qzug="-1"][data-i="0"]').getAttribute('disabled') !== null
+    && detail().querySelector('[data-qzug="1"][data-i="1"]').getAttribute('disabled') !== null);
+  knopf('[data-qzug="1"][data-i="0"]');
+  t('↓ verschiebt die Zeile', zeilen().join(',') === 'Bestellung_VRS,Bestellung', zeilen().join(','));
+  dispatch($('pfSave'), 'click', {});
+  t('die Reihenfolge ist gespeichert', S.model.objects.Bestellung.sources.join(',') === 'Bestellung_VRS,Bestellung');
+  t('verschobene Zeilen bleiben Zeichen für Zeichen (der Kommentar auch)',
+    quellBlock() === '    source_systems:\n    - Bestellung_VRS\n    - Bestellung   # Shop\n', JSON.stringify(quellBlock()));
+
+  formularOeffnen('o:Bestellung');
+  markiere(0);
+  knopf('#pfqGruppieren');
+  t('eine markierte Quelle allein lässt sich nicht gruppieren', !detail().querySelector('.pfq-grp').textContent && /zwei/.test($('toast').textContent));
+  markiere(0, 1);
+  knopf('#pfqGruppieren');
+  t('zwei markierte bilden Gruppe 1', [...detail().querySelectorAll('.pfq-grp')].map(g => g.textContent).join(',') === '∩1,∩1');
+  t('das Formular nennt 1 disjunkte Einheit', /1 disjunkte Einheit(?!en)/.test(detail().textContent));
+  const vorher = S.yamlText;
+  dispatch($('pfSave'), 'click', {});
+  t('geschrieben als Einträge mit overlap_group',
+    quellBlock() === '    source_systems:\n    - name: Bestellung_VRS\n      overlap_group: 1\n    - name: Bestellung\n      overlap_group: 1\n', JSON.stringify(quellBlock()));
+  t('gelesen als Gruppe', JSON.stringify(S.model.objects.Bestellung.quellGruppe) === '{"Bestellung_VRS":"1","Bestellung":"1"}');
+  api.setSelection(['o:Bestellung']);
+  t('die Details zeigen Reihenfolge, Gruppe und Einheiten', /1\. Bestellung_VRS/.test(detail().textContent)
+    && /∩1/.test(detail().innerHTML) && /1 disjunkte Einheit(?!en)/.test(detail().textContent));
+  api.undo();
+  t('Strg+Z nimmt das Gruppieren zurück', S.yamlText === vorher);
+
+  // 5 Quellen, zwei Gruppen zu je zwei, eine allein → 3 disjunkte Einheiten
+  S.pflegeAn = true;
+  formularOeffnen('o:Bestellung');
+  ['C', 'D', 'E'].forEach(()=> knopf('[data-neu="src"]'));
+  ['C', 'D', 'E'].forEach((n, k)=> { detail().querySelector('.pfq-name[data-i="' + (k + 2) + '"]').value = n; });
+  markiere(0, 1); knopf('#pfqGruppieren');
+  markiere(2, 3); knopf('#pfqGruppieren');
+  t('zwei Gruppen, die fünfte disjunkt', [...detail().querySelectorAll('.pfq-grp')].map(g => g.textContent).join(',') === '∩1,∩1,∩2,∩2,',
+    [...detail().querySelectorAll('.pfq-grp')].map(g => g.textContent).join(','));
+  t('3 disjunkte Einheiten', /3 disjunkte Einheiten/.test(detail().textContent));
+  dispatch($('pfSave'), 'click', {});
+  const B = S.model.objects.Bestellung;
+  t('gespeichert: neue Quellen hinten, E als Kurzform', B.sources.join(',') === 'Bestellung_VRS,Bestellung,C,D,E'
+    && /\n    - E\n$/.test(S.yamlText) && B.quellGruppe.C === '2' && B.quellGruppe.D === '2' && !B.quellGruppe.E, quellBlock());
+
+  formularOeffnen('o:Bestellung');
+  markiere(2);
+  knopf('#pfqLoesen');
+  dispatch($('pfSave'), 'click', {});
+  t('aufgelöst: C disjunkt, D allein verliert die Gruppe', !S.model.objects.Bestellung.quellGruppe.C && !S.model.objects.Bestellung.quellGruppe.D
+    && /\n    - C\n    - D\n    - E\n$/.test(S.yamlText), quellBlock());
+
+  formularOeffnen('o:Bestellung');
+  knopf('[data-weg="src"][data-i="4"]');
+  dispatch($('pfSave'), 'click', {});
+  t('× entfernt eine Quelle', S.model.objects.Bestellung.sources.join(',') === 'Bestellung_VRS,Bestellung,C,D');
+
+  const quellenVorher = quellBlock();
+  formularOeffnen('o:Bestellung');
+  $('pfDomain').value = 'Shop';
+  dispatch($('pfSave'), 'click', {});
+  t('nur Domain geändert: die Quellen bleiben Zeichen für Zeichen, auch die Langform', quellBlock() === quellenVorher, quellBlock());
 }
 
 finish();
