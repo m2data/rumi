@@ -580,9 +580,9 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 | | Objekt fehlt → **anlegen** | Objekt vorhanden → **ergänzen** |
 | --- | --- | --- |
 | Domain | die der Tabelle | fehlende Domänen kommen in die Liste |
-| Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` |
-| Business Keys | die der Tabelle | nur, wenn das Objekt keine hat |
-| Attribute | alle, je mit `attribut_sources: Webshop.Bestellung.KundeID` | **nur, wenn das Objekt keine hat** |
+| Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` — **nicht**, wenn derselbe Text schon dasteht |
+| Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
+| Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle **nur, wenn das Objekt keine hat**; die Primärschlüssel immer (s. u.) |
 | Beziehungen | übernommen, Ziel umgesetzt | übernommen, Ziel umgesetzt |
 | Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben, wo das Objekt keinen Wert hat |
 | `Table_Sources` | `Webshop.Bestellung` | Tabelle angehängt |
@@ -591,11 +591,24 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   Zieltabelle (`to: Position`). Gibt es am Objekt schon eine Beziehung mit
   gleichem Ziel und gleichem Namen, kommt keine zweite dazu, nur ihre Herkunft:
   `Relation_Sources` nennt dann `Webshop.Bestellung→Webshop.Position` und
-  `Roadshow.Bestellung_VRS→Roadshow.Position_VRS`. Hat die Zieltabelle kein
-  Geschäftsobjekt, wird die Beziehung nicht übernommen und in der Rückmeldung
-  gezählt.
+  `Roadshow.Bestellung_VRS→Roadshow.Position_VRS`.
+- **Ziel ohne Geschäftsobjekt:** Zeigt eine Beziehung auf eine Tabelle ohne
+  `business_object`, wird sie ihrem eigenen Namen zugeordnet
+  (`Webshop.Lager` → Geschäftsobjekt `Lager`). Die Zuordnung wird in die
+  Tabellen-YAML geschrieben, danach wird die Tabelle wie jede andere
+  übernommen; gibt es das Objekt schon, wird es ergänzt. Das gilt auch weiter
+  entlang einer Kette (Lager → Regal). Die Rückmeldung nennt die so
+  angelegten Objekte, und der Reiter „Prüfung" zeigt sie als Info „aus
+  Beziehungsziel angelegt" — bis zur nächsten Übernahme oder bis ein anderes
+  Modell geladen wird; das steht in keinen Daten.
+- **Primärschlüssel:** Jedes Attribut mit `primary_key` wird Business Key des
+  Objekts, wenn es den Schlüssel noch nicht gibt, und sein Attribut wird
+  übernommen — auch in ein Objekt, das schon Attribute hat. Ist der Schlüssel
+  schon da, bekommt das gleichnamige Attribut nur die Quelle in
+  `attribut_sources` dazu (eine Liste, z. B.
+  `[Webshop.Bestellung.BestellungID, Roadshow.Bestellung_VRS.BestellungID]`).
 - **Verweise umsetzen:** `references: Webshop.Kunde.KundeID` wird
-  `Kunde.KundeID`; ohne Geschäftsobjekt am Ziel entfällt nur das Verweisziel.
+  `Kunde.KundeID`.
 - **Wiederholen:** Eine Tabelle, die schon in `Table_Sources` steht, gilt als
   übernommen und wird übersprungen — es wird nichts doppelt angehängt.
 - Die Rückmeldung zählt: „Übernahme: 1 angelegt, 5 ergänzt, 3 übersprungen".
@@ -667,7 +680,7 @@ BusinessObjects:            # Pflichtabschnitt
 | | `nullable` | `true` zeigt im Kasten ein `?` hinter dem Typ |
 | | `primary_key`, `alternate_key`, `foreign_key` | zeigen im Kasten `PK`, `AK` bzw. `FK`; PK und AK zugleich ist ein Fehler |
 | | `references` | Verweisziel `Objekt.Attribut` |
-| | `attribut_sources` | Herkunft `System.Tabelle.Spalte`, gesetzt von der Übernahme (Kapitel 17) |
+| | `attribut_sources` | Liste der Herkünfte `System.Tabelle.Spalte`, gesetzt von der Übernahme (Kapitel 17); ein Einzelwert wird auch gelesen |
 | Beziehung | `to` | Zielobjekt; Pflicht |
 | | `name` | Beschriftung an der Kante |
 | | `cardinality.from` / `.to` | Kardinalität an Quelle und Ziel |
@@ -833,9 +846,9 @@ SourceTables:                       # auch: Quelltabellen, source_tables
     Bestellung:                     # Tabelle, Kennung Webshop.Bestellung
       business_object: Bestellung   # auch: Geschäftsobjekt
       Domain: Willibald
-      business_keys:
-      - BestellungID
       attributes:
+      - name: BestellungID
+        primary_key: true           # wird Business Key des Geschäftsobjekts
       - name: KundeID
         foreign_key: true
         references: Webshop.Kunde.KundeID   # System.Tabelle.Spalte
@@ -847,6 +860,9 @@ SourceTables:                       # auch: Quelltabellen, source_tables
       business_object: Bestellung
 ```
 
+- Quelltabellen haben **keine Business Keys**: die des Geschäftsobjekts kommen
+  aus den Attributen mit `primary_key`. Ein `business_keys` aus älteren Dateien
+  wird nicht gelesen und bleibt beim Bearbeiten unverändert stehen.
 - Eindeutig ist `System.Tabelle`. Ein Punkt im System- oder Tabellennamen ist
   ein Fehler.
 - Verweise werden **voll qualifiziert** geschrieben: `to: System.Tabelle`,

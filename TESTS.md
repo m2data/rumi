@@ -81,8 +81,11 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
 - **`uebernahme.js`** — Geschäftsobjekte aus den Quelltabellen übernehmen:
   beim Laden der Datei und über das Menü, Anlegen und Ergänzen (Domäne,
-  Beschreibung mit Herkunftsmarke, Keys, Attribute nur in Objekte ohne,
-  umgesetzte Beziehungen und Verweise, eingeschaltete Zusatzfelder), die
+  Beschreibung mit Herkunftsmarke und ohne Doppel, Business Keys aus den
+  Primärschlüsseln, Attribute nur in Objekte ohne, umgesetzte Beziehungen und
+  Verweise, eingeschaltete Zusatzfelder), Geschäftsobjekte für
+  Beziehungsziele ohne Zuordnung samt Meldung in der Prüfung, Quelltabellen
+  ohne Business Keys, die
   Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
   Überspringen beim Wiederholen, ein Verlaufsschritt, Erhalt der Herkunft beim
   Bearbeiten; dazu Domain als Liste in Objektliste, Kasten, Domänen-Element,

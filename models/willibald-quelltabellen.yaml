@@ -12,8 +12,6 @@ SourceTables:
       business_object: Bestellung
       Domain: Willibald
       desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
-      business_keys:
-      - BestellungID
       attributes:
       - name: BestellungID
         type: bigint
@@ -48,8 +46,6 @@ SourceTables:
       business_object: Kategorie
       Domain: Willibald
       desc: Ordnet Produkte in eine hierarchische Warengruppenstruktur aus Ober- und Unterkategorien ein.
-      business_keys:
-      - KatID
       attributes:
       - name: KatID
         type: varchar(50)
@@ -78,8 +74,6 @@ SourceTables:
       business_object: Kunde
       Domain: Willibald
       desc: Repräsentiert eine kaufende Person mit Stamm-, Kontakt-, Geburts- und Zahlungsdaten.
-      business_keys:
-      - KundeID
       attributes:
       - name: KundeID
         type: char(13)
@@ -139,8 +133,6 @@ SourceTables:
       business_object: LieferDienst
       Domain: Willibald
       desc: Beschreibt einen Versand- oder Logistikdienstleister einschließlich seiner Kontakt- und Adressdaten.
-      business_keys:
-      - LieferDienstID
       attributes:
       - name: LieferDienstID
         type: varchar(30)
@@ -183,8 +175,6 @@ SourceTables:
       business_object: Lieferadresse
       Domain: Willibald
       desc: Enthält eine vom Kunden verwendete Adresse, an die Bestellungen oder einzelne Bestellpositionen geliefert werden können.
-      business_keys:
-      - LieferAdrID
       attributes:
       - name: LieferAdrID
         type: int
@@ -233,11 +223,6 @@ SourceTables:
       business_object: Lieferung
       Domain: Willibald
       desc: Dokumentiert die Zustellung einer Bestellposition an eine Lieferadresse durch einen Lieferdienst zu einem Lieferdatum.
-      business_keys:
-      - BestellungID
-      - PosID
-      - LieferAdrID
-      - LieferDienstID
       attributes:
       - name: BestellungID
         type: bigint
@@ -270,9 +255,6 @@ SourceTables:
       business_object: Position
       Domain: Willibald
       desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
-      business_keys:
-      - BestellungID
-      - PosID
       attributes:
       - name: BestellungID
         type: bigint
@@ -310,8 +292,6 @@ SourceTables:
       business_object: Produkt
       Domain: Willibald
       desc: Beschreibt einen angebotenen Artikel mit Zuordnung zur Kategorie sowie Preis-, Typ-, Umfang- und Pflanzinformationen.
-      business_keys:
-      - ProduktID
       attributes:
       - name: ProduktID
         type: int
@@ -350,8 +330,6 @@ SourceTables:
       business_object: WohnHistorie
       Domain: Willibald
       desc: Dokumentiert die zeitliche Historie der Wohnadressen eines Kunden mit Gültigkeitsbeginn und optionalem Gültigkeitsende.
-      business_keys:
-      - KundeID
       attributes:
       - name: KundeID
         type: char(13)
@@ -389,8 +367,6 @@ SourceTables:
       business_object: Bestellung
       Domain: Willibald
       desc: Repräsentiert einen Kundenauftrag mit Bestell- und gewünschtem Lieferdatum sowie dem auf die Bestellung angewendeten Rabatt.
-      business_keys:
-      - BestellungID
       attributes:
       - name: BestellungID
         type: bigint
@@ -425,9 +401,6 @@ SourceTables:
       business_object: Position
       Domain: Willibald
       desc: Repräsentiert eine einzelne Position einer Bestellung mit Produkt, Menge, Preis und gegebenenfalls abweichender Lieferadresse.
-      business_keys:
-      - BestellungID
-      - PosID
       attributes:
       - name: BestellungID
         type: bigint
@@ -459,8 +432,6 @@ SourceTables:
       business_object: VereinsPartner
       Domain: Willibald
       desc: Beschreibt einen Vereinspartner mit verantwortlichem Kunden beziehungsweise Vereinsvorsitz und gestaffelten Rabatten.
-      business_keys:
-      - VereinsPartnerID
       attributes:
       - name: VereinsPartnerID
         type: varchar(30)
@@ -491,6 +462,3 @@ SourceTables:
       business_object: href_termintreue
       Domain: Willibald
       desc: Definiert Wertebereiche zur fachlichen Klassifizierung der Termintreue anhand der Anzahl von Tagen.
-      business_keys:
-      - Anzahl_Tage_von
-      - Anzahl_Tage_bis

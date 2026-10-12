@@ -201,7 +201,7 @@ function buildModel(text, art = 'go'){
       ak: a.alternate_key === true,
       fk: a.foreign_key === true,
       ref: a.references || null,
-      quelle: a.attribut_sources != null && a.attribut_sources !== '' ? String(a.attribut_sources) : null,
+      quellen: alsListe(a.attribut_sources),        // Herkunft System.Tabelle.Spalte, auch als Einzelwert lesbar
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
     }));
     // Domain darf eine Liste sein; domain bleibt die erste für alles, was eine braucht
@@ -213,7 +213,8 @@ function buildModel(text, art = 'go'){
       attrs,
       domains,
       domain: domains[0] || null,
-      keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
+      // Quelltabellen haben keine Business Keys: die des Geschäftsobjekts kommen aus ihren PKs
+      keys: !quelle && Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
       tabQuellen: alsListe(def.Table_Sources),
       rels,
@@ -229,7 +230,7 @@ function buildModel(text, art = 'go'){
 
   for(const o of Object.values(objects)){
     if(!o.domains.length) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
-    if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
+    if(!quelle && !o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
     if(quelle){
       if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
         body:'Feld "source_system" fehlt. Die Tabelle erscheint in keinem Diagramm eines Quellsystems.'});

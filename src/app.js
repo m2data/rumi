@@ -26,6 +26,7 @@ const S = {
   quellText:'',             // Quelltabellen-YAML; leer = mitgelieferte Vorlage
   quellFileName:'willibald-quelltabellen.yaml',
   quellModell:null,         // aus quellModellBauen()
+  uebernahmeMeldungen:[],   // Infos der letzten Übernahme für die Prüfung (stehen in keinen Daten)
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',
   // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht

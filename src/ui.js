@@ -492,7 +492,7 @@ function renderDetails(){
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
-          + (a.quelle ? `<tr><td class="aref" colspan="3">aus ${esc(a.quelle)}</td></tr>` : '')
+          + (a.quellen.length ? `<tr><td class="aref" colspan="3">aus ${a.quellen.map(esc).join(', ')}</td></tr>` : '')
           + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
@@ -525,7 +525,9 @@ function renderDetails(){
 const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur diese Sitzung)
 
 function renderMessages(){
-  const list = aktModell().messages;
+  // Zu den Geschäftsobjekten die Infos der letzten Übernahme, solange es das Objekt gibt
+  const list = S.mode === 'quellen' ? aktModell().messages
+    : aktModell().messages.concat(S.uebernahmeMeldungen.filter(m => S.model.objects[m.obj]));
   const bad = list.filter(m => m.level !== 'info').length;
   const badge = $('msgBadge');
   badge.textContent = list.length;
@@ -1622,6 +1624,7 @@ async function loadYaml(text, name, preset){
     S.hidden = new Set();
     // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
     S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
+    S.uebernahmeMeldungen = [];             // gehörten zum vorigen Modell
     // Die Quelltabellen sind eine eigene Datei: ein neues Modell lässt sie stehen
     if(preset && typeof preset.quellYaml === 'string'){
       S.quellText = preset.quellYaml;

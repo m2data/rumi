@@ -1,8 +1,10 @@
 /* Rauchtest: Geschäftsobjekte aus den Quelltabellen übernehmen. Beim Laden
    einer Quelltabellen-Datei und über „Datei & Export → Geschäftsobjekte
    übernehmen" werden fehlende Objekte angelegt und vorhandene ergänzt, samt
-   Herkunft (Table_Sources, Relation_Sources, attribut_sources). Dazu Domain
-   als Liste in Modell, Oberfläche und Pflege. */
+   Herkunft (Table_Sources, Relation_Sources, attribut_sources). Business Keys
+   kommen aus den Primärschlüsseln der Tabellen; ein Beziehungsziel ohne
+   Geschäftsobjekt bekommt eins. Dazu Domain als Liste in Modell, Oberfläche
+   und Pflege. */
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
@@ -21,6 +23,7 @@ const fuettern = async (id, name, text)=>{
   dispatch(feld, 'change', {});
   await warte();
 };
+const quellen = q => (q || []).join(',');
 
 const GO = [
   'BusinessObjects:',
@@ -48,8 +51,6 @@ const TAB = [
   '      Domain: Vertrieb',
   '      desc: Ein Auftrag im Shop.',
   '      schema.org: https://schema.org/Order',
-  '      business_keys:',
-  '      - AuftragNr',
   '      attributes:',
   '      - name: AuftragNr',
   '        type: int',
@@ -74,18 +75,46 @@ const TAB = [
   '      schema.org: https://example.org/anders',
   '      attributes:',
   '      - name: KundeNr',
+  '        primary_key: true',
+  '      - name: Name',
   '    Lager:',
   '      Domain: Logistik',
+  '      desc: Ein Lager.',
+  '      attributes:',
+  '      - name: LagerID',
+  '        primary_key: true',
+  '      relationships:',
+  '      - to: Webshop.Regal',
+  '    Regal:',
+  '      attributes:',
+  '      - name: RegalID',
+  '        primary_key: true',
+  '    Produkt:',
+  '      Domain: Willibald',
+  '      attributes:',
+  '      - name: ProduktID',
+  '        primary_key: true',
   '  Roadshow:',
   '    Auftrag_RS:',
   '      business_object: Auftrag',
   '      Domain: Vertrieb',
+  '      desc: Ein Auftrag im Shop.',
   '      schema.org: https://example.org/rs',
   '      attributes:',
+  '      - name: AuftragNr',
+  '        primary_key: true',
   '      - name: Extra',
   '      relationships:',
   '      - to: Webshop.Kunde',
   '        name: gehört zu',
+  '      - to: Webshop.Produkt',
+  '        name: enthält',
+  '    Kunde_RS:',
+  '      business_object: Kunde',
+  '      desc: Eine Person.',
+  '      attributes:',
+  '      - name: KundeID',
+  '        primary_key: true',
   ''
 ].join('\n');
 
@@ -102,46 +131,76 @@ console.log('== Menü ==');
 }
 
 console.log('== Laden legt an und ergänzt ==');
-const vorherGO = S.yamlText;
+const vorherGO = S.yamlText, vorherTab = S.quellText;
 await fuettern('quellInput', 'tabellen.yaml', TAB);
 {
-  t('die Rückmeldung zählt', /Übernahme: 1 angelegt, 1 ergänzt, 0 übersprungen, 1 Beziehung\(en\) ohne Geschäftsobjekt am Ziel/.test($('toast').textContent),
+  t('die Rückmeldung zählt und nennt die Ziel-Objekte',
+    /Übernahme: 3 angelegt, 2 ergänzt, 0 übersprungen, 2 aus Beziehungsziel angelegt: Lager, Regal/.test($('toast').textContent),
     $('toast').textContent);
   const A = S.model.objects.Auftrag;
   t('Auftrag ist angelegt', !!A);
   t('mit der Domäne der Tabelle', A.domains.join(',') === 'Vertrieb');
-  t('Beschreibung samt Herkunftsmarke', A.desc === 'Ein Auftrag im Shop.\n--->aus Webshop.Auftrag kopiert', JSON.stringify(A.desc));
-  t('Business Keys übernommen', A.keys.join(',') === 'AuftragNr');
+  t('Beschreibung samt Herkunftsmarke, die gleiche der zweiten Tabelle nicht doppelt',
+    A.desc === 'Ein Auftrag im Shop.\n--->aus Webshop.Auftrag kopiert', JSON.stringify(A.desc));
+  t('Business Key aus dem Primärschlüssel', A.keys.join(',') === 'AuftragNr', A.keys.join(','));
   t('alle Attribute der ersten Tabelle, jedes mit attribut_sources',
-    A.attrs.map(a => a.name + '=' + a.quelle).join(',') === 'AuftragNr=Webshop.Auftrag.AuftragNr,KundeID=Webshop.Auftrag.KundeID,LagerID=Webshop.Auftrag.LagerID',
-    A.attrs.map(a => a.name + '=' + a.quelle).join(','));
-  t('nicht die der zweiten Tabelle', !A.attrs.some(a => a.name === 'Extra'));
-  t('references auf das Geschäftsobjekt umgesetzt', A.attrs.find(a => a.name === 'KundeID').ref === 'Kunde.KundeID');
-  const lager = A.attrs.find(a => a.name === 'LagerID');
-  t('ohne Zuordnung entfällt nur das Verweisziel', !lager.ref && lager.fk);
+    A.attrs.map(a => a.name).join(',') === 'AuftragNr,KundeID,LagerID'
+    && quellen(A.attrs[1].quellen) === 'Webshop.Auftrag.KundeID', A.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
+  t('der gleiche PK der zweiten Tabelle ergänzt nur die Quelle',
+    quellen(A.attrs[0].quellen) === 'Webshop.Auftrag.AuftragNr,Roadshow.Auftrag_RS.AuftragNr', quellen(A.attrs[0].quellen));
+  t('andere Attribute der zweiten Tabelle nicht', !A.attrs.some(a => a.name === 'Extra'));
+  t('references auf das Geschäftsobjekt umgesetzt', A.attrs[1].ref === 'Kunde.KundeID');
+  t('auch auf ein aus dem Ziel angelegtes', A.attrs[2].ref === 'Lager.LagerID', A.attrs[2].ref);
   t('PK und Typ bleiben', A.attrs[0].pk && A.attrs[0].type === 'int');
+  const kunde = A.rels.find(r => r.to === 'Kunde');
   t('die Beziehung zeigt aufs Geschäftsobjekt, Name und Kardinalität bleiben',
-    A.rels.length === 1 && A.rels[0].to === 'Kunde' && A.rels[0].name === 'gehört zu'
-    && A.rels[0].from === 'zero_or_many' && A.rels[0].toCard === 'exactly_one', JSON.stringify(A.rels));
+    kunde && kunde.name === 'gehört zu' && kunde.from === 'zero_or_many' && kunde.toCard === 'exactly_one', JSON.stringify(A.rels));
   t('die gleiche Beziehung der zweiten Tabelle kommt nicht doppelt, nur ihre Herkunft',
-    A.rels[0].quellen.join(',') === 'Webshop.Auftrag→Webshop.Kunde,Roadshow.Auftrag_RS→Webshop.Kunde', A.rels[0].quellen.join(','));
+    quellen(kunde.quellen) === 'Webshop.Auftrag→Webshop.Kunde,Roadshow.Auftrag_RS→Webshop.Kunde', quellen(kunde.quellen));
+  t('die Beziehung zum Ziel ohne Zuordnung wird übernommen',
+    A.rels.some(r => r.to === 'Lager' && quellen(r.quellen) === 'Webshop.Auftrag→Webshop.Lager'));
   t('Table_Sources nennt beide Tabellen', A.tabQuellen.join(',') === 'Webshop.Auftrag,Roadshow.Auftrag_RS');
   t('eingeschaltetes Zusatzfeld übernommen, die erste Tabelle zählt', A.extra['schema.org'] === 'https://schema.org/Order', A.extra['schema.org']);
 
   const K = S.model.objects.Kunde;
   t('Kunde: die Domäne ist in der Liste ergänzt', K.domains.join(',') === 'Willibald,CRM', K.domains.join(','));
-  t('Kunde: die Beschreibung ist unten angehängt',
+  t('Kunde: eine andere Beschreibung wird unten angehängt, eine gleiche nicht',
     K.desc === 'Eine Person.\n\nKundenstamm im Shop.\n--->aus Webshop.Kunde kopiert', JSON.stringify(K.desc));
-  t('Kunde: vorhandene Attribute bleiben, ohne attribut_sources',
-    K.attrs.map(a => a.name).join(',') === 'KundeID' && !K.attrs[0].quelle);
+  t('Kunde: neuer PK wird Business Key', K.keys.join(',') === 'KundeID,KundeNr', K.keys.join(','));
+  t('Kunde: sein Attribut kommt dazu, mit Quelle, die übrigen nicht',
+    K.attrs.map(a => a.name).join(',') === 'KundeID,KundeNr' && quellen(K.attrs[1].quellen) === 'Webshop.Kunde.KundeNr',
+    K.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
+  t('Kunde: PK schon Business Key → nur die Quelle am Attribut', quellen(K.attrs[0].quellen) === 'Roadshow.Kunde_RS.KundeID'
+    && K.keys.filter(k => k === 'KundeID').length === 1, quellen(K.attrs[0].quellen));
   t('Kunde: ein vorhandener Zusatzwert bleibt', K.extra['schema.org'] === 'https://schema.org/Person');
-  t('Kunde: Table_Sources', K.tabQuellen.join(',') === 'Webshop.Kunde');
+  t('Kunde: Table_Sources', K.tabQuellen.join(',') === 'Webshop.Kunde,Roadshow.Kunde_RS');
+
+  const L = S.model.objects.Lager, R = S.model.objects.Regal, P = S.model.objects.Produkt;
+  t('Lager aus dem Beziehungsziel angelegt, voll übernommen',
+    L && L.domains.join(',') === 'Logistik' && L.desc === 'Ein Lager.\n--->aus Webshop.Lager kopiert'
+    && L.keys.join(',') === 'LagerID' && L.tabQuellen.join(',') === 'Webshop.Lager', JSON.stringify(L));
+  t('die Kette weiter: Regal ebenso', R && R.keys.join(',') === 'RegalID' && L.rels.some(r => r.to === 'Regal'));
+  t('ein Ziel, das es als Geschäftsobjekt schon gibt, wird ergänzt',
+    P.tabQuellen.join(',') === 'Webshop.Produkt' && P.keys.join(',') === 'ProduktID', JSON.stringify(P));
+
+  const neu = S.quellText.split('\n'), alt = TAB.split('\n');
+  t('in der Tabellen-YAML sind nur die Zuordnungen dazugekommen',
+    neu.filter(l => !alt.includes(l)).join('|') === '      business_object: Lager|      business_object: Regal|      business_object: Produkt'
+    && alt.every(l => neu.includes(l)), neu.filter(l => !alt.includes(l)).join('|'));
+  t('die Tabellen sind zugeordnet', S.quellModell.objects['Webshop.Lager'].bo === 'Lager');
+
+  const msg = $('msgList').innerHTML;
+  t('die Prüfung meldet die aus Zielen angelegten', /Lager: aus Beziehungsziel angelegt|aus Beziehungsziel angelegt/.test(msg)
+    && $('msgList').querySelector('[data-msgobj="Lager"]') && $('msgList').querySelector('[data-msgobj="Regal"]'), msg.slice(0, 300));
+  klick($('msgList').querySelector('.mgh') || $('msgList').querySelector('[data-msgobj="Lager"]'));
+  klick($('msgList').querySelector('[data-msgobj="Lager"]'));
+  t('ein Klick springt zum Objekt', S.selected === 'o:Lager', S.selected);
+  t('Produkt (gab es schon) wird dort nicht gemeldet', S.uebernahmeMeldungen.map(m => m.obj).join(',') === 'Lager,Regal'
+    && !/Produkt: aus Beziehungsziel/.test(msg), S.uebernahmeMeldungen.map(m => m.obj).join(','));
 
   const kb = block('Kunde');
   t('der Kommentar vor dem Objekt bleibt', /# Stammdaten/.test(S.yamlText));
   t('der Kommentar an der Domain wandert mit', /Domain: +# Hauptdomäne\n    - Willibald\n    - CRM/.test(kb), kb);
-  t('Produkt bleibt Zeichen für Zeichen', S.yamlText.includes('\n  Produkt:\n    Domain: Willibald\n    schema.org:\n')
-    && !/Table_Sources/.test(block('Produkt')), JSON.stringify(block('Produkt')));
   t('keine Prüfmeldung „Geschäftsobjekt unbekannt"', !S.quellModell.messages.some(m => /unbekannt/.test(m.title)));
   t('keine Fehler im Geschäftsobjekt-Modell', !S.model.messages.some(m => m.level === 'err'),
     S.model.messages.filter(m => m.level === 'err').map(m => m.title).join(' | '));
@@ -149,31 +208,32 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
 
 console.log('== Wiederholen ändert nichts ==');
 {
-  const vorher = S.yamlText;
+  const vorher = S.yamlText, vorherQ = S.quellText;
   klick(akt('uebernehmen'));
-  t('Rückmeldung: alles übersprungen', /Übernahme: 0 angelegt, 0 ergänzt, 3 übersprungen/.test($('toast').textContent), $('toast').textContent);
-  t('der Modelltext ist unverändert', S.yamlText === vorher);
+  t('Rückmeldung: alles übersprungen', /Übernahme: 0 angelegt, 0 ergänzt, 7 übersprungen$/.test($('toast').textContent), $('toast').textContent);
+  t('beide Texte unverändert', S.yamlText === vorher && S.quellText === vorherQ);
   api.undo();
   t('kein eigener Verlaufsschritt: Strg+Z nimmt das Laden zurück', S.yamlText === vorherGO && !S.model.objects.Auftrag);
-  t('auch die Tabellen sind wieder die vorigen', !Object.keys(S.quellModell.objects).includes('Webshop.Auftrag'));
+  t('auch die Tabellen sind wieder die vorigen', S.quellText === vorherTab);
+  t('die Meldung verschwindet mit dem Objekt', !$('msgList').querySelector('[data-msgobj="Lager"]'));
   api.redo();
-  t('Strg+Y bringt beides wieder', !!S.model.objects.Auftrag && !!S.quellModell.objects['Webshop.Auftrag']);
+  t('Strg+Y bringt beides wieder', !!S.model.objects.Lager && S.quellModell.objects['Webshop.Lager'].bo === 'Lager');
 }
 
 console.log('== Menü übernimmt eine neue Tabelle ==');
 {
   S.zusatzAn = {objekt:[], attribut:[]};          // schema.org ausgeschaltet
   // Eine Tabelle kommt dazu, ohne dass eine Datei geladen wird (wie nach dem Bearbeiten)
-  S.quellText = TAB.replace('  Roadshow:\n', '    Artikel:\n      business_object: Produkt\n      Domain: Willibald\n      schema.org: https://schema.org/Product\n      desc: Artikelstamm.\n  Roadshow:\n');
+  S.quellText = S.quellText.replace('  Roadshow:\n', '    Artikel:\n      business_object: Produkt\n      Domain: Willibald\n      schema.org: https://schema.org/Product\n      desc: Artikelstamm.\n  Roadshow:\n');
   S.quellModell = api.buildModel(S.quellText, 'quelle');
   const vorher = S.yamlText;
   klick(akt('uebernehmen'));
   const P = S.model.objects.Produkt;
-  t('Produkt ergänzt', P.tabQuellen.join(',') === 'Webshop.Artikel' && /--->aus Webshop.Artikel kopiert$/.test(P.desc), JSON.stringify(P));
+  t('Produkt ergänzt', P.tabQuellen.join(',') === 'Webshop.Produkt,Webshop.Artikel' && /--->aus Webshop.Artikel kopiert$/.test(P.desc), JSON.stringify(P));
   t('die Domäne ist schon da, nichts doppelt', P.domains.join(',') === 'Willibald');
   t('ausgeschaltetes Zusatzfeld wird nicht übernommen', !P.extra['schema.org'], P.extra['schema.org']);
-  t('Produkt hatte keine Attribute und keine bekommen (Tabelle hat keine)', !P.attrs.length);
-  t('die übrigen Tabellen übersprungen', /0 angelegt, 1 ergänzt, 3 übersprungen/.test($('toast').textContent), $('toast').textContent);
+  t('die übrigen Tabellen übersprungen', /0 angelegt, 1 ergänzt, 7 übersprungen/.test($('toast').textContent), $('toast').textContent);
+  t('die Infos zum Beziehungsziel gelten bis zur nächsten Übernahme', !S.uebernahmeMeldungen.length);
   api.undo();
   t('Strg+Z nimmt die Übernahme in einem Schritt zurück', S.yamlText === vorher, S.yamlText.slice(-120));
   api.redo();
@@ -190,16 +250,34 @@ console.log('== Pflege erhält die Herkunft ==');
   document.querySelector('.pfb-name[data-i="0"]').value = 'gehört zum';
   klick('pfSave');
   const A = S.model.objects.Auftrag;
-  t('umbenanntes Attribut behält attribut_sources', A.attrs[0].name === 'AuftragNummer' && A.attrs[0].quelle === 'Webshop.Auftrag.AuftragNr');
-  t('unveränderte Attribute ebenso', A.attrs[1].quelle === 'Webshop.Auftrag.KundeID');
+  t('umbenanntes Attribut behält attribut_sources',
+    A.attrs[0].name === 'AuftragNummer' && quellen(A.attrs[0].quellen) === 'Webshop.Auftrag.AuftragNr,Roadshow.Auftrag_RS.AuftragNr');
+  t('unveränderte Attribute ebenso', quellen(A.attrs[1].quellen) === 'Webshop.Auftrag.KundeID');
   t('umbenannte Beziehung behält Relation_Sources', A.rels[0].name === 'gehört zum' && A.rels[0].quellen.length === 2);
   t('Table_Sources bleibt', A.tabQuellen.length === 2);
   api.undo();
 }
 
+console.log('== Quelltabellen ohne Business Keys ==');
+{
+  api.loadQuellen('SourceTables:\n  CRM:\n    Person:\n      business_object: Kunde\n      business_keys:\n      - KundeID\n      desc: Eine Person.\n', 'alt.yaml');
+  t('ein altes business_keys wird nicht gelesen', S.quellModell.objects['CRM.Person'].keys.length === 0
+    && !S.quellModell.messages.some(m => m.group === 'kein Business Key'));
+  api.setMode('quellen');
+  klick('optQuellPflege');
+  api.selectDiagram('Quellsysteme');
+  api.setSelection(['o:CRM.Person']);
+  klick($('detailBody').querySelector('[data-edit]'));
+  t('das Formular der Tabelle hat kein Feld „Business Keys"', !!$('pfName') && !$('pfKeys'));
+  $('pfDesc').value = 'Ein Mensch.';
+  klick('pfSave');
+  t('beim Speichern bleibt das alte Feld im Text stehen', /business_keys:\n      - KundeID\n/.test(S.quellText) && /desc: Ein Mensch\./.test(S.quellText), S.quellText);
+  api.undo(); api.undo();
+  api.setMode('komplett');
+}
+
 console.log('== Domain als Liste in der Oberfläche ==');
 {
-  api.setMode('komplett');
   const gruppen = [...$('objectList').querySelectorAll('.gname')].map(g => g.textContent);
   t('Kunde steht in beiden Domänengruppen', ['WILLIBALD','CRM'].every(g => gruppen.includes(g))
     && $('objectList').querySelectorAll('.ochk[data-id="o:Kunde"]').length === 2, gruppen.join(','));

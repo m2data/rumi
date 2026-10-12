@@ -61,7 +61,10 @@ function pfAttrZeilen(a, col, altEintrag){
   if(a.ak)       z.push(i + 'alternate_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
-  if(a.quelle)   z.push(i + 'attribut_sources: ' + yWert(a.quelle));
+  if(a.quellen && a.quellen.length){
+    z.push(i + 'attribut_sources:');
+    a.quellen.forEach(q => z.push(i + '- ' + yWert(q)));
+  }
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
   // verschwänden sie, sobald das Attribut neu geschrieben wird. Ein leerer
   // Wert bleibt als Platzhalter stehen, wenn er schon in der Datei stand.
@@ -114,7 +117,7 @@ const pfExtraGleich = (x = {}, y = {}) =>
   [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
   && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
-  && (a.quelle||'') === (b.quelle||'') && pfExtraGleich(a.extra, b.extra);
+  && (a.quellen||[]).join('\u0000') === (b.quellen||[]).join('\u0000') && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
   && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'')
   && (a.quellen||[]).join('\u0000') === (b.quellen||[]).join('\u0000');
@@ -243,6 +246,8 @@ function goObjektAendern(text, name, e, alt, zerleger = splitBusinessObjects){
   // Eine gruppierte Quelltabelle hat ihr System im Abschnitt, nicht im Feld:
   // ein Systemwechsel hängt sie um (goUmbenennen), statt source_system zu schreiben.
   if(blk.flach === false) fertig.add('system');
+  // Quelltabellen haben keine Business Keys; ein Feld aus älteren Dateien bleibt, wie es ist
+  if(blk.flach !== undefined) fertig.add('keys');
   F.fields.forEach(f=>{
     const rolle = pfRolle(f.key);
     if(!rolle && f.key in extra && !fertig.has('+' + f.key)){
@@ -496,7 +501,7 @@ function pfEntwurfAus(o){
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
     extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quelle:a.quelle||'', extra:Object.assign({}, a.extra), _alt:a})),
+                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quellen:a.quellen.slice(), extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', quellen:r.quellen.slice(), _alt:r}))
   };
 }
@@ -517,7 +522,7 @@ function pfLesen(){
   e.name = $('pfName').value.trim();
   e.domains = liste($('pfDomain').value);
   e.desc = $('pfDesc').value.trim();
-  e.keys = liste($('pfKeys').value);
+  if($('pfKeys')) e.keys = liste($('pfKeys').value);
   if($('pfSources')) e.sources = liste($('pfSources').value);
   if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
@@ -568,7 +573,7 @@ function pflegeFormular(box){
        <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
        <label class="pfr"><span>Domain</span><input id="pfDomain" placeholder="eine oder mehrere, durch Komma getrennt"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
-       <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
+       ${quellen ? '' : '<label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>'}
        ${quellen
          ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
             <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
@@ -608,7 +613,7 @@ function pflegeFormular(box){
   $('pfName').value = e.name;
   $('pfDomain').value = e.domains.join(', ');
   $('pfDesc').value = e.desc;
-  $('pfKeys').value = e.keys.join(', ');
+  if(!quellen) $('pfKeys').value = e.keys.join(', ');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
   else $('pfSources').value = e.sources.join(', ');
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');

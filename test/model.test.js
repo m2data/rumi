@@ -603,6 +603,10 @@ console.log('== Quelltabellen: gruppiert nach Quellsystem ==');
 
   const P = buildModel('SourceTables:\n  Web.shop:\n    T:\n      Domain: D\n', 'quelle');
   t('Punkt im Namen ist ein Fehler', has(P.messages, 'err', 'Web.shop.T: Punkt im Namen'), P.messages.map(m => m.title).join(' | '));
+  const BK = buildModel('SourceTables:\n  Webshop:\n    T:\n      Domain: D\n      business_keys:\n      - X\n', 'quelle');
+  t('Quelltabellen haben keine Business Keys', BK.objects['Webshop.T'].keys.length === 0
+    && !BK.messages.some(m => m.group === 'kein Business Key') && !BK.zusatz.objekt.has('business_keys'),
+    BK.messages.map(m => m.title).join(' | '));
   const X = buildModel('SourceTables:\n  Webshop:\n    T:\n      source_system: Roadshow\n', 'quelle');
   t('widersprüchliches Quellsystem wird gemeldet, es gilt der Abschnitt',
     has(X.messages, 'warn', 'Webshop.T: Quellsystem widersprüchlich') && X.objects['Webshop.T'].system === 'Webshop');
@@ -681,7 +685,9 @@ console.log('== Herkunftsfelder aus der Übernahme ==');
   ].join('\n') + '\n');
   const A = M.objects.A;
   t('Table_Sources wird gelesen', A.tabQuellen.join(',') === 'Webshop.A,Roadshow.A', JSON.stringify(A.tabQuellen));
-  t('attribut_sources wird gelesen', A.attrs[0].quelle === 'Webshop.A.ID');
+  t('attribut_sources als Einzelwert wird eine Liste', A.attrs[0].quellen.join(',') === 'Webshop.A.ID');
+  const L = buildModel('BusinessObjects:\n  A:\n    attributes:\n    - name: ID\n      attribut_sources:\n      - Webshop.A.ID\n      - Roadshow.A.ID\n');
+  t('attribut_sources als Liste', L.objects.A.attrs[0].quellen.join(',') === 'Webshop.A.ID,Roadshow.A.ID');
   t('Relation_Sources wird gelesen', A.rels[0].quellen.join(',') === 'Webshop.A→Webshop.B' && A.rels[0].name === 'hat');
   t('keines davon ist ein Zusatzattribut', !M.zusatz.objekt.has('Table_Sources') && !M.zusatz.attribut.has('attribut_sources')
     && !('attribut_sources' in A.attrs[0].extra));
@@ -695,6 +701,7 @@ console.log('== Quelltabellen: Beispieldatei ==');
   const WQ = buildModel(fs.readFileSync(path.join(dir, 'willibald-quelltabellen.yaml'), 'utf8'), 'quelle');
   const systeme = [...new Set(Object.values(WQ.objects).map(o => o.system))].sort();
   t('13 Tabellen', Object.keys(WQ.objects).length === 13, Object.keys(WQ.objects).length);
+  t('kein business_keys mehr in der Datei', !/business_keys/.test(fs.readFileSync(path.join(dir, 'willibald-quelltabellen.yaml'), 'utf8')));
   t('drei Quellsysteme', systeme.join(',') === 'Referenzdaten,Roadshow,Webshop', systeme.join(','));
   t('Kennungen System.Tabelle', Object.values(WQ.objects).every(o => o.name === o.system + '.' + o.tabelle));
   t('keine Fehler und Hinweise', !WQ.messages.some(m => m.level !== 'info'),

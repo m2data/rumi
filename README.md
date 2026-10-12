@@ -49,9 +49,11 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   allen seinen Tabellen verbunden. Gepflegt wird über „Quelltabellen
   bearbeiten" wie bei den Geschäftsobjekten. Beim Laden der Tabellen und über
   „Datei & Export → Geschäftsobjekte übernehmen" entstehen aus ihnen die
-  zugeordneten Geschäftsobjekte bzw. werden ergänzt — Domäne, Beschreibung,
-  Beziehungen, Attribute (nur in Objekte ohne), eingeschaltete Zusatzfelder —
-  mit Herkunft in `Table_Sources`, `Relation_Sources` und `attribut_sources`.
+  zugeordneten Geschäftsobjekte bzw. werden ergänzt — Domäne, Beschreibung
+  (keine gleiche doppelt), Beziehungen, Attribute (nur in Objekte ohne; die
+  Primärschlüssel immer, sie werden Business Keys), eingeschaltete
+  Zusatzfelder — mit Herkunft in `Table_Sources`, `Relation_Sources` und
+  `attribut_sources`. Ein Beziehungsziel ohne Geschäftsobjekt bekommt eins.
   Siehe
   [Handbuch, Kapitel 17](HANDBUCH.md#17-quelltabellen).
 - **Zusatzattribute** – jeder Schlüssel an einem Objekt oder Attribut, den die
