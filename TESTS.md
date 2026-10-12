@@ -79,6 +79,14 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
+- **`uebernahme.js`** — Geschäftsobjekte aus den Quelltabellen übernehmen:
+  beim Laden der Datei und über das Menü, Anlegen und Ergänzen (Domäne,
+  Beschreibung mit Herkunftsmarke, Keys, Attribute nur in Objekte ohne,
+  umgesetzte Beziehungen und Verweise, eingeschaltete Zusatzfelder), die
+  Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
+  Überspringen beim Wiederholen, ein Verlaufsschritt, Erhalt der Herkunft beim
+  Bearbeiten; dazu Domain als Liste in Objektliste, Kasten, Domänen-Element,
+  Suche, Details und Formular.
 - **`quellen.js`** — die Ebene der Quelltabellen: Schalter „Quelltabellen
   verwenden" (Vorgabe aus, im Verlauf), Bereich mit den automatischen
   Diagrammen je Quellsystem (geschützt) und eigenen Gegenüberstellungen, das

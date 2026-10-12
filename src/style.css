@@ -349,6 +349,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .attrs .ak .alt{color:var(--obj);margin-left:3px}
 .attrs .ak .fk{color:var(--src);margin-left:3px}
 .attrs .aref{font-size:9.5px;color:var(--muted);padding:0 0 4px 10px;border-bottom:1px dotted var(--hair-soft)}
+.relsrc{font-family:var(--mono);font-size:9.5px;color:var(--muted);padding:0 0 4px 22px}
 .rel .pickedge{
   font:500 9.5px var(--mono);color:var(--hot);background:none;border:1px solid var(--hair);
   border-radius:2px;padding:1px 5px;cursor:pointer;text-decoration:none;

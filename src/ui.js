@@ -256,12 +256,16 @@ function renderObjectList(){
   $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
   const ul = $('objectList');
   const groups = new Map();
-  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne
+  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne — mit
+  // mehreren Domänen steht ein Objekt in jeder ihrer Gruppen
   const quellen = S.mode === 'quellen';
   listedNodes().forEach(n=>{
-    const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.domain || 'Ohne Domain');
-    if(!groups.has(g)) groups.set(g, []);
-    groups.get(g).push(n);
+    const gs = quellen ? [n.ref.system || 'Ohne Quellsystem']
+             : (n.ref.domains.length ? n.ref.domains : ['Ohne Domain']);
+    gs.forEach(g=>{
+      if(!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(n);
+    });
   });
   let html = '';
   const gidx = [];
@@ -452,7 +456,7 @@ function renderDetails(){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domain === n.name).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domains.includes(n.name)).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
@@ -473,19 +477,22 @@ function renderDetails(){
        ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
        <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
        <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
-       <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
+       <dl class="kv"><dt>Domain</dt><dd>${o.domains.length ? esc(o.domains.join(', ')) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
        ${tabelle ? '' : `<div class="grouphead">QUELLEN</div>
        <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>`}
+       ${o.tabQuellen.length ? `<div class="grouphead">ÜBERNOMMEN AUS (TABLE_SOURCES)</div>
+       <div>${o.tabQuellen.map(s=>`<span class="chip src">${esc(s)}</span>`).join('')}</div>` : ''}
        <div class="grouphead">ATTRIBUTE${o.attrs.length ? ' (' + o.attrs.length + ')' : ''}</div>
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
+          + (a.quelle ? `<tr><td class="aref" colspan="3">aus ${esc(a.quelle)}</td></tr>` : '')
           + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
@@ -494,7 +501,8 @@ function renderDetails(){
           <button data-goto="o:${esc(r.to)}">${esc(r.to)}</button>
           ${r.name ? `<span class="relname">${esc(r.name)}</span>` : ''}
           <button class="pickedge" data-edge="o:${esc(o.name)}|o:${esc(r.to)}|${o.rels.slice(0,ri).filter(x=>x.to===r.to).length}" title="Kante im Diagramm auswählen und bearbeiten">Kante</button>
-          <span class="card">${esc(CARD_LABEL[r.from]||r.from||'?')} : ${esc(CARD_LABEL[r.toCard]||r.toCard||'?')}</span></div>`).join('')
+          <span class="card">${esc(CARD_LABEL[r.from]||r.from||'?')} : ${esc(CARD_LABEL[r.toCard]||r.toCard||'?')}</span></div>`
+          + (r.quellen.length ? `<div class="aref relsrc">aus ${r.quellen.map(esc).join(', ')}</div>` : '')).join('')
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN EINGEHEND</div>
        ${incoming.length ? incoming.map((x,xi)=>`<div class="rel"><span class="arrow">←</span>
@@ -1106,6 +1114,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     download(quellTextAkt(), S.quellFileName, 'text/yaml');
     toast('Quelltabellen gespeichert');
   }
+  if(a === 'uebernehmen') uebernahmeAusfuehren();
   if(a === 'saveQuellDiagramme'){
     download(quellDiagrammeYaml(), quellDiagrammeName(), 'text/yaml');
     toast('Quelltabellen-Diagramme gespeichert');
@@ -1547,17 +1556,22 @@ function ansichtNeu(opts){
    bisherige Stand. Die Diagramme behalten ihre Anordnung; neue Tabellen
    werden platziert. */
 function loadQuellen(text, name){
-  try{ buildModel(text, 'quelle', S.model); }
+  try{ buildModel(text, 'quelle'); }
   catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
   S.quellText = text;
   S.quellFileName = name || 'quelltabellen.yaml';
   quellModellBauen();
   S.bereiche.quellen.outline = null;
-  writeStore();
+  // Beim Laden läuft die Übernahme in die Geschäftsobjekte mit — ein Schritt im Verlauf
+  const u = goAusQuellenUebernehmen();
+  // Erst die Ansicht, dann ablegen: der Neuaufbau legt neue Kästen ab, und
+  // davor geschrieben entstünden zwei Verlaufsschritte statt einem
   if(S.mode === 'quellen') setMode('quellen');
+  else if(u.geaendert){ renderMessages(); syncLayoutMenu(); ansichtNeu({autoFit:false}); }
+  writeStore();
   const n = Object.keys(S.quellModell.objects).length;
   const bad = S.quellModell.messages.filter(m => m.level !== 'info').length;
-  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : ''));
+  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : '') + ' · ' + uebernahmeText(u));
 }
 
 /* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je

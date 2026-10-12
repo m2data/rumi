@@ -93,7 +93,7 @@ console.log('== Quelltabellen: Diagramme der Quellsysteme ==');
   const {api: q, S: qs} = load(['yaml.js', 'model.js', 'hierarchie.js'],
     ['buildModel', 'buildOutline', 'quellsystemKnoten', 'outlineToYaml']);
   qs.hierShown = {}; qs.hierText = {};
-  const tab = q.buildModel(fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8'), 'quelle', model);
+  const tab = q.buildModel(fs.readFileSync(path.join(__dirname, '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8'), 'quelle');
   const wurzel = q.quellsystemKnoten(tab);
   t('Wurzel „Quellsysteme" mit allen Tabellen', wurzel.name === 'Quellsysteme' && wurzel.auto && wurzel.objekte.length === 13,
     wurzel.objekte.length);

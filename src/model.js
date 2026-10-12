@@ -17,13 +17,18 @@ const CARD_LABEL = {
           enthält:
             to: Position
    Reservierte Felder, die nie als Name gelten. */
-const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinality','kardinalitaet']);
+const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinality','kardinalitaet','Relation_Sources']);
 
 /* Die Schlüssel, die die App selbst auswertet. Alles andere an einem Objekt
-   oder Attribut ist ein Zusatzattribut. */
+   oder Attribut ist ein Zusatzattribut. Table_Sources, Relation_Sources und
+   attribut_sources halten fest, aus welchen Quelltabellen ein Geschäftsobjekt
+   übernommen wurde (uebernahme.js). */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
-  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships']);
-const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references']);
+  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships','Table_Sources']);
+const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references','attribut_sources']);
+
+// Ein Feld, das als Einzelwert oder als Liste stehen darf
+const alsListe = v => (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])).filter(x => x != null && x !== '').map(String);
 
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
@@ -47,7 +52,8 @@ function readRel(entry, keyName){
     to: body.to,
     name: explicit || name || null,
     from: (card && card.from) || null,
-    toCard: (card && card.to) || null
+    toCard: (card && card.to) || null,
+    quellen: alsListe(body.Relation_Sources)       // Herkunft: Quelle→Ziel je Quellbeziehung
   };
 }
 
@@ -124,9 +130,7 @@ function eintraegeAus(abschnitt, quelle, messages){
   return out;
 }
 
-/* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
-   „business_object" geprüft. */
-function buildModel(text, art = 'go', goModell = null){
+function buildModel(text, art = 'go'){
   const A = MODELL_ARTEN[art];
   const quelle = art === 'quelle';
   const objKeys = quelle ? new Set([...OBJ_KEYS, ...QT_KEYS]) : OBJ_KEYS;
@@ -197,16 +201,21 @@ function buildModel(text, art = 'go', goModell = null){
       ak: a.alternate_key === true,
       fk: a.foreign_key === true,
       ref: a.references || null,
+      quelle: a.attribut_sources != null && a.attribut_sources !== '' ? String(a.attribut_sources) : null,
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
     }));
+    // Domain darf eine Liste sein; domain bleibt die erste für alles, was eine braucht
+    const domains = alsListe(def.Domain != null ? def.Domain : def.domain);
     objects[name] = {
       name,
       ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
-      domain: def.Domain || def.domain || null,
+      domains,
+      domain: domains[0] || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
+      tabQuellen: alsListe(def.Table_Sources),
       rels,
       extra: extraAus(def, objKeys, zusatz.objekt)
     };
@@ -219,16 +228,14 @@ function buildModel(text, art = 'go', goModell = null){
   const srcUsage = new Map();
 
   for(const o of Object.values(objects)){
-    if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
+    if(!o.domains.length) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
     if(quelle){
       if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
         body:'Feld "source_system" fehlt. Die Tabelle erscheint in keinem Diagramm eines Quellsystems.'});
+      // Ein unbekanntes Geschäftsobjekt ist kein Befund: die Übernahme legt es an
       if(!o.bo) messages.push({level:'info', group:'ohne Geschäftsobjekt', obj:o.name, title:`${o.name}: ohne Geschäftsobjekt`,
         body:'Feld "business_object" fehlt — die Tabelle ist noch keinem Geschäftsobjekt zugeordnet.'});
-      else if(goModell && !goModell.objects[o.bo]) messages.push({level:'warn', group:'Geschäftsobjekt unbekannt', obj:o.name,
-        title:`${o.name} → ${o.bo}: Geschäftsobjekt unbekannt`,
-        body:`"${o.bo}" ist im Geschäftsobjekt-Modell nicht definiert.`});
     }
     else if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
@@ -383,7 +390,7 @@ function makeGraph(model){
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
       }
     }
-    const showSub = C.domain && !E.domaene && o.domain;
+    const showSub = C.domain && !E.domaene && o.domains.length ? o.domains.join(', ') : null;
     const showDesc = C.desc && !!o.desc;
 
     let rowW = 0;
@@ -398,7 +405,7 @@ function makeGraph(model){
       } else rowW = Math.max(rowW, measure(r.text, F_ROW) + PAD_X*2 + PREFIX_W);
     });
     let w = Math.max(MIN_W, measure(o.name, F_TITLE) + PAD_X*2 + 8, rowW);
-    if(showSub) w = Math.max(w, measure(o.domain, F_SUB) + PAD_X*2 + 8);
+    if(showSub) w = Math.max(w, measure(showSub, F_SUB) + PAD_X*2 + 8);
     if(showDesc) w = Math.max(w, 238);
     // Der Deckel begrenzt die Verbreiterung durch die Beschreibung, darf aber
     // niemals eine Attributzeile abschneiden.
@@ -416,7 +423,7 @@ function makeGraph(model){
     }
     if(body) body += 7;
     const hh = headH + body;
-    const n = {id:'o:'+o.name, kind:'object', name:o.name, sub: showSub ? o.domain : null,
+    const n = {id:'o:'+o.name, kind:'object', name:o.name, sub: showSub,
                desc, rows, w, h: Math.round(hh), x:0, y:0, ref:o};
     nodes.push(n); byId.set(n.id, n);
   }
@@ -443,7 +450,8 @@ function makeGraph(model){
     edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
   };
   for(const o of Object.values(model.objects)){
-    if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
+    // Je Domäne ein Kasten; die erste behält die Kennung von früher, gelegte Positionen bleiben
+    if(E.domaene) o.domains.forEach((d, i)=> anhaengsel(o, 'd:'+o.name + (i ? '|' + d : ''), 'domain', d, 'domaene', 'Domäne'));
     if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
   }
 

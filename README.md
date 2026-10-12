@@ -47,7 +47,12 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Gegenüberstellungen (eigene YAML). „Einstellungen → Geschäftsobjekt" stellt
   das zugeordnete Objekt als Kasten ins Diagramm, einmal je Diagramm und mit
   allen seinen Tabellen verbunden. Gepflegt wird über „Quelltabellen
-  bearbeiten" wie bei den Geschäftsobjekten. Siehe
+  bearbeiten" wie bei den Geschäftsobjekten. Beim Laden der Tabellen und über
+  „Datei & Export → Geschäftsobjekte übernehmen" entstehen aus ihnen die
+  zugeordneten Geschäftsobjekte bzw. werden ergänzt — Domäne, Beschreibung,
+  Beziehungen, Attribute (nur in Objekte ohne), eingeschaltete Zusatzfelder —
+  mit Herkunft in `Table_Sources`, `Relation_Sources` und `attribut_sources`.
+  Siehe
   [Handbuch, Kapitel 17](HANDBUCH.md#17-quelltabellen).
 - **Zusatzattribute** – jeder Schlüssel an einem Objekt oder Attribut, den die
   App nicht selbst auswertet (etwa `schema.org:`), wird übernommen.
@@ -252,7 +257,7 @@ Projektstruktur:
 
     src/        Quellen: index.html (Gerüst), style.css/svg.css und die
                 JS-Module (yaml, model, layout, render, app, route, edit,
-                interaktion, hierarchie, pflege, ui)
+                interaktion, hierarchie, pflege, uebernahme, ui)
     build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
     dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
     models/     Beispiel-YAML (Geschäftsobjekte, Hierarchie, Quelltabellen)

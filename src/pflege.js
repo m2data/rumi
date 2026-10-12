@@ -30,11 +30,13 @@ const PF_FELDER = [
   {rolle:'sources', keys:['source_systems','sources']},
   {rolle:'attrs',   keys:['attributes']},
   {rolle:'rels',    keys:['relationships']},
+  // Herkunft aus den Quelltabellen (uebernahme.js)
+  {rolle:'tabquellen', keys:['Table_Sources']},
   // nur an Quelltabellen; an Geschäftsobjekten bleiben beide leer und unberührt
   {rolle:'system',  keys:['source_system','Source_System']},
   {rolle:'bo',      keys:['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt']}
 ];
-const PF_EINZEL = ['domain','desc','system','bo'];
+const PF_EINZEL = ['desc','system','bo'];
 
 /* Welche Datei die Pflege gerade bearbeitet: im Bereich der Quelltabellen
    deren YAML, sonst das Geschäftsobjekt-Modell. */
@@ -59,6 +61,7 @@ function pfAttrZeilen(a, col, altEintrag){
   if(a.ak)       z.push(i + 'alternate_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
+  if(a.quelle)   z.push(i + 'attribut_sources: ' + yWert(a.quelle));
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
   // verschwänden sie, sobald das Attribut neu geschrieben wird. Ein leerer
   // Wert bleibt als Platzhalter stehen, wenn er schon in der Datei stand.
@@ -100,6 +103,10 @@ function pfRelZeilen(r, col){
     if(r.from)   z.push(j + 'from: ' + r.from);
     if(r.toCard) z.push(j + 'to: ' + r.toCard);
   }
+  if(r.quellen && r.quellen.length){
+    z.push(i + 'Relation_Sources:');
+    r.quellen.forEach(q => z.push(i + '- ' + yWert(q)));
+  }
   return z;
 }
 
@@ -107,9 +114,10 @@ const pfExtraGleich = (x = {}, y = {}) =>
   [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
   && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
-  && pfExtraGleich(a.extra, b.extra);
+  && (a.quelle||'') === (b.quelle||'') && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
-  && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
+  && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'')
+  && (a.quellen||[]).join('\u0000') === (b.quellen||[]).join('\u0000');
 
 /* Die Kopfzeile eines Listenfeldes. Steht hinter dem Doppelpunkt nichts (oder
    nur ein Kommentar), bleibt die vorhandene Zeile Zeichen für Zeichen stehen.
@@ -191,9 +199,20 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     if(neu === vor) return f ? f.lines : [];
     return neu ? [' '.repeat(col) + key + ': ' + yWert(neu)] : [];
   }
-  if(rolle === 'keys' || rolle === 'sources'){
-    const werte = rolle === 'keys' ? e.keys : e.sources;
-    const alte = new Set(rolle === 'keys' ? alt.keys : alt.sources);
+  if(rolle === 'domain'){
+    // Eine Domäne bleibt ein Einzelwert, mehrere werden eine Liste; was schon
+    // als Liste dasteht, bleibt eine
+    const liste = o => o.domains || (o.domain ? [o.domain] : []);
+    const neu = liste(e), vor = liste(alt);
+    if(neu.join('\u0000') === vor.join('\u0000')) return f ? f.lines : [];
+    if(!neu.length) return [];
+    if(neu.length === 1 && !(f && splitListItems(f).items.length)) return [' '.repeat(col) + key + ': ' + yWert(neu[0])];
+    return pfListe(f, col, key, neu, w => vor.includes(w) ? 'wert:' + w : null, (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
+  }
+  if(rolle === 'tabquellen' && !e.tabQuellen) return f ? f.lines : [];
+  if(rolle === 'keys' || rolle === 'sources' || rolle === 'tabquellen'){
+    const werte = {keys: e.keys, sources: e.sources, tabquellen: e.tabQuellen}[rolle];
+    const alte = new Set({keys: alt.keys, sources: alt.sources, tabquellen: alt.tabQuellen || []}[rolle]);
     return pfListe(f, col, key, werte,
       w => alte.has(w) ? 'wert:' + w : null,
       (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
@@ -393,7 +412,7 @@ function pfIdsUmbenennen(altId, neuId){
 function pfUebernehmen(text, selId, meldung){
   const quellen = S.mode === 'quellen';
   let modell;
-  try{ modell = quellen ? buildModel(text, 'quelle', S.model) : buildModel(text); }
+  try{ modell = quellen ? buildModel(text, 'quelle') : buildModel(text); }
   catch(err){ toast('Der geänderte Modelltext ist nicht lesbar: ' + err.message); return false; }
   if(quellen){ S.quellText = text; S.quellModell = modell; }
   else { S.model = modell; S.yamlText = text; quellModellBauen(); }   // die Zuordnung prüft gegen die neuen Namen
@@ -457,24 +476,29 @@ let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
   if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
-  const o = n.ref;
-  pfEntwurf = {
-    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
-    domain: o.domain || '', desc: o.desc || '',
-    keys: o.keys.slice(), sources: o.sources.slice(),
-    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
-    // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
-    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
-    attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
-    rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
-  };
+  pfEntwurf = pfEntwurfAus(n.ref);
   S.pflege = id;
   // Das Formular steht in den Details des gewählten Objekts. Nach dem Anlegen
   // hat der Neuaufbau des Diagramms die Auswahl aufgehoben — dann blieb es leer.
   if(S.selected !== id || S.sel.size !== 1){ S.sel = new Set([id]); S.selected = id; draw(); }
   setSidePane('details');
   renderDetails();
+}
+
+/* Der Arbeitsstand zu einem Objekt aus dem Modell — für das Formular und für
+   die Übernahme aus den Quelltabellen, die damit genauso schreibt. */
+function pfEntwurfAus(o){
+  return {
+    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
+    domains: o.domains.slice(), desc: o.desc || '', tabQuellen: o.tabQuellen.slice(),
+    keys: o.keys.slice(), sources: o.sources.slice(),
+    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
+    // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
+    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
+    attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
+                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quelle:a.quelle||'', extra:Object.assign({}, a.extra), _alt:a})),
+    rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', quellen:r.quellen.slice(), _alt:r}))
+  };
 }
 
 function pflegeEnde(){
@@ -491,7 +515,7 @@ function pfLesen(){
   const e = pfEntwurf;
   const liste = s => s.split(',').map(x => x.trim()).filter(Boolean);
   e.name = $('pfName').value.trim();
-  e.domain = $('pfDomain').value.trim();
+  e.domains = liste($('pfDomain').value);
   e.desc = $('pfDesc').value.trim();
   e.keys = liste($('pfKeys').value);
   if($('pfSources')) e.sources = liste($('pfSources').value);
@@ -542,7 +566,7 @@ function pflegeFormular(box){
        <button class="hd-btn" id="pfCancel">Abbrechen</button></span></div>
      <div class="pf">
        <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
-       <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
+       <label class="pfr"><span>Domain</span><input id="pfDomain" placeholder="eine oder mehrere, durch Komma getrennt"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
        ${quellen
@@ -582,7 +606,7 @@ function pflegeFormular(box){
   // Werte erst jetzt setzen: als Attribut im Markup gingen Anführungszeichen
   // und Zeilenumbrüche durch die Maskierung verloren.
   $('pfName').value = e.name;
-  $('pfDomain').value = e.domain;
+  $('pfDomain').value = e.domains.join(', ');
   $('pfDesc').value = e.desc;
   $('pfKeys').value = e.keys.join(', ');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }

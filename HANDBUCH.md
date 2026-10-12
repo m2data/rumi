@@ -386,7 +386,8 @@ sich nichts verstellen lässt. Anordnen, Kanten umlenken und die Hierarchie
 bleiben davon unberührt.
 
 **Das Formular** (Details → Bearbeiten) umfasst Name, Domain, Beschreibung,
-Business Keys und Quellen (jeweils durch Komma getrennt), die **Attribute**
+Business Keys und Quellen (Domain, Keys und Quellen jeweils durch Komma
+getrennt; eine Domäne wird als Einzelwert geschrieben, mehrere als Liste), die **Attribute**
 (Name, Typ, `PK` / `AK` / `FK` / `null`, Verweisziel in der Form `Objekt.Attribut`;
 `×` entfernt eine Zeile, „＋ Attribut" hängt eine an) und die **ausgehenden
 Beziehungen** (Ziel aus der Liste, Name, Kardinalität an Quelle und Ziel).
@@ -566,12 +567,39 @@ Umbenennen einer Tabelle zieht `to:`, `references:`, die Diagramme und die
 Anordnung mit. Ein anderes Quellsystem **hängt die Tabelle um**: sie wandert in
 den Abschnitt des neuen Systems (fehlt er, entsteht er am Ende; ein leer
 gewordener Abschnitt entfällt), und alle Verweise auf sie ziehen mit. Wird ein **Geschäftsobjekt** umbenannt, zieht seine Zuordnung in
-den Tabellen mit; wird es gelöscht, bleibt die Zuordnung stehen und die Prüfung
-meldet „Geschäftsobjekt unbekannt".
+den Tabellen mit; wird es gelöscht, bleibt die Zuordnung stehen — die nächste
+Übernahme legt es wieder an.
 
-Eine Prozedur, die Tabellen selbsttätig Geschäftsobjekten zuordnet, gibt es in
-diesem Stand noch nicht — die Zuordnung steht in der Datei oder wird von Hand
-gepflegt.
+**Geschäftsobjekte übernehmen.** Aus den Tabellen entstehen die
+Geschäftsobjekte, die sie unter `business_object` nennen. Die Übernahme läuft
+**beim Laden einer Quelltabellen-Datei** und über **„Datei & Export →
+Geschäftsobjekte übernehmen"**; sie ist ein Schritt im Verlauf (Strg+Z), ändert
+sich nichts, entsteht keiner. Der Schalter „Geschäftsobjekte bearbeiten" wird
+dafür nicht gebraucht. Je Tabelle mit Zuordnung:
+
+| | Objekt fehlt → **anlegen** | Objekt vorhanden → **ergänzen** |
+| --- | --- | --- |
+| Domain | die der Tabelle | fehlende Domänen kommen in die Liste |
+| Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` |
+| Business Keys | die der Tabelle | nur, wenn das Objekt keine hat |
+| Attribute | alle, je mit `attribut_sources: Webshop.Bestellung.KundeID` | **nur, wenn das Objekt keine hat** |
+| Beziehungen | übernommen, Ziel umgesetzt | übernommen, Ziel umgesetzt |
+| Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben, wo das Objekt keinen Wert hat |
+| `Table_Sources` | `Webshop.Bestellung` | Tabelle angehängt |
+
+- **Ziel umsetzen:** `to: Webshop.Position` wird zum Geschäftsobjekt der
+  Zieltabelle (`to: Position`). Gibt es am Objekt schon eine Beziehung mit
+  gleichem Ziel und gleichem Namen, kommt keine zweite dazu, nur ihre Herkunft:
+  `Relation_Sources` nennt dann `Webshop.Bestellung→Webshop.Position` und
+  `Roadshow.Bestellung_VRS→Roadshow.Position_VRS`. Hat die Zieltabelle kein
+  Geschäftsobjekt, wird die Beziehung nicht übernommen und in der Rückmeldung
+  gezählt.
+- **Verweise umsetzen:** `references: Webshop.Kunde.KundeID` wird
+  `Kunde.KundeID`; ohne Geschäftsobjekt am Ziel entfällt nur das Verweisziel.
+- **Wiederholen:** Eine Tabelle, die schon in `Table_Sources` steht, gilt als
+  übernommen und wird übersprungen — es wird nichts doppelt angehängt.
+- Die Rückmeldung zählt: „Übernahme: 1 angelegt, 5 ergänzt, 3 übersprungen".
+- Ein Objektname mit `:`, `#` oder `"` wird nicht angelegt und gemeldet.
 
 ---
 
@@ -627,20 +655,23 @@ BusinessObjects:            # Pflichtabschnitt
 | Ebene | Feld | Bedeutung |
 | --- | --- | --- |
 | `meta` | `titel`, `urheber`, `lizenz`, `lizenz_url`, `hinweis` | Herkunft der Daten; wird beim Speichern mitgeführt |
-| Objekt | `Domain` | fachliche Domäne; gruppiert die Objektliste |
+| Objekt | `Domain` | fachliche Domäne, eine (`Domain: Willibald`) oder mehrere als Liste; gruppiert die Objektliste — mit mehreren steht das Objekt in jeder Gruppe |
 | | `desc` | Beschreibung (auch mehrzeilig) |
 | | `business_keys` | Liste fachlicher Schlüssel |
 | | `source_systems` | Liste der Quellsysteme oder -tabellen |
+| | `Table_Sources` | Liste der Quelltabellen (`System.Tabelle`), aus denen das Objekt übernommen wurde (Kapitel 17) |
 | | `attributes` | Liste der Attribute |
-| | `relationships` | Liste der ausgehenden Beziehungen |
+| | `relationships` | Liste der ausgehenden Beziehungen; je Beziehung optional `Relation_Sources`: Liste der Quellbeziehungen `System.Tabelle→System.Tabelle` |
 | Attribut | `name` | Pflicht; ohne Namen wird der Eintrag übergangen |
 | | `type` | Datentyp, z. B. `char(13)` |
 | | `nullable` | `true` zeigt im Kasten ein `?` hinter dem Typ |
 | | `primary_key`, `alternate_key`, `foreign_key` | zeigen im Kasten `PK`, `AK` bzw. `FK`; PK und AK zugleich ist ein Fehler |
 | | `references` | Verweisziel `Objekt.Attribut` |
+| | `attribut_sources` | Herkunft `System.Tabelle.Spalte`, gesetzt von der Übernahme (Kapitel 17) |
 | Beziehung | `to` | Zielobjekt; Pflicht |
 | | `name` | Beschriftung an der Kante |
 | | `cardinality.from` / `.to` | Kardinalität an Quelle und Ziel |
+| | `Relation_Sources` | Liste der Quellbeziehungen `System.Tabelle→System.Tabelle` (Kapitel 17) |
 
 ### Kardinalitäten
 
@@ -830,8 +861,9 @@ SourceTables:                       # auch: Quelltabellen, source_tables
 - Geprüft wird wie bei den Geschäftsobjekten, dazu: **kein Quellsystem**
   (Hinweis, nur in der älteren Form möglich), **Quellsystem widersprüchlich**
   (Hinweis: `source_system:` passt nicht zum Abschnitt — es gilt der
-  Abschnitt), **Geschäftsobjekt unbekannt** (Hinweis: die Zuordnung nennt ein
-  Objekt, das es im Modell nicht gibt) und **ohne Geschäftsobjekt** (Info).
+  Abschnitt) und **ohne Geschäftsobjekt** (Info). Nennt `business_object` ein
+  Objekt, das es nicht gibt, ist das kein Befund: die Übernahme legt es an
+  (Kapitel 17).
 
 ## Anhang E — Quelltabellen-Diagramme (YAML)
 

@@ -66,11 +66,10 @@ function imBereich(mode, fn){
 
 const quellTextAkt = ()=> S.quellText || (typeof DEFAULT_QUELLTABELLEN !== 'undefined' ? DEFAULT_QUELLTABELLEN : '');
 
-/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen oder am
-   Geschäftsobjekt-Modell, gegen dessen Namen die Zuordnung geprüft wird. Eine
+/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen. Eine
    unlesbare Datei lässt den Bereich leer und sagt es in der Prüfung. */
 function quellModellBauen(){
-  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle', S.model); }
+  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle'); }
   catch(err){
     S.quellModell = {objects:{}, meta:{}, zusatz:{objekt:new Map(), attribut:new Map()},
       messages:[{level:'err', title:'Quelltabellen nicht lesbar', body:err.message}]};
@@ -124,8 +123,8 @@ function matchesFilter(n, q){
   if(hat(n.name)) return true;
   if(n.eltern) return matchesFilter(S.graph.byId.get(n.eltern), q);
   const r = n.ref || {};
-  if(hat(r.domain)) return true;
-  if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
+  if((r.domains || []).some(hat)) return true;
+  if((r.keys || []).some(hat) || (r.sources || []).some(hat) || (r.tabQuellen || []).some(hat)) return true;
   if(hat(r.system) || hat(r.bo)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
   return (r.rels || []).some(x => hat(x.name));

@@ -368,6 +368,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .attrs .ak .alt{color:var(--obj);margin-left:3px}
 .attrs .ak .fk{color:var(--src);margin-left:3px}
 .attrs .aref{font-size:9.5px;color:var(--muted);padding:0 0 4px 10px;border-bottom:1px dotted var(--hair-soft)}
+.relsrc{font-family:var(--mono);font-size:9.5px;color:var(--muted);padding:0 0 4px 22px}
 .rel .pickedge{
   font:500 9.5px var(--mono);color:var(--hot);background:none;border:1px solid var(--hair);
   border-radius:2px;padding:1px 5px;cursor:pointer;text-decoration:none;
@@ -573,6 +574,9 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <button data-act="layout">Positionsinformationen (JSON)</button>
         <button class="nur-quellen" data-act="saveQuellen">Quelltabellen (YAML)</button>
         <button class="nur-quellen" data-act="saveQuellDiagramme">Quelltabellen-Diagramme (YAML)</button>
+        <div class="head nur-quellen">QUELLTABELLEN</div>
+        <button class="nur-quellen" data-act="uebernehmen"
+                title="Legt die Geschäftsobjekte an, die die Quelltabellen unter business_object nennen, und ergänzt vorhandene — samt Herkunft in Table_Sources, Relation_Sources und attribut_sources. Schon übernommene Tabellen werden übersprungen.">Geschäftsobjekte übernehmen</button>
         <div class="head">DIAGRAMM EXPORTIEREN</div>
         <button data-act="svg">Diagramm als SVG</button>
         <div class="pngrow">
@@ -862,13 +866,18 @@ const CARD_LABEL = {
           enthält:
             to: Position
    Reservierte Felder, die nie als Name gelten. */
-const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinality','kardinalitaet']);
+const REL_FIELDS = new Set(['to','name','label','bezeichnung','rolle','cardinality','kardinalitaet','Relation_Sources']);
 
 /* Die Schlüssel, die die App selbst auswertet. Alles andere an einem Objekt
-   oder Attribut ist ein Zusatzattribut. */
+   oder Attribut ist ein Zusatzattribut. Table_Sources, Relation_Sources und
+   attribut_sources halten fest, aus welchen Quelltabellen ein Geschäftsobjekt
+   übernommen wurde (uebernahme.js). */
 const OBJ_KEYS = new Set(['Domain','domain','desc','beschreibung','description',
-  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships']);
-const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references']);
+  'business_keys','BusinessKeys','source_systems','sources','attributes','relationships','Table_Sources']);
+const ATTR_KEYS = new Set(['name','type','nullable','primary_key','alternate_key','foreign_key','references','attribut_sources']);
+
+// Ein Feld, das als Einzelwert oder als Liste stehen darf
+const alsListe = v => (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])).filter(x => x != null && x !== '').map(String);
 
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
@@ -892,7 +901,8 @@ function readRel(entry, keyName){
     to: body.to,
     name: explicit || name || null,
     from: (card && card.from) || null,
-    toCard: (card && card.to) || null
+    toCard: (card && card.to) || null,
+    quellen: alsListe(body.Relation_Sources)       // Herkunft: Quelle→Ziel je Quellbeziehung
   };
 }
 
@@ -969,9 +979,7 @@ function eintraegeAus(abschnitt, quelle, messages){
   return out;
 }
 
-/* goModell (nur bei Quelltabellen): gegen seine Objekte wird die Zuordnung
-   „business_object" geprüft. */
-function buildModel(text, art = 'go', goModell = null){
+function buildModel(text, art = 'go'){
   const A = MODELL_ARTEN[art];
   const quelle = art === 'quelle';
   const objKeys = quelle ? new Set([...OBJ_KEYS, ...QT_KEYS]) : OBJ_KEYS;
@@ -1042,16 +1050,21 @@ function buildModel(text, art = 'go', goModell = null){
       ak: a.alternate_key === true,
       fk: a.foreign_key === true,
       ref: a.references || null,
+      quelle: a.attribut_sources != null && a.attribut_sources !== '' ? String(a.attribut_sources) : null,
       extra: extraAus(a, ATTR_KEYS, zusatz.attribut)
     }));
+    // Domain darf eine Liste sein; domain bleibt die erste für alles, was eine braucht
+    const domains = alsListe(def.Domain != null ? def.Domain : def.domain);
     objects[name] = {
       name,
       ...(quelle ? {system, tabelle, bo: ersterWert(def, QT_GO)} : {}),
       desc: def.desc || def.beschreibung || def.description || null,
       attrs,
-      domain: def.Domain || def.domain || null,
+      domains,
+      domain: domains[0] || null,
       keys: Array.isArray(keysRaw) ? keysRaw.filter(Boolean) : [],
       sources: !quelle && Array.isArray(srcRaw) ? srcRaw.filter(Boolean) : [],
+      tabQuellen: alsListe(def.Table_Sources),
       rels,
       extra: extraAus(def, objKeys, zusatz.objekt)
     };
@@ -1064,16 +1077,14 @@ function buildModel(text, art = 'go', goModell = null){
   const srcUsage = new Map();
 
   for(const o of Object.values(objects)){
-    if(!o.domain) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
+    if(!o.domains.length) messages.push({level:'warn', group:'keine Domain', obj:o.name, title:`${o.name}: keine Domain`, body:'Feld "Domain" fehlt.'});
     if(!o.keys.length) messages.push({level:'warn', group:'kein Business Key', obj:o.name, title:`${o.name}: kein Business Key`, body:'Ohne fachlichen Schlüssel lässt sich das Objekt nicht identifizieren.'});
     if(quelle){
       if(!o.system) messages.push({level:'warn', group:'kein Quellsystem', obj:o.name, title:`${o.name}: kein Quellsystem`,
         body:'Feld "source_system" fehlt. Die Tabelle erscheint in keinem Diagramm eines Quellsystems.'});
+      // Ein unbekanntes Geschäftsobjekt ist kein Befund: die Übernahme legt es an
       if(!o.bo) messages.push({level:'info', group:'ohne Geschäftsobjekt', obj:o.name, title:`${o.name}: ohne Geschäftsobjekt`,
         body:'Feld "business_object" fehlt — die Tabelle ist noch keinem Geschäftsobjekt zugeordnet.'});
-      else if(goModell && !goModell.objects[o.bo]) messages.push({level:'warn', group:'Geschäftsobjekt unbekannt', obj:o.name,
-        title:`${o.name} → ${o.bo}: Geschäftsobjekt unbekannt`,
-        body:`"${o.bo}" ist im Geschäftsobjekt-Modell nicht definiert.`});
     }
     else if(!o.sources.length) messages.push({level:'warn', group:'keine Quelle', obj:o.name, title:`${o.name}: keine Quelle`, body:'Dem Objekt ist kein Quellsystem zugeordnet. Mit „Quellen als eigene Elemente" hängt an ihm kein Quellkasten.'});
     o.sources.forEach(s=>{
@@ -1228,7 +1239,7 @@ function makeGraph(model){
         list.forEach(a => rows.push({kind:'attr', a: attrText(a, C.types)}));
       }
     }
-    const showSub = C.domain && !E.domaene && o.domain;
+    const showSub = C.domain && !E.domaene && o.domains.length ? o.domains.join(', ') : null;
     const showDesc = C.desc && !!o.desc;
 
     let rowW = 0;
@@ -1243,7 +1254,7 @@ function makeGraph(model){
       } else rowW = Math.max(rowW, measure(r.text, F_ROW) + PAD_X*2 + PREFIX_W);
     });
     let w = Math.max(MIN_W, measure(o.name, F_TITLE) + PAD_X*2 + 8, rowW);
-    if(showSub) w = Math.max(w, measure(o.domain, F_SUB) + PAD_X*2 + 8);
+    if(showSub) w = Math.max(w, measure(showSub, F_SUB) + PAD_X*2 + 8);
     if(showDesc) w = Math.max(w, 238);
     // Der Deckel begrenzt die Verbreiterung durch die Beschreibung, darf aber
     // niemals eine Attributzeile abschneiden.
@@ -1261,7 +1272,7 @@ function makeGraph(model){
     }
     if(body) body += 7;
     const hh = headH + body;
-    const n = {id:'o:'+o.name, kind:'object', name:o.name, sub: showSub ? o.domain : null,
+    const n = {id:'o:'+o.name, kind:'object', name:o.name, sub: showSub,
                desc, rows, w, h: Math.round(hh), x:0, y:0, ref:o};
     nodes.push(n); byId.set(n.id, n);
   }
@@ -1288,7 +1299,8 @@ function makeGraph(model){
     edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
   };
   for(const o of Object.values(model.objects)){
-    if(E.domaene && o.domain) anhaengsel(o, 'd:'+o.name, 'domain', o.domain, 'domaene', 'Domäne');
+    // Je Domäne ein Kasten; die erste behält die Kennung von früher, gelegte Positionen bleiben
+    if(E.domaene) o.domains.forEach((d, i)=> anhaengsel(o, 'd:'+o.name + (i ? '|' + d : ''), 'domain', d, 'domaene', 'Domäne'));
     if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
   }
 
@@ -4302,11 +4314,10 @@ function imBereich(mode, fn){
 
 const quellTextAkt = ()=> S.quellText || (typeof DEFAULT_QUELLTABELLEN !== 'undefined' ? DEFAULT_QUELLTABELLEN : '');
 
-/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen oder am
-   Geschäftsobjekt-Modell, gegen dessen Namen die Zuordnung geprüft wird. Eine
+/* Das Tabellenmodell neu bauen — nach jeder Änderung an den Tabellen. Eine
    unlesbare Datei lässt den Bereich leer und sagt es in der Prüfung. */
 function quellModellBauen(){
-  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle', S.model); }
+  try{ S.quellModell = buildModel(quellTextAkt(), 'quelle'); }
   catch(err){
     S.quellModell = {objects:{}, meta:{}, zusatz:{objekt:new Map(), attribut:new Map()},
       messages:[{level:'err', title:'Quelltabellen nicht lesbar', body:err.message}]};
@@ -4360,8 +4371,8 @@ function matchesFilter(n, q){
   if(hat(n.name)) return true;
   if(n.eltern) return matchesFilter(S.graph.byId.get(n.eltern), q);
   const r = n.ref || {};
-  if(hat(r.domain)) return true;
-  if((r.keys || []).some(hat) || (r.sources || []).some(hat)) return true;
+  if((r.domains || []).some(hat)) return true;
+  if((r.keys || []).some(hat) || (r.sources || []).some(hat) || (r.tabQuellen || []).some(hat)) return true;
   if(hat(r.system) || hat(r.bo)) return true;
   if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
   return (r.rels || []).some(x => hat(x.name));
@@ -5972,11 +5983,13 @@ const PF_FELDER = [
   {rolle:'sources', keys:['source_systems','sources']},
   {rolle:'attrs',   keys:['attributes']},
   {rolle:'rels',    keys:['relationships']},
+  // Herkunft aus den Quelltabellen (uebernahme.js)
+  {rolle:'tabquellen', keys:['Table_Sources']},
   // nur an Quelltabellen; an Geschäftsobjekten bleiben beide leer und unberührt
   {rolle:'system',  keys:['source_system','Source_System']},
   {rolle:'bo',      keys:['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt']}
 ];
-const PF_EINZEL = ['domain','desc','system','bo'];
+const PF_EINZEL = ['desc','system','bo'];
 
 /* Welche Datei die Pflege gerade bearbeitet: im Bereich der Quelltabellen
    deren YAML, sonst das Geschäftsobjekt-Modell. */
@@ -6001,6 +6014,7 @@ function pfAttrZeilen(a, col, altEintrag){
   if(a.ak)       z.push(i + 'alternate_key: true');
   if(a.fk)       z.push(i + 'foreign_key: true');
   if(a.ref)      z.push(i + 'references: ' + yWert(a.ref));
+  if(a.quelle)   z.push(i + 'attribut_sources: ' + yWert(a.quelle));
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
   // verschwänden sie, sobald das Attribut neu geschrieben wird. Ein leerer
   // Wert bleibt als Platzhalter stehen, wenn er schon in der Datei stand.
@@ -6042,6 +6056,10 @@ function pfRelZeilen(r, col){
     if(r.from)   z.push(j + 'from: ' + r.from);
     if(r.toCard) z.push(j + 'to: ' + r.toCard);
   }
+  if(r.quellen && r.quellen.length){
+    z.push(i + 'Relation_Sources:');
+    r.quellen.forEach(q => z.push(i + '- ' + yWert(q)));
+  }
   return z;
 }
 
@@ -6049,9 +6067,10 @@ const pfExtraGleich = (x = {}, y = {}) =>
   [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
   && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
-  && pfExtraGleich(a.extra, b.extra);
+  && (a.quelle||'') === (b.quelle||'') && pfExtraGleich(a.extra, b.extra);
 const pfRelGleich = (a, b) => a.to === b.to && (a.name||'') === (b.name||'')
-  && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'');
+  && (a.from||'') === (b.from||'') && (a.toCard||'') === (b.toCard||'')
+  && (a.quellen||[]).join('\u0000') === (b.quellen||[]).join('\u0000');
 
 /* Die Kopfzeile eines Listenfeldes. Steht hinter dem Doppelpunkt nichts (oder
    nur ein Kommentar), bleibt die vorhandene Zeile Zeichen für Zeichen stehen.
@@ -6133,9 +6152,20 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     if(neu === vor) return f ? f.lines : [];
     return neu ? [' '.repeat(col) + key + ': ' + yWert(neu)] : [];
   }
-  if(rolle === 'keys' || rolle === 'sources'){
-    const werte = rolle === 'keys' ? e.keys : e.sources;
-    const alte = new Set(rolle === 'keys' ? alt.keys : alt.sources);
+  if(rolle === 'domain'){
+    // Eine Domäne bleibt ein Einzelwert, mehrere werden eine Liste; was schon
+    // als Liste dasteht, bleibt eine
+    const liste = o => o.domains || (o.domain ? [o.domain] : []);
+    const neu = liste(e), vor = liste(alt);
+    if(neu.join('\u0000') === vor.join('\u0000')) return f ? f.lines : [];
+    if(!neu.length) return [];
+    if(neu.length === 1 && !(f && splitListItems(f).items.length)) return [' '.repeat(col) + key + ': ' + yWert(neu[0])];
+    return pfListe(f, col, key, neu, w => vor.includes(w) ? 'wert:' + w : null, (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
+  }
+  if(rolle === 'tabquellen' && !e.tabQuellen) return f ? f.lines : [];
+  if(rolle === 'keys' || rolle === 'sources' || rolle === 'tabquellen'){
+    const werte = {keys: e.keys, sources: e.sources, tabquellen: e.tabQuellen}[rolle];
+    const alte = new Set({keys: alt.keys, sources: alt.sources, tabquellen: alt.tabQuellen || []}[rolle]);
     return pfListe(f, col, key, werte,
       w => alte.has(w) ? 'wert:' + w : null,
       (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
@@ -6335,7 +6365,7 @@ function pfIdsUmbenennen(altId, neuId){
 function pfUebernehmen(text, selId, meldung){
   const quellen = S.mode === 'quellen';
   let modell;
-  try{ modell = quellen ? buildModel(text, 'quelle', S.model) : buildModel(text); }
+  try{ modell = quellen ? buildModel(text, 'quelle') : buildModel(text); }
   catch(err){ toast('Der geänderte Modelltext ist nicht lesbar: ' + err.message); return false; }
   if(quellen){ S.quellText = text; S.quellModell = modell; }
   else { S.model = modell; S.yamlText = text; quellModellBauen(); }   // die Zuordnung prüft gegen die neuen Namen
@@ -6399,24 +6429,29 @@ let pfEntwurf = null;          // Arbeitsstand: erst beim Speichern wird daraus 
 function pflegeStart(id){
   const n = S.graph.byId.get(id);
   if(!pflegeErlaubt() || !n || n.kind !== 'object') return;
-  const o = n.ref;
-  pfEntwurf = {
-    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
-    domain: o.domain || '', desc: o.desc || '',
-    keys: o.keys.slice(), sources: o.sources.slice(),
-    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
-    // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
-    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
-    attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
-                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', extra:Object.assign({}, a.extra), _alt:a})),
-    rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', _alt:r}))
-  };
+  pfEntwurf = pfEntwurfAus(n.ref);
   S.pflege = id;
   // Das Formular steht in den Details des gewählten Objekts. Nach dem Anlegen
   // hat der Neuaufbau des Diagramms die Auswahl aufgehoben — dann blieb es leer.
   if(S.selected !== id || S.sel.size !== 1){ S.sel = new Set([id]); S.selected = id; draw(); }
   setSidePane('details');
   renderDetails();
+}
+
+/* Der Arbeitsstand zu einem Objekt aus dem Modell — für das Formular und für
+   die Übernahme aus den Quelltabellen, die damit genauso schreibt. */
+function pfEntwurfAus(o){
+  return {
+    name: o.tabelle || o.name,                       // Quelltabelle: ohne System, das hat ein eigenes Feld
+    domains: o.domains.slice(), desc: o.desc || '', tabQuellen: o.tabQuellen.slice(),
+    keys: o.keys.slice(), sources: o.sources.slice(),
+    system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
+    // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
+    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
+    attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
+                            pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quelle:a.quelle||'', extra:Object.assign({}, a.extra), _alt:a})),
+    rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', quellen:r.quellen.slice(), _alt:r}))
+  };
 }
 
 function pflegeEnde(){
@@ -6433,7 +6468,7 @@ function pfLesen(){
   const e = pfEntwurf;
   const liste = s => s.split(',').map(x => x.trim()).filter(Boolean);
   e.name = $('pfName').value.trim();
-  e.domain = $('pfDomain').value.trim();
+  e.domains = liste($('pfDomain').value);
   e.desc = $('pfDesc').value.trim();
   e.keys = liste($('pfKeys').value);
   if($('pfSources')) e.sources = liste($('pfSources').value);
@@ -6484,7 +6519,7 @@ function pflegeFormular(box){
        <button class="hd-btn" id="pfCancel">Abbrechen</button></span></div>
      <div class="pf">
        <label class="pfr"><span>${quellen ? 'Tabelle' : 'Name'}</span><input id="pfName"></label>
-       <label class="pfr"><span>Domain</span><input id="pfDomain"></label>
+       <label class="pfr"><span>Domain</span><input id="pfDomain" placeholder="eine oder mehrere, durch Komma getrennt"></label>
        <label class="pfr col"><span>Beschreibung</span><textarea id="pfDesc" rows="3"></textarea></label>
        <label class="pfr col"><span>Business Keys</span><input id="pfKeys" placeholder="durch Komma getrennt"></label>
        ${quellen
@@ -6524,7 +6559,7 @@ function pflegeFormular(box){
   // Werte erst jetzt setzen: als Attribut im Markup gingen Anführungszeichen
   // und Zeilenumbrüche durch die Maskierung verloren.
   $('pfName').value = e.name;
-  $('pfDomain').value = e.domain;
+  $('pfDomain').value = e.domains.join(', ');
   $('pfDesc').value = e.desc;
   $('pfKeys').value = e.keys.join(', ');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
@@ -6750,6 +6785,101 @@ $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
 $('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });
+/* =====================================================================
+   12 — Übernahme: Geschäftsobjekte aus den Quelltabellen
+   Jede Tabelle mit „business_object" legt ihr Geschäftsobjekt an oder
+   ergänzt es. Die Herkunft wird festgehalten: Table_Sources am Objekt,
+   Relation_Sources an der Beziehung, attribut_sources am Attribut. Steht die
+   Tabelle schon in Table_Sources, gilt sie als übernommen und wird
+   übersprungen — so lässt sich die Übernahme gefahrlos wiederholen.
+   Geschrieben wird über dieselbe Text-Chirurgie wie beim Bearbeiten
+   (goObjektAnlegen, goObjektAendern): nur die betroffenen Stellen ändern sich.
+   ===================================================================== */
+const qtMarke = tabelle => '--->aus ' + tabelle + ' kopiert';
+
+const leeresObjekt = name => ({name, domains:[], domain:null, desc:null, keys:[], sources:[],
+  attrs:[], rels:[], extra:{}, tabQuellen:[]});
+
+/* Die Rechnung ohne Seiteneffekt: welche Objekte sich wie ändern. */
+function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
+  const tabellen = quellModell.objects;
+  const ziel = name => (tabellen[name] && tabellen[name].bo) || null;   // Tabelle → ihr Geschäftsobjekt
+  const entwuerfe = new Map();
+  const r = {entwuerfe, angelegt:0, ergaenzt:0, uebersprungen:0, ohneZiel:0, ungueltig:[]};
+
+  for(const t of Object.values(tabellen)){
+    if(!t.bo) continue;
+    if(PF_VERBOTEN.test(t.bo)){ if(!r.ungueltig.includes(t.bo)) r.ungueltig.push(t.bo); continue; }
+    if(!entwuerfe.has(t.bo)){
+      const alt = goModell.objects[t.bo] || leeresObjekt(t.bo);
+      entwuerfe.set(t.bo, {alt, e: pfEntwurfAus(alt), neu: !goModell.objects[t.bo], geaendert: false});
+    }
+    const ent = entwuerfe.get(t.bo), e = ent.e;
+    if(e.tabQuellen.includes(t.name)){ r.uebersprungen++; continue; }
+
+    t.domains.forEach(d=>{ if(!e.domains.includes(d)) e.domains.push(d); });
+    if(t.desc){
+      const block = t.desc + '\n' + qtMarke(t.name);
+      e.desc = e.desc ? e.desc + '\n\n' + block : block;
+    }
+    if(!e.keys.length) e.keys = t.keys.slice();
+    // Attribute nur in ein Objekt ohne Attribute — sonst stünden zwei Fassungen nebeneinander
+    if(!e.attrs.length) e.attrs = t.attrs.map(a=>{
+      const teile = String(a.ref || '').split('.');
+      const zielGo = a.ref ? ziel(teile.slice(0, 2).join('.')) : null;
+      return {name:a.name, type:a.type||'', nullable:!!a.nullable, pk:!!a.pk, ak:!!a.ak, fk:!!a.fk,
+              ref: zielGo ? zielGo + (teile[2] ? '.' + teile[2] : '') : '',
+              quelle: t.name + '.' + a.name, extra:Object.assign({}, a.extra), _alt:null};
+    });
+    t.rels.forEach(b=>{
+      const zielGo = ziel(b.to);
+      if(!zielGo){ r.ohneZiel++; return; }
+      const herkunft = t.name + '→' + b.to;
+      const da = e.rels.find(x => x.to === zielGo && (x.name || '') === (b.name || ''));
+      if(da){ if(!da.quellen.includes(herkunft)) da.quellen = da.quellen.concat(herkunft); }
+      else e.rels.push({to:zielGo, name:b.name||'', from:b.from||'', toCard:b.toCard||'', quellen:[herkunft], _alt:null});
+    });
+    // Zusatzfelder nur, wenn sie unter „Zusatzattribute …" eingeschaltet sind
+    zusatzKeys.forEach(k=>{ if(t.extra[k] && !e.extra[k]) e.extra[k] = t.extra[k]; });
+    e.tabQuellen.push(t.name);
+    if(!ent.geaendert){ ent.geaendert = true; if(ent.neu) r.angelegt++; else r.ergaenzt++; }
+  }
+  return r;
+}
+
+/* Rechnen und in den Modelltext schreiben. Gibt das Ergebnis zurück; hat sich
+   etwas geändert (r.geaendert), sind S.yamlText und S.model neu. Ansicht,
+   Ablage und Verlauf sind Sache des Aufrufers. */
+function goAusQuellenUebernehmen(){
+  const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn.objekt);
+  let text = S.yamlText;
+  for(const [name, ent] of r.entwuerfe){
+    if(!ent.geaendert) continue;
+    if(ent.neu) text = goObjektAnlegen(text, name);
+    if(text != null) text = goObjektAendern(text, name, ent.e, ent.alt);
+    if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); r.geaendert = false; return r; }
+  }
+  r.geaendert = text !== S.yamlText;
+  if(r.geaendert){ S.yamlText = text; S.model = buildModel(text); }
+  return r;
+}
+
+const uebernahmeText = r => `Übernahme: ${r.angelegt} angelegt, ${r.ergaenzt} ergänzt, ${r.uebersprungen} übersprungen`
+  + (r.ohneZiel ? `, ${r.ohneZiel} Beziehung(en) ohne Geschäftsobjekt am Ziel` : '')
+  + (r.ungueltig.length ? `, ungültiger Name: ${r.ungueltig.join(', ')}` : '');
+
+/* Menü „Datei & Export → Geschäftsobjekte übernehmen": ein Schritt im
+   Verlauf, ohne Änderung keiner. */
+function uebernahmeAusfuehren(){
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  const r = goAusQuellenUebernehmen();
+  if(r.geaendert){
+    renderMessages(); syncLayoutMenu();
+    ansichtNeu({autoFit:false});
+    writeStore();
+  }
+  toast(uebernahmeText(r));
+}
 /* =====================================================================
    7 — Ansicht wechseln, Anordnung merken
    ===================================================================== */
@@ -7008,12 +7138,16 @@ function renderObjectList(){
   $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
   const ul = $('objectList');
   const groups = new Map();
-  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne
+  // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach Domäne — mit
+  // mehreren Domänen steht ein Objekt in jeder ihrer Gruppen
   const quellen = S.mode === 'quellen';
   listedNodes().forEach(n=>{
-    const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.domain || 'Ohne Domain');
-    if(!groups.has(g)) groups.set(g, []);
-    groups.get(g).push(n);
+    const gs = quellen ? [n.ref.system || 'Ohne Quellsystem']
+             : (n.ref.domains.length ? n.ref.domains : ['Ohne Domain']);
+    gs.forEach(g=>{
+      if(!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(n);
+    });
   });
   let html = '';
   const gidx = [];
@@ -7204,7 +7338,7 @@ function renderDetails(){
     // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
     const quelle = n.kind === 'source';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domain === n.name).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.domains.includes(n.name)).map(o => o.name);
     box.innerHTML =
       `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
@@ -7225,19 +7359,22 @@ function renderDetails(){
        ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
        <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
        <dl class="kv"><dt>Geschäftsobjekt</dt><dd>${o.bo ? esc(o.bo) : '—'}</dd></dl>` : ''}
-       <dl class="kv"><dt>Domain</dt><dd>${o.domain ? esc(o.domain) : '—'}</dd></dl>
+       <dl class="kv"><dt>Domain</dt><dd>${o.domains.length ? esc(o.domains.join(', ')) : '—'}</dd></dl>
        ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
        ${tabelle ? '' : `<div class="grouphead">QUELLEN</div>
        <div>${o.sources.length ? o.sources.map(s=>`<span class="chip src">${esc(s)}</span>`).join('') : '<span class="empty">keine</span>'}</div>`}
+       ${o.tabQuellen.length ? `<div class="grouphead">ÜBERNOMMEN AUS (TABLE_SOURCES)</div>
+       <div>${o.tabQuellen.map(s=>`<span class="chip src">${esc(s)}</span>`).join('')}</div>` : ''}
        <div class="grouphead">ATTRIBUTE${o.attrs.length ? ' (' + o.attrs.length + ')' : ''}</div>
        ${o.attrs.length ? `<table class="attrs">` + o.attrs.map(a=>`<tr>
           <td class="an">${esc(a.name)}</td>
           <td class="at">${a.type ? esc(a.type) : ''}${a.nullable ? ' ?' : ''}</td>
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
+          + (a.quelle ? `<tr><td class="aref" colspan="3">aus ${esc(a.quelle)}</td></tr>` : '')
           + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
@@ -7246,7 +7383,8 @@ function renderDetails(){
           <button data-goto="o:${esc(r.to)}">${esc(r.to)}</button>
           ${r.name ? `<span class="relname">${esc(r.name)}</span>` : ''}
           <button class="pickedge" data-edge="o:${esc(o.name)}|o:${esc(r.to)}|${o.rels.slice(0,ri).filter(x=>x.to===r.to).length}" title="Kante im Diagramm auswählen und bearbeiten">Kante</button>
-          <span class="card">${esc(CARD_LABEL[r.from]||r.from||'?')} : ${esc(CARD_LABEL[r.toCard]||r.toCard||'?')}</span></div>`).join('')
+          <span class="card">${esc(CARD_LABEL[r.from]||r.from||'?')} : ${esc(CARD_LABEL[r.toCard]||r.toCard||'?')}</span></div>`
+          + (r.quellen.length ? `<div class="aref relsrc">aus ${r.quellen.map(esc).join(', ')}</div>` : '')).join('')
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN EINGEHEND</div>
        ${incoming.length ? incoming.map((x,xi)=>`<div class="rel"><span class="arrow">←</span>
@@ -7858,6 +7996,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     download(quellTextAkt(), S.quellFileName, 'text/yaml');
     toast('Quelltabellen gespeichert');
   }
+  if(a === 'uebernehmen') uebernahmeAusfuehren();
   if(a === 'saveQuellDiagramme'){
     download(quellDiagrammeYaml(), quellDiagrammeName(), 'text/yaml');
     toast('Quelltabellen-Diagramme gespeichert');
@@ -8299,17 +8438,22 @@ function ansichtNeu(opts){
    bisherige Stand. Die Diagramme behalten ihre Anordnung; neue Tabellen
    werden platziert. */
 function loadQuellen(text, name){
-  try{ buildModel(text, 'quelle', S.model); }
+  try{ buildModel(text, 'quelle'); }
   catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
   S.quellText = text;
   S.quellFileName = name || 'quelltabellen.yaml';
   quellModellBauen();
   S.bereiche.quellen.outline = null;
-  writeStore();
+  // Beim Laden läuft die Übernahme in die Geschäftsobjekte mit — ein Schritt im Verlauf
+  const u = goAusQuellenUebernehmen();
+  // Erst die Ansicht, dann ablegen: der Neuaufbau legt neue Kästen ab, und
+  // davor geschrieben entstünden zwei Verlaufsschritte statt einem
   if(S.mode === 'quellen') setMode('quellen');
+  else if(u.geaendert){ renderMessages(); syncLayoutMenu(); ansichtNeu({autoFit:false}); }
+  writeStore();
   const n = Object.keys(S.quellModell.objects).length;
   const bad = S.quellModell.messages.filter(m => m.level !== 'info').length;
-  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : ''));
+  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : '') + ' · ' + uebernahmeText(u));
 }
 
 /* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
