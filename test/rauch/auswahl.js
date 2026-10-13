@@ -476,8 +476,8 @@ console.log('== Kontextmenü am Objekt ==');
 
     S.pflegeAn = true;
     dispatch(kastenVon(obj.id), 'contextmenu', {clientX:120, clientY:90});
-    t('mit „Bearbeiten" kommen Bearbeiten und Löschen dazu',
-      eintraege() === 'hide,related,edit,delete', eintraege());
+    t('mit „Bearbeiten" kommen Bearbeiten, Attribute zusammenführen und Löschen dazu',
+      eintraege() === 'hide,related,edit,attrdlg,delete', eintraege());
 
     dispatch(ctx().querySelector('[data-ctx="hide"]'), 'click', {});
     t('„Ausblenden" blendet das Objekt aus', S.graph.byId.get(obj.id).hidden === true);

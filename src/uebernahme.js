@@ -9,6 +9,9 @@
    (goObjektAnlegen, goObjektAendern): nur die betroffenen Stellen ändern sich.
    ===================================================================== */
 const qtMarke = tabelle => '--->aus ' + tabelle + ' kopiert';
+// Eine Attributquelle System.Tabelle.Spalte zerlegen
+const qtSpalte  = q => String(q).split('.').slice(2).join('.');
+const qtTabelle = q => String(q).split('.').slice(0, 2).join('.');
 
 const leeresObjekt = name => ({name, domains:[], domain:null, desc:null, keys:[], sources:[],
   attrs:[], rels:[], extra:{}, tabQuellen:[]});
@@ -82,16 +85,22 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
               ref: zielGo ? zielGo + (teile[2] ? '.' + teile[2] : '') : '',
               quellen:[t.name + '.' + a.name], extra:Object.assign({}, a.extra), _alt:null};
     };
-    // Alle Attribute nur in ein Objekt ohne Attribute — sonst stünden zwei
-    // Fassungen nebeneinander. Die Primärschlüssel aber immer: sie werden
-    // Business Keys, und ihr Attribut kommt dazu oder bekommt die Quelle.
-    if(!e.attrs.length) e.attrs = t.attrs.map(kopie);
-    else t.attrs.filter(a => a.pk).forEach(a=>{
-      const q = t.name + '.' + a.name, da = e.attrs.find(x => x.name === a.name);
-      if(!da) e.attrs.push(kopie(a));
-      else if(!da.quellen.includes(q)) da.quellen = da.quellen.concat(q);
+    // Jedes Attribut kommt ins Objekt. Gleichnamige werden eins: gleicher Name
+    // wie das Objekt-Attribut oder wie eine Spalte in dessen Quellen (so
+    // findet auch ein umbenanntes Attribut neue Quellen). Steht die Quelle
+    // schon an einem Attribut, bleibt es dabei — Getrenntes bleibt getrennt.
+    // Das vorhandene Attribut behält seine Eigenschaften.
+    t.attrs.forEach(a=>{
+      const q = t.name + '.' + a.name;
+      let da = e.attrs.find(x => x.quellen.includes(q));
+      if(!da){
+        da = e.attrs.find(x => x.name === a.name) || e.attrs.find(x => x.quellen.some(s => qtSpalte(s) === a.name));
+        if(da) da.quellen = da.quellen.concat(q);
+        else e.attrs.push(da = kopie(a));
+      }
+      // Ein Primärschlüssel wird Business Key — unter dem Namen am Objekt
+      if(a.pk && !e.keys.includes(da.name)) e.keys.push(da.name);
     });
-    t.attrs.filter(a => a.pk).forEach(a=>{ if(!e.keys.includes(a.name)) e.keys.push(a.name); });
     t.rels.forEach(b=>{
       const zielGo = ziel(b.to);
       if(!zielGo){ r.ohneZiel++; return; }
@@ -136,6 +145,25 @@ function goAusQuellenUebernehmen(){
       body:`Eine Beziehung der Quelltabellen zeigte auf ${tab.join(', ')} ohne Geschäftsobjekt. Die Übernahme hat „${bo}" angelegt und die Tabelle ihm zugeordnet.`};
   });
   return r;
+}
+
+/* Prüfung über beide Modelle: hat ein Attribut des Geschäftsobjekts Quellen,
+   deren Spalten einen anderen Typ tragen als es selbst oder als einander?
+   Es gilt der Typ am Attribut — gemeldet wird, damit es jemand entscheidet. */
+function typAbweichungen(){
+  if(!S.quellenAn || !S.quellModell || !S.model) return [];
+  const out = [];
+  for(const o of Object.values(S.model.objects)) for(const a of o.attrs){
+    const typen = a.quellen.map(q=>{
+      const t = S.quellModell.objects[qtTabelle(q)];
+      const sp = t && t.attrs.find(x => x.name === qtSpalte(q));
+      return sp && sp.type ? {q, typ: sp.type} : null;
+    }).filter(Boolean);
+    if(new Set(typen.map(x => x.typ).concat(a.type ? [a.type] : [])).size < 2) continue;
+    out.push({level:'warn', group:'Quellen mit abweichendem Typ', obj:o.name, title:`${o.name}.${a.name}: Quellen mit abweichendem Typ`,
+      body:`Am Attribut ${a.type || '—'}; ${typen.map(x => x.q + ': ' + x.typ).join(', ')}. Es gilt der Typ am Attribut.`});
+  }
+  return out;
 }
 
 const uebernahmeText = r => `Übernahme: ${r.angelegt} angelegt, ${r.ergaenzt} ergänzt, ${r.uebersprungen} übersprungen`

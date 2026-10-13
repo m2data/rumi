@@ -114,6 +114,7 @@ const TAB = [
   '      desc: Eine Person.',
   '      attributes:',
   '      - name: KundeID',
+  '        type: int',
   '        primary_key: true',
   ''
 ].join('\n');
@@ -143,12 +144,13 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Beschreibung samt Herkunftsmarke, die gleiche der zweiten Tabelle nicht doppelt',
     A.desc === 'Ein Auftrag im Shop.\n--->aus Webshop.Auftrag kopiert', JSON.stringify(A.desc));
   t('Business Key aus dem Primärschlüssel', A.keys.join(',') === 'AuftragNr', A.keys.join(','));
-  t('alle Attribute der ersten Tabelle, jedes mit attribut_sources',
-    A.attrs.map(a => a.name).join(',') === 'AuftragNr,KundeID,LagerID'
+  t('alle Attribute beider Tabellen, jedes mit attribut_sources',
+    A.attrs.map(a => a.name).join(',') === 'AuftragNr,KundeID,LagerID,Extra'
     && quellen(A.attrs[1].quellen) === 'Webshop.Auftrag.KundeID', A.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
   t('der gleiche PK der zweiten Tabelle ergänzt nur die Quelle',
     quellen(A.attrs[0].quellen) === 'Webshop.Auftrag.AuftragNr,Roadshow.Auftrag_RS.AuftragNr', quellen(A.attrs[0].quellen));
-  t('andere Attribute der zweiten Tabelle nicht', !A.attrs.some(a => a.name === 'Extra'));
+  t('ein anderes Attribut der zweiten Tabelle kommt als eigenes dazu',
+    quellen((A.attrs.find(a => a.name === 'Extra') || {}).quellen) === 'Roadshow.Auftrag_RS.Extra');
   t('references auf das Geschäftsobjekt umgesetzt', A.attrs[1].ref === 'Kunde.KundeID');
   t('auch auf ein aus dem Ziel angelegtes', A.attrs[2].ref === 'Lager.LagerID', A.attrs[2].ref);
   t('PK und Typ bleiben', A.attrs[0].pk && A.attrs[0].type === 'int');
@@ -167,9 +169,12 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Kunde: eine andere Beschreibung wird unten angehängt, eine gleiche nicht',
     K.desc === 'Eine Person.\n\nKundenstamm im Shop.\n--->aus Webshop.Kunde kopiert', JSON.stringify(K.desc));
   t('Kunde: neuer PK wird Business Key', K.keys.join(',') === 'KundeID,KundeNr', K.keys.join(','));
-  t('Kunde: sein Attribut kommt dazu, mit Quelle, die übrigen nicht',
-    K.attrs.map(a => a.name).join(',') === 'KundeID,KundeNr' && quellen(K.attrs[1].quellen) === 'Webshop.Kunde.KundeNr',
-    K.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
+  t('Kunde: auch in ein Objekt mit Attributen kommen alle dazu, mit Quelle',
+    K.attrs.map(a => a.name).join(',') === 'KundeID,KundeNr,Name' && quellen(K.attrs[1].quellen) === 'Webshop.Kunde.KundeNr'
+    && quellen(K.attrs[2].quellen) === 'Webshop.Kunde.Name', K.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
+  t('Kunde: bei abweichendem Typ gewinnt das vorhandene Attribut', K.attrs[0].type === 'char(13)', K.attrs[0].type);
+  t('Kunde: die Prüfung meldet den abweichenden Typ',
+    $('msgList').innerHTML.includes('Kunde.KundeID: Quellen mit abweichendem Typ'), $('msgList').textContent.slice(0, 300));
   t('Kunde: PK schon Business Key → nur die Quelle am Attribut', quellen(K.attrs[0].quellen) === 'Roadshow.Kunde_RS.KundeID'
     && K.keys.filter(k => k === 'KundeID').length === 1, quellen(K.attrs[0].quellen));
   t('Kunde: ein vorhandener Zusatzwert bleibt', K.extra['schema.org'] === 'https://schema.org/Person');

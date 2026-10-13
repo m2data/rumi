@@ -301,6 +301,16 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 }
 .modal-box h2{font-size:15px;font-weight:600;margin:0 0 14px}
 .modal-tools{display:flex;justify-content:flex-end;margin-top:18px}
+/* Attribute zusammenführen: breiter, Liste rollt */
+.ad-box{width:min(640px,100%)}
+.ad-box .modal-tools{gap:6px}
+#attrDlgListe{max-height:60vh;overflow-y:auto}
+.ad-attr{border-bottom:1px solid var(--hair-soft);padding:6px 0}
+.ad-attr .ad-mark{width:13px;height:13px;margin:0;accent-color:var(--obj);flex:none}
+.ad-attr .ad-name{flex:1 1 auto;min-width:0}
+.ad-eig{font-family:var(--mono);font-size:10px;color:var(--muted);flex:none}
+.ad-q{font-family:var(--mono);font-size:10px;color:var(--muted);padding:2px 0 0 22px}
+.ad-q.anders{color:var(--warn)}
 .einst{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--muted);cursor:pointer}
 .einst input{width:15px;height:15px;margin:1px 0 0;accent-color:var(--obj);flex:0 0 auto;cursor:pointer}
 .einst strong{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}

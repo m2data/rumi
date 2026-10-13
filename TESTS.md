@@ -92,6 +92,13 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Bearbeiten; dazu Domain als Liste und die führende Domäne (leading_domain) in
   Objektliste, Kasten, Domänen-Element,
   Suche, Details und Formular.
+- **`attributdialog.js`** — Attribute aus mehreren Quellen: die Übernahme
+  führt gleichnamige zusammen und bringt alle anderen ein; der Dialog
+  „Attribute zusammenführen“ (nur mit Pflegeschalter, nur am
+  Geschäftsobjekt) führt markierte zusammen, trennt Quellen ab, benennt um —
+  Business Keys und `references` ziehen mit; Prüfung auf abweichende Typen,
+  Ablehnung ungültiger Namen, Abbrechen, ein Verlaufsschritt, nur geänderte
+  Zeilen.
 - **`quellen.js`** — die Ebene der Quelltabellen: Schalter „Quelltabellen
   verwenden" (Vorgabe aus, im Verlauf), Bereich mit den automatischen
   Diagrammen je Quellsystem (geschützt) und eigenen Gegenüberstellungen, das

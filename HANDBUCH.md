@@ -417,6 +417,29 @@ festgelegte führende Domäne wird keine angezeigt, und die Prüfung meldet
 führend. Gespeichert wird sie als `leading_domain`; steht sie nicht unter
 Domain, wird sie trotzdem angezeigt und gemeldet.
 
+**Attribute zusammenführen.** Kommen die Attribute eines Objekts aus mehreren
+Quelltabellen (Kapitel 17), bringt der Dialog „Attribute zusammenführen …“ sie
+in Ordnung — erreichbar in den Details und im Kontextmenü eines
+Geschäftsobjekts, wenn „Geschäftsobjekte bearbeiten“ an ist. Je Attribut eine
+Zeile mit Namen, Typ und Schlüsseln, darunter seine Quellen
+(`Webshop.Bestellung.KundeID · char(13) · PK`); weicht der Typ einer Quelle ab,
+ist sie markiert.
+
+- **Zusammenführen:** mindestens zwei markieren, „Markierte zusammenführen“ —
+  das oberste bleibt mit Namen und Eigenschaften, die Quellen der anderen
+  kommen dazu, die anderen entfallen.
+- **Abtrennen:** an einer Quelle eines Attributs mit mehreren Quellen. Sie wird
+  ein eigenes Attribut direkt darunter, mit den Eigenschaften ihrer Spalte und
+  deren Namen; ist er vergeben, mit dem Tabellennamen angehängt
+  (`BestellungID_Bestellung_VRS`), notfalls zusätzlich mit dem Quellsystem.
+- **Umbenennen:** im Namensfeld.
+
+„Übernehmen“ schreibt alles in einem Schritt (Strg+Z nimmt es zurück);
+Business Keys und `references` in allen Objekten ziehen mit — auch ein
+Verweis auf ein entfallenes Attribut zeigt danach auf das bleibende. Namen
+müssen eindeutig sein und dürfen kein `:`, `#`, `"` oder `.` enthalten.
+„Abbrechen“ verwirft alles.
+
 **Anlegen und Löschen.** „＋ Objekt" über der Liste fragt nach einem Namen und
 öffnet das Formular gleich. „Objekt löschen …" unten im Formular nimmt das
 Objekt heraus — samt der Beziehungen, die auf es zeigen; die Nachfrage nennt
@@ -608,7 +631,7 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 | Domain | die der Tabelle | fehlende Domänen kommen in die Liste; hatte das Objekt genau eine, wird sie `leading_domain`, damit die Anzeige bleibt |
 | Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` — **nicht**, wenn derselbe Text schon dasteht |
 | Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
-| Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle **nur, wenn das Objekt keine hat**; die Primärschlüssel immer (s. u.) |
+| Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle; gleichnamige werden eins (s. u.) |
 | Beziehungen | übernommen, Ziel umgesetzt | übernommen, Ziel umgesetzt |
 | Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben, wo das Objekt keinen Wert hat |
 | `Table_Sources` | `Webshop.Bestellung` | Tabelle angehängt |
@@ -627,12 +650,18 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   angelegten Objekte, und der Reiter „Prüfung" zeigt sie als Info „aus
   Beziehungsziel angelegt" — bis zur nächsten Übernahme oder bis ein anderes
   Modell geladen wird; das steht in keinen Daten.
-- **Primärschlüssel:** Jedes Attribut mit `primary_key` wird Business Key des
-  Objekts, wenn es den Schlüssel noch nicht gibt, und sein Attribut wird
-  übernommen — auch in ein Objekt, das schon Attribute hat. Ist der Schlüssel
-  schon da, bekommt das gleichnamige Attribut nur die Quelle in
-  `attribut_sources` dazu (eine Liste, z. B.
-  `[Webshop.Bestellung.BestellungID, Roadshow.Bestellung_VRS.BestellungID]`).
+- **Attribute:** Jedes Attribut jeder Tabelle kommt ins Objekt. **Gleichnamige
+  werden eins** — gleicher Name wie das Attribut am Objekt oder wie eine Spalte
+  in dessen `attribut_sources` (so findet auch ein umbenanntes Attribut neue
+  Quellen); die Quelle kommt in `attribut_sources` dazu (eine Liste, z. B.
+  `[Webshop.Bestellung.BestellungID, Roadshow.Bestellung_VRS.BestellungID]`),
+  die Eigenschaften des vorhandenen Attributs bleiben. Alle anderen kommen als
+  eigene Attribute dazu und lassen sich im Dialog „Attribute zusammenführen“
+  vereinen (Kapitel 13). Steht eine Quelle schon an einem Attribut, bleibt sie
+  dort — abgetrennte Attribute werden nicht wieder vereint. Weicht der Typ
+  einer Quellspalte ab, meldet die Prüfung „Quellen mit abweichendem Typ“.
+- **Primärschlüssel:** Das Attribut, auf dem eine Spalte mit `primary_key`
+  landet, wird Business Key des Objekts, wenn es den Schlüssel noch nicht gibt.
 - **Verweise umsetzen:** `references: Webshop.Kunde.KundeID` wird
   `Kunde.KundeID`.
 - **Wiederholen:** Eine Tabelle, die schon in `Table_Sources` steht, gilt als

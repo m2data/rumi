@@ -469,6 +469,7 @@ function renderDetails(){
       `<div class="grouphead">${tabelle ? 'QUELLTABELLE' : 'GESCHÄFTSOBJEKT'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(o.name)}</dd></dl>
        ${pflegeErlaubt() ? `<button class="relbtn edit" data-edit="1" title="Name, Domain, Beschreibung, Schlüssel, Quellen, Attribute und Beziehungen dieses Objekts ändern">Bearbeiten</button>` : ''}
+       ${pflegeErlaubt() && !tabelle ? `<button class="relbtn" data-attrdlg="1" title="Attribute aus mehreren Quellen zusammenführen, wieder trennen und umbenennen">Attribute zusammenführen …</button>` : ''}
        <button class="relbtn" data-related="1" title="Alle über Beziehungen verknüpften Objekte einblenden und um dieses Objekt anordnen">Verknüpfte Objekte ins Diagramm holen</button>
        ${tabelle ? `<dl class="kv"><dt>Tabelle</dt><dd>${esc(o.tabelle || o.name)}</dd></dl>
        <dl class="kv"><dt>Quellsystem</dt><dd>${o.system ? esc(o.system) : '—'}</dd></dl>
@@ -518,6 +519,8 @@ function renderDetails(){
     b.addEventListener('click', ()=> selectEdgeByPair(b.dataset.edge)));
   box.querySelectorAll('[data-related]').forEach(b=>
     b.addEventListener('click', ()=> addRelated(n.id)));
+  box.querySelectorAll('[data-attrdlg]').forEach(b=>
+    b.addEventListener('click', ()=> attributDialogAuf(n.id)));
   box.querySelectorAll('[data-edit]').forEach(b=>
     b.addEventListener('click', ()=> pflegeStart(n.id)));
 }
@@ -527,7 +530,7 @@ const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur 
 function renderMessages(){
   // Zu den Geschäftsobjekten die Infos der letzten Übernahme, solange es das Objekt gibt
   const list = S.mode === 'quellen' ? aktModell().messages
-    : aktModell().messages.concat(S.uebernahmeMeldungen.filter(m => S.model.objects[m.obj]));
+    : aktModell().messages.concat(S.uebernahmeMeldungen.filter(m => S.model.objects[m.obj]), typAbweichungen());
   const bad = list.filter(m => m.level !== 'info').length;
   const badge = $('msgBadge');
   badge.textContent = list.length;
@@ -844,6 +847,7 @@ document.addEventListener('keydown', ev=>{
   }
   if(ev.key === 'Escape'){
     if(!$('zusatzDlg').hidden){ zusatzZu(); return; }
+    if(!$('attrDlg').hidden){ attributDialogZu(); return; }
     if(S.selEdge){ S.selEdge = null; draw(); }
     else if(S.sel.size) setSelection([]);
     closeMenus();
@@ -1143,8 +1147,9 @@ function ctxMenuOeffnen(n, x, y){
     `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
     + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
     + (einzeln && pflegeErlaubt()
-        ? `<button data-ctx="edit">Bearbeiten …</button>
-           <hr><button data-ctx="delete">Objekt löschen …</button>` : '');
+        ? `<button data-ctx="edit">Bearbeiten …</button>`
+          + (S.mode !== 'quellen' ? `<button data-ctx="attrdlg">Attribute zusammenführen …</button>` : '')
+          + `<hr><button data-ctx="delete">Objekt löschen …</button>` : '');
   m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
     closeMenus();
     const a = b.dataset.ctx;
@@ -1154,6 +1159,7 @@ function ctxMenuOeffnen(n, x, y){
     }
     if(a === 'related') addRelated(n.id);
     if(a === 'edit') pflegeStart(n.id);
+    if(a === 'attrdlg') attributDialogAuf(n.id);
     if(a === 'delete') pflegeLoeschen(n.id);
   });
   closeMenus(m);

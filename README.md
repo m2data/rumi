@@ -52,10 +52,11 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   bearbeiten" wie bei den Geschäftsobjekten. Beim Laden der Tabellen und über
   „Datei & Export → Geschäftsobjekte übernehmen" entstehen aus ihnen die
   zugeordneten Geschäftsobjekte bzw. werden ergänzt — Domäne, Beschreibung
-  (keine gleiche doppelt), Beziehungen, Attribute (nur in Objekte ohne; die
-  Primärschlüssel immer, sie werden Business Keys), eingeschaltete
-  Zusatzfelder — mit Herkunft in `Table_Sources`, `Relation_Sources` und
-  `attribut_sources`. Ein Beziehungsziel ohne Geschäftsobjekt bekommt eins.
+  (keine gleiche doppelt), Beziehungen, Attribute (gleichnamige werden eins,
+  Primärschlüssel werden Business Keys), eingeschaltete Zusatzfelder — mit
+  Herkunft in `Table_Sources`, `Relation_Sources` und `attribut_sources`. Ein
+  Beziehungsziel ohne Geschäftsobjekt bekommt eins. Der Dialog „Attribute
+  zusammenführen …“ vereint, trennt und benennt Attribute am Objekt um.
   Siehe
   [Handbuch, Kapitel 17](HANDBUCH.md#17-quelltabellen).
 - **Zusatzattribute** – jeder Schlüssel an einem Objekt oder Attribut, den die
@@ -261,7 +262,7 @@ Projektstruktur:
 
     src/        Quellen: index.html (Gerüst), style.css/svg.css und die
                 JS-Module (yaml, model, layout, render, app, route, edit,
-                interaktion, hierarchie, pflege, uebernahme, ui)
+                interaktion, hierarchie, pflege, uebernahme, attributdialog, ui)
     build.js    fügt src/ + models/ zur einzelnen dist-Datei zusammen
     dist/       geschaeftsobjekt-explorer.html (die Datei zum Weitergeben)
     models/     Beispiel-YAML (Geschäftsobjekte, Hierarchie, Quelltabellen)

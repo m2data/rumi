@@ -223,6 +223,20 @@
   </div>
 </div>
 
+<!-- Attribute zusammenführen, trennen, umbenennen: der Inhalt entsteht beim
+     Öffnen aus dem gewählten Geschäftsobjekt (attributdialog.js). -->
+<div class="modal" id="attrDlg" hidden>
+  <div class="modal-box ad-box" role="dialog" aria-modal="true" aria-labelledby="attrDlgTitel">
+    <h2 id="attrDlgTitel">Attribute zusammenführen</h2>
+    <div id="attrDlgListe"></div>
+    <div class="modal-tools">
+      <button class="hd-btn" id="attrMerge" title="Die markierten Attribute werden eins: das oberste bleibt, die Quellen der anderen kommen dazu">Markierte zusammenführen</button>
+      <button class="hd-btn ok" id="attrOk">Übernehmen</button>
+      <button class="hd-btn" id="attrAbbruch">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="deltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="layoutInput" accept=".json" hidden>
