@@ -144,7 +144,9 @@ console.log('== Abtrennen ==');
   t('jetzt kein abweichender Typ mehr', !$('msgList').innerHTML.includes('Quellen mit abweichendem Typ'));
   dispatch([...$('menu').querySelectorAll('button')].find(b => b.dataset.act === 'uebernehmen'), 'click', {});
   t('eine neue Übernahme vereinigt Getrenntes nicht wieder', !!attr('AuftragNr_Auftrag_RS') && q(attr('AuftragNr')) === 'Webshop.Auftrag.AuftragNr');
-  api.undo();
+  t('der abgetrennte Primärschlüssel wird beim nächsten Lauf Business Key',
+    S.model.objects.Auftrag.keys.join(',') === 'AuftragNr,AuftragNr_Auftrag_RS', S.model.objects.Auftrag.keys.join(','));
+  api.undo(); api.undo();
 }
 
 console.log('== Umbenennen ==');
@@ -195,6 +197,44 @@ console.log('== Nur Geändertes wird geschrieben ==');
     b.filter(l => !a.includes(l)).join('|'));
   api.undo();
   t('Strg+Z: wieder wie vorher', S.yamlText === vorher);
+}
+
+console.log('== Stand von vorher: schon übernommene Tabellen werden aktualisiert ==');
+{
+  // So sah ein Objekt nach der Übernahme vor der Attributregel aus: die
+  // Tabellen stehen in Table_Sources, die Attribute tragen keine Quellen
+  await api.loadYaml([
+    'BusinessObjects:',
+    '  Auftrag:',
+    '    Domain: Vertrieb',
+    '    attributes:',
+    '    - name: AuftragNr',
+    '      type: int',
+    '    Table_Sources:',
+    '    - Webshop.Auftrag',
+    '    - Roadshow.Auftrag_RS',
+    ''
+  ].join('\n'), 'vorher.yaml');
+  if(!S.quellenAn) klick('optQuellen');
+  S.quellText = TAB; S.quellModell = api.buildModel(TAB, 'quelle');
+  dispatch([...$('menu').querySelectorAll('button')].find(b => b.dataset.act === 'uebernehmen'), 'click', {});
+  const A = S.model.objects.Auftrag;
+  t('die Rückmeldung zählt das Objekt als aktualisiert', /Übernahme: 0 angelegt, 1 aktualisiert, 0 unverändert/.test($('toast').textContent),
+    $('toast').textContent);
+  t('gleichnamige bekommen ihre Quellen', q(attr('AuftragNr')) === 'Webshop.Auftrag.AuftragNr,Roadshow.Auftrag_RS.AuftragNr', q(attr('AuftragNr')));
+  t('fehlende Attribute der Quellen kommen dazu', A.attrs.map(a => a.name).join(',') === 'AuftragNr,KundeID,KdNr',
+    A.attrs.map(a => a.name).join(','));
+  t('der PK wird Business Key', A.keys.join(',') === 'AuftragNr');
+  S.pflegeAn = true;
+  oeffnen();
+  const alleQuellen = [...liste().querySelectorAll('.ad-q')].map(d => d.textContent.split('·')[0].replace('←', '').trim()).sort().join(',');
+  t('der Dialog zeigt jede Spalte jeder Quelle', alleQuellen
+    === 'Roadshow.Auftrag_RS.AuftragNr,Roadshow.Auftrag_RS.KdNr,Webshop.Auftrag.AuftragNr,Webshop.Auftrag.KundeID', alleQuellen);
+  klick('attrAbbruch');
+  const vorher = S.yamlText;
+  dispatch([...$('menu').querySelectorAll('button')].find(b => b.dataset.act === 'uebernehmen'), 'click', {});
+  t('ein zweiter Lauf ändert nichts', S.yamlText === vorher && /0 angelegt, 0 aktualisiert, 1 unverändert/.test($('toast').textContent),
+    $('toast').textContent);
 }
 
 finish();

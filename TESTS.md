@@ -88,7 +88,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Beziehungsziele ohne Zuordnung samt Meldung in der Prüfung, Quelltabellen
   ohne Business Keys, die
   Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
-  Überspringen beim Wiederholen, ein Verlaufsschritt, Erhalt der Herkunft beim
+  Aktualisieren bei jedem Lauf (Beschreibungsblock erneuern, Eigenschaften aus
+  übereinstimmenden Quellen, Weggefallenes entfernen, Schutzregel für Tabellen
+  anderer Dateien, zweiter Lauf ohne Änderung), ein Verlaufsschritt, Erhalt der Herkunft beim
   Bearbeiten; dazu Domain als Liste und die führende Domäne (leading_domain) in
   Objektliste, Kasten, Domänen-Element,
   Suche, Details und Formular.

@@ -626,12 +626,12 @@ Geschäftsobjekte übernehmen"**; sie ist ein Schritt im Verlauf (Strg+Z), ände
 sich nichts, entsteht keiner. Der Schalter „Geschäftsobjekte bearbeiten" wird
 dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 
-| | Objekt fehlt → **anlegen** | Objekt vorhanden → **ergänzen** |
+| | Objekt fehlt → **anlegen** | Objekt vorhanden → **aktualisieren** |
 | --- | --- | --- |
 | Domain | die der Tabelle | fehlende Domänen kommen in die Liste; hatte das Objekt genau eine, wird sie `leading_domain`, damit die Anzeige bleibt |
-| Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | unten angehängt: Leerzeile, Beschreibung der Tabelle, `--->aus Webshop.Bestellung kopiert` — **nicht**, wenn derselbe Text schon dasteht |
+| Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | ihr Block (Text mit dieser Herkunftszeile) wird erneuert; gibt es ihn noch nicht, wird angehängt — **nicht**, wenn derselbe Text schon dasteht |
 | Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
-| Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle; gleichnamige werden eins (s. u.) |
+| Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle; gleichnamige werden eins, Eigenschaften aus übereinstimmenden Quellen (s. u.) |
 | Beziehungen | übernommen, Ziel umgesetzt | übernommen, Ziel umgesetzt |
 | Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben, wo das Objekt keinen Wert hat |
 | `Table_Sources` | `Webshop.Bestellung` | Tabelle angehängt |
@@ -654,19 +654,32 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   werden eins** — gleicher Name wie das Attribut am Objekt oder wie eine Spalte
   in dessen `attribut_sources` (so findet auch ein umbenanntes Attribut neue
   Quellen); die Quelle kommt in `attribut_sources` dazu (eine Liste, z. B.
-  `[Webshop.Bestellung.BestellungID, Roadshow.Bestellung_VRS.BestellungID]`),
-  die Eigenschaften des vorhandenen Attributs bleiben. Alle anderen kommen als
-  eigene Attribute dazu und lassen sich im Dialog „Attribute zusammenführen“
-  vereinen (Kapitel 13). Steht eine Quelle schon an einem Attribut, bleibt sie
-  dort — abgetrennte Attribute werden nicht wieder vereint. Weicht der Typ
-  einer Quellspalte ab, meldet die Prüfung „Quellen mit abweichendem Typ“.
+  `[Webshop.Bestellung.BestellungID, Roadshow.Bestellung_VRS.BestellungID]`).
+  Alle anderen kommen als eigene Attribute dazu und lassen sich im Dialog
+  „Attribute zusammenführen“ vereinen (Kapitel 13). Steht eine Quelle schon an
+  einem Attribut, bleibt sie dort — abgetrennte Attribute werden nicht wieder
+  vereint.
+- **Eigenschaften der Attribute:** Stimmen alle Quellspalten eines Attributs in
+  einer Eigenschaft überein (Typ, nullable, PK/AK/FK, Verweis), bekommt das
+  Attribut diesen Wert — auch ein von Hand angelegtes, das so seine erste
+  Quelle bekommt. Weichen sie ab, bleibt der Wert am Attribut, und die Prüfung
+  meldet „Quellen mit abweichendem Typ“. Der Name bleibt immer (Umbenennen im
+  Dialog gilt).
 - **Primärschlüssel:** Das Attribut, auf dem eine Spalte mit `primary_key`
   landet, wird Business Key des Objekts, wenn es den Schlüssel noch nicht gibt.
 - **Verweise umsetzen:** `references: Webshop.Kunde.KundeID` wird
   `Kunde.KundeID`.
-- **Wiederholen:** Eine Tabelle, die schon in `Table_Sources` steht, gilt als
-  übernommen und wird übersprungen — es wird nichts doppelt angehängt.
-- Die Rückmeldung zählt: „Übernahme: 1 angelegt, 5 ergänzt, 3 übersprungen".
+- **Aktualisieren:** Jeder Lauf gleicht **alle** zugeordneten Tabellen ab, auch
+  schon übernommene: Fehlendes kommt dazu, Übernommenes wird erneuert, nichts
+  wird doppelt eingetragen; ohne neue Daten ändert ein Lauf nichts. Ist eine
+  Spalte weggefallen, verschwindet sie aus `attribut_sources` (das Attribut
+  bleibt). Ist eine Tabelle einem anderen oder keinem Objekt mehr zugeordnet,
+  verschwindet sie beim bisherigen aus `Table_Sources`, `attribut_sources`,
+  `Relation_Sources` und der Beschreibung. Eine Tabelle, die in der geladenen
+  Tabellendatei gar nicht vorkommt, bleibt unangetastet — sie kann aus einer
+  anderen Datei stammen.
+- Die Rückmeldung zählt je Geschäftsobjekt: „Übernahme: 1 angelegt, 5
+  aktualisiert, 3 unverändert".
 - Ein Objektname mit `:`, `#` oder `"` wird nicht angelegt und gemeldet.
 
 ---

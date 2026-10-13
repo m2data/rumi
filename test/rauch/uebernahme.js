@@ -136,7 +136,7 @@ const vorherGO = S.yamlText, vorherTab = S.quellText;
 await fuettern('quellInput', 'tabellen.yaml', TAB);
 {
   t('die Rückmeldung zählt und nennt die Ziel-Objekte',
-    /Übernahme: 3 angelegt, 2 ergänzt, 0 übersprungen, 2 aus Beziehungsziel angelegt: Lager, Regal/.test($('toast').textContent),
+    /Übernahme: 3 angelegt, 2 aktualisiert, 0 unverändert, 2 aus Beziehungsziel angelegt: Lager, Regal/.test($('toast').textContent),
     $('toast').textContent);
   const A = S.model.objects.Auftrag;
   t('Auftrag ist angelegt', !!A);
@@ -172,9 +172,9 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Kunde: auch in ein Objekt mit Attributen kommen alle dazu, mit Quelle',
     K.attrs.map(a => a.name).join(',') === 'KundeID,KundeNr,Name' && quellen(K.attrs[1].quellen) === 'Webshop.Kunde.KundeNr'
     && quellen(K.attrs[2].quellen) === 'Webshop.Kunde.Name', K.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
-  t('Kunde: bei abweichendem Typ gewinnt das vorhandene Attribut', K.attrs[0].type === 'char(13)', K.attrs[0].type);
-  t('Kunde: die Prüfung meldet den abweichenden Typ',
-    $('msgList').innerHTML.includes('Kunde.KundeID: Quellen mit abweichendem Typ'), $('msgList').textContent.slice(0, 300));
+  t('Kunde: stimmen alle Quellen überein (hier die eine), gilt ihr Typ', K.attrs[0].type === 'int', K.attrs[0].type);
+  t('Kunde: dann gibt es keine Meldung „abweichender Typ"',
+    !$('msgList').innerHTML.includes('Kunde.KundeID: Quellen mit abweichendem Typ'), $('msgList').textContent.slice(0, 300));
   t('Kunde: PK schon Business Key → nur die Quelle am Attribut', quellen(K.attrs[0].quellen) === 'Roadshow.Kunde_RS.KundeID'
     && K.keys.filter(k => k === 'KundeID').length === 1, quellen(K.attrs[0].quellen));
   t('Kunde: ein vorhandener Zusatzwert bleibt', K.extra['schema.org'] === 'https://schema.org/Person');
@@ -215,7 +215,7 @@ console.log('== Wiederholen ändert nichts ==');
 {
   const vorher = S.yamlText, vorherQ = S.quellText;
   klick(akt('uebernehmen'));
-  t('Rückmeldung: alles übersprungen', /Übernahme: 0 angelegt, 0 ergänzt, 7 übersprungen$/.test($('toast').textContent), $('toast').textContent);
+  t('Rückmeldung: nichts zu tun, alle unverändert', /Übernahme: 0 angelegt, 0 aktualisiert, 5 unverändert$/.test($('toast').textContent), $('toast').textContent);
   t('beide Texte unverändert', S.yamlText === vorher && S.quellText === vorherQ);
   api.undo();
   t('kein eigener Verlaufsschritt: Strg+Z nimmt das Laden zurück', S.yamlText === vorherGO && !S.model.objects.Auftrag);
@@ -237,7 +237,7 @@ console.log('== Menü übernimmt eine neue Tabelle ==');
   t('Produkt ergänzt', P.tabQuellen.join(',') === 'Webshop.Produkt,Webshop.Artikel' && /--->aus Webshop.Artikel kopiert$/.test(P.desc), JSON.stringify(P));
   t('die Domäne ist schon da, nichts doppelt', P.domains.join(',') === 'Willibald');
   t('ausgeschaltetes Zusatzfeld wird nicht übernommen', !P.extra['schema.org'], P.extra['schema.org']);
-  t('die übrigen Tabellen übersprungen', /0 angelegt, 1 ergänzt, 7 übersprungen/.test($('toast').textContent), $('toast').textContent);
+  t('die übrigen Objekte unverändert', /0 angelegt, 1 aktualisiert, 4 unverändert/.test($('toast').textContent), $('toast').textContent);
   t('die Infos zum Beziehungsziel gelten bis zur nächsten Übernahme', !S.uebernahmeMeldungen.length);
   api.undo();
   t('Strg+Z nimmt die Übernahme in einem Schritt zurück', S.yamlText === vorher, S.yamlText.slice(-120));
@@ -390,6 +390,86 @@ console.log('== Formular der Quelltabelle: genau eine Domäne ==');
     b.length === a.length && b.filter(l => !a.includes(l)).join('|') === '      Domain: Lagerhaus', b.filter(l => !a.includes(l)).join('|'));
   api.undo();
   api.setMode('komplett');
+}
+
+console.log('== Aktualisieren aus den Quellen ==');
+{
+  const menue = ()=> dispatch(akt('uebernehmen'), 'click', {});
+  const tabellen = (desc, typ, mitSpalte, bo)=> [
+    'SourceTables:',
+    '  Webshop:',
+    '    Artikel:',
+    '      business_object: ' + bo,
+    ...(desc ? ['      desc: ' + desc] : []),
+    '      attributes:',
+    '      - name: ArtNr',
+    '        type: ' + typ,
+    '        primary_key: true',
+    ...(mitSpalte ? ['      - name: Farbe'] : []),
+    '      relationships:',
+    '      - to: Webshop.Lager',
+    '    Lager:',
+    '      business_object: Lager',
+    ''].join('\n');
+  const setze = text=>{ S.quellText = text; S.quellModell = api.buildModel(text, 'quelle'); };
+  await api.loadYaml('BusinessObjects:\n  Ware:\n    Domain: Handel\n    desc: Von Hand geschrieben.\n  Lager:\n    Domain: Handel\n', 'ware.yaml');
+  api.setMode('komplett');
+  if(!S.quellenAn) klick('optQuellen');
+
+  setze(tabellen('Erster Text.', 'int', true, 'Ware'));
+  menue();
+  let W = S.model.objects.Ware;
+  t('Ausgang: Beschreibung angehängt, Attribute mit Quellen',
+    W.desc === 'Von Hand geschrieben.\n\nErster Text.\n--->aus Webshop.Artikel kopiert' && W.attrs.map(a => a.name).join(',') === 'ArtNr,Farbe',
+    JSON.stringify(W.desc));
+
+  setze(tabellen('Zweiter Text.', 'int', true, 'Ware'));
+  menue();
+  W = S.model.objects.Ware;
+  t('geänderte Beschreibung ersetzt ihren Block, der Text von Hand bleibt',
+    W.desc === 'Von Hand geschrieben.\n\nZweiter Text.\n--->aus Webshop.Artikel kopiert', JSON.stringify(W.desc));
+
+  setze(tabellen('', 'bigint', true, 'Ware'));
+  menue();
+  W = S.model.objects.Ware;
+  t('geleerte Beschreibung: ihr Block entfällt', W.desc === 'Von Hand geschrieben.', JSON.stringify(W.desc));
+  t('geänderter Spaltentyp kommt ans Attribut (alle Quellen gleich)', W.attrs[0].type === 'bigint', W.attrs[0].type);
+
+  setze(tabellen('', 'bigint', false, 'Ware'));
+  menue();
+  W = S.model.objects.Ware;
+  t('eine weggefallene Spalte verschwindet aus attribut_sources, das Attribut bleibt',
+    !!W.attrs.find(a => a.name === 'Farbe') && !W.attrs.find(a => a.name === 'Farbe').quellen.length);
+
+  setze(tabellen('Dritter Text.', 'bigint', false, 'Lager'));
+  menue();
+  W = S.model.objects.Ware;
+  const L = S.model.objects.Lager;
+  t('Zuordnung gewechselt: beim alten Objekt ist alles von der Tabelle weg',
+    !W.tabQuellen.length && W.attrs.every(a => !a.quellen.length) && W.rels.every(x => !x.quellen.length)
+    && W.desc === 'Von Hand geschrieben.', JSON.stringify({t: W.tabQuellen, d: W.desc}));
+  t('beim neuen Objekt eingetragen', L.tabQuellen.includes('Webshop.Artikel')
+    && L.attrs.some(a => a.quellen.includes('Webshop.Artikel.ArtNr')) && /--->aus Webshop.Artikel kopiert/.test(L.desc));
+
+  const vorher = S.yamlText;
+  setze('SourceTables:\n  CRM:\n    Person:\n      business_object: Kunde2\n');
+  menue();
+  t('Schutzregel: Tabellen aus einer anderen Datei bleiben am Objekt',
+    S.model.objects.Lager.tabQuellen.includes('Webshop.Artikel') && S.model.objects.Lager.attrs.some(a => a.quellen.length));
+  t('und es kommt nur das Neue dazu', !!S.model.objects.Kunde2 && S.yamlText.startsWith(vorher.replace(/\n$/, '')), S.yamlText.slice(-200));
+}
+
+console.log('== Willibald: zweimal laden ==');
+{
+  await api.loadYaml(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'willibald-attr.yaml'), 'utf8'), 'willibald-attr.yaml');
+  if(!S.quellenAn) klick('optQuellen');
+  const T = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8');
+  api.loadQuellen(T, 'w.yaml');
+  t('erster Lauf aktualisiert die Objekte', /0 angelegt, 11 aktualisiert/.test($('toast').textContent), $('toast').textContent);
+  const nachEins = S.yamlText;
+  api.loadQuellen(T, 'w.yaml');
+  t('zweiter Lauf: alles unverändert', S.yamlText === nachEins && /0 angelegt, 0 aktualisiert, 11 unverändert/.test($('toast').textContent),
+    $('toast').textContent);
 }
 
 finish();
