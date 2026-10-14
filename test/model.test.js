@@ -807,6 +807,38 @@ console.log('== Quelltabellen: Beispieldatei ==');
     Object.values(WQ.objects).every(o => W.objects[o.bo] && W.objects[o.bo].sources.includes(o.tabelle)));
 }
 
+console.log('== Beschreibung: Anführungszeichen, Kommentare, Zeilenumbrüche ==');
+{
+  // Ein maskiertes \" beendete im Kommentarfilter die Zeichenkette — ab " #"
+  // fiel der Rest der Beschreibung weg.
+  const d = readYaml('A:\n  desc: "\\"\\nEr sagte \\"Hallo\\" # dazu"\n').doc.A.desc;
+  t('Kommentar hinter maskiertem Anführungszeichen ist keiner', d === '"\nEr sagte "Hallo" # dazu', JSON.stringify(d));
+  t('ein echter Kommentar hinter der Zeichenkette bleibt Kommentar',
+    readYaml('A:\n  desc: "a" # weg\n').doc.A.desc === 'a');
+
+  const {api: g, S: gs} = load(['yaml.js', 'model.js'], ['buildModel', 'makeGraph']);
+  gs.content = {1: {desc:true}};
+  const n = g.makeGraph(g.buildModel('BusinessObjects:\n  A:\n    Domain: D\n    desc: "Zeile 1\\n\\nZeile 3"\n'))
+    .nodes.find(x => x.name === 'A');
+  t('Zeilenumbrüche und Leerzeile im Diagramm', JSON.stringify(n.desc) === '["Zeile 1","","Zeile 3"]', JSON.stringify(n.desc));
+  const q = g.makeGraph(g.buildModel('SourceTables:\n  S:\n    T:\n      desc: "a\\nb"\n', 'quelle'))
+    .nodes.find(x => x.name === 'S.T');
+  t('Zeilenumbruch im Diagramm der Quelltabellen', q && JSON.stringify(q.desc) === '["a","b"]', q && JSON.stringify(q.desc));
+}
+
+console.log('== Beziehungsname aus Leerzeichen ==');
+{
+  const yl = "BusinessObjects:\n  A:\n    Domain: D\n    relationships:\n    - to: B\n      name: '  '\n  B:\n    Domain: D\n";
+  const M = buildModel(yl);
+  t('gilt als unbenannt', M.objects.A.rels[0].name === null, JSON.stringify(M.objects.A.rels[0]));
+  const {api: g, S: gs} = load(['yaml.js', 'model.js'], ['buildModel', 'makeGraph']);
+  gs.content = {1: {}};
+  const e = g.makeGraph(g.buildModel(yl)).edges[0];
+  t('keine Beschriftung an der Kante', e && e.label === null, e && JSON.stringify(e.label));
+  const Q = buildModel("SourceTables:\n  S:\n    T:\n      relationships:\n      - to: S.U\n        name: '  '\n    U:\n      desc: x\n", 'quelle');
+  t('auch an Quelltabellen unbenannt', Q.objects['S.T'].rels[0].name === null, JSON.stringify(Q.objects['S.T'].rels[0]));
+}
+
 console.log('\n' + (fail ? `${fail} Prüfung(en) fehlgeschlagen, ${pass} bestanden`
                           : `Alle ${pass} Prüfungen bestanden`));
 process.exit(fail ? 1 : 0);

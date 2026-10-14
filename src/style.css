@@ -278,6 +278,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .descbox{
   font-size:11.5px;line-height:1.5;color:#3C4C58;background:var(--paper);
   border:1px solid var(--hair-soft);border-radius:3px;padding:7px 9px;margin:6px 0 2px;
+  white-space:pre-wrap;
 }
 .relbtn{
   appearance:none;display:block;width:100%;margin:8px 0 4px;padding:6px 10px;

@@ -48,11 +48,13 @@ function readYaml(text){
     body:`Die Datei rückt teilweise mit Tabulatoren ein. YAML erlaubt das nicht — ein normaler Parser bricht hier ab. Diese App rechnet einen Tab in ${TAB_WIDTH} Leerzeichen um.`});
 
   // Kommentar ab '# ' entfernen, aber nur außerhalb von Anführungszeichen —
-  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert.
+  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert. Ein
+  // maskiertes \" beendet die Zeichenkette nicht.
   const stripComment = s=>{
     let q = null;
     for(let i=0; i<s.length; i++){
       const c = s[i];
+      if(q === '"' && c === '\\'){ i++; continue; }
       if(q){ if(c === q) q = null; continue; }
       if(c === '"' || c === "'"){ q = c; continue; }
       if(c === '#' && (i === 0 || /\s/.test(s[i-1]))) return s.slice(0, i);

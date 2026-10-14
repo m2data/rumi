@@ -619,8 +619,9 @@ function pflegeFormular(box){
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
+       <datalist id="pfZiele">${ziele.map(z=>`<option value="${esc(z)}"></option>`).join('')}</datalist>
        ${e.rels.map((r,i)=>`<div class="pfb">
-          <div class="pfz">${wahl('pfb-to', i, ziele.concat(ziele.includes(r.to) ? [] : [r.to]).map(z=>[z,z]), 'Ziel der Beziehung')}
+          <div class="pfz"><input class="pfb-to" data-i="${i}" list="pfZiele" placeholder="${quellen ? 'System.Tabelle' : 'Ziel'}, auch neu" aria-label="Ziel der Beziehung">
             <button class="pfx" data-weg="rel" data-i="${i}" title="Beziehung entfernen" aria-label="Beziehung entfernen">×</button></div>
           <div class="pfz"><input class="pfb-name" data-i="${i}" placeholder="Name der Beziehung" aria-label="Beziehungsname">
             ${wahl('pfb-from', i, karten, 'Kardinalität an der Quelle')}<span class="pfsep">:</span>
@@ -730,10 +731,8 @@ function pfZeileNeu(art){
   pfLesen();
   if(art === 'src') pfEntwurf.quellListe.push({name:'', gruppe:null});
   else if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
-  else {
-    const ziele = Object.keys(aktModell().objects);
-    pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
-  }
+  // Ohne Vorgabe: ein vorbelegtes Ziel filterte die Vorschlagsliste auf sich selbst
+  else pfEntwurf.rels.push({to:'', name:'', from:'', toCard:'', _alt:null});
   renderDetails();
 }
 
@@ -755,9 +754,21 @@ function pflegeSpeichern(){
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
+  // Ein Ziel, das es noch nicht gibt, wird als leeres Objekt angelegt — mit
+  // derselben Prüfung wie „Neu"; eine Quelltabelle als System.Tabelle
+  const neueZiele = [...new Set(e.rels.map(r => r.to))]
+    .filter(z => z !== neuName && z !== altName && !aktModell().objects[z]);
+  for(const z of neueZiele){
+    if(quellen){
+      const teile = z.split('.');
+      if(teile.length !== 2){ toast(`Ein neues Ziel als System.Tabelle angeben, etwa Webshop.Bestellung — nicht „${z}"`); return; }
+      if(!qtNamePruefen(teile[1], teile[0])) return;
+    } else if(!pfNamePruefen(z)) return;
+  }
 
   let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
+  neueZiele.forEach(z => { text = goObjektAnlegen(text, z, aktZerleger()); });
   if(neuName !== altName){
     text = goUmbenennen(text, altName, neuName, aktZerleger());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
@@ -769,7 +780,7 @@ function pflegeSpeichern(){
       if(q !== quellTextAkt()) S.quellText = q;
     }
   }
-  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert');
+  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : ''));
 }
 
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in

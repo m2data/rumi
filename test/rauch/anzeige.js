@@ -317,5 +317,9 @@ console.log('== Zweiter Klick in der Objektliste hebt die Auswahl auf ==');
   api.setSelection([]);
 }
 
+console.log('== Beschreibung in den Details ==');
+t('Zeilenumbrüche der Beschreibung bleiben in den Details stehen',
+  /\.descbox\{[^}]*white-space:pre-wrap/.test(html));
+
 finish();
 })();

@@ -297,6 +297,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 .descbox{
   font-size:11.5px;line-height:1.5;color:#3C4C58;background:var(--paper);
   border:1px solid var(--hair-soft);border-radius:3px;padding:7px 9px;margin:6px 0 2px;
+  white-space:pre-wrap;
 }
 .relbtn{
   appearance:none;display:block;width:100%;margin:8px 0 4px;padding:6px 10px;
@@ -780,11 +781,13 @@ function readYaml(text){
     body:`Die Datei rückt teilweise mit Tabulatoren ein. YAML erlaubt das nicht — ein normaler Parser bricht hier ab. Diese App rechnet einen Tab in ${TAB_WIDTH} Leerzeichen um.`});
 
   // Kommentar ab '# ' entfernen, aber nur außerhalb von Anführungszeichen —
-  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert.
+  // sonst zerschneidet eine Beschreibung wie "Preis # Stück" den Wert. Ein
+  // maskiertes \" beendet die Zeichenkette nicht.
   const stripComment = s=>{
     let q = null;
     for(let i=0; i<s.length; i++){
       const c = s[i];
+      if(q === '"' && c === '\\'){ i++; continue; }
       if(q){ if(c === q) q = null; continue; }
       if(c === '"' || c === "'"){ q = c; continue; }
       if(c === '#' && (i === 0 || /\s/.test(s[i-1]))) return s.slice(0, i);
@@ -936,7 +939,9 @@ function readRel(entry, keyName){
   }
   if(!body.to) return null;
 
-  const explicit = body.name || body.label || body.bezeichnung || body.rolle || null;
+  // Ein Name aus Leerzeichen ist keiner
+  const nm = v => typeof v === 'string' ? v.trim() || null : v;
+  const explicit = nm(body.name) || nm(body.label) || nm(body.bezeichnung) || nm(body.rolle) || null;
   if(!explicit && !name && body === entry){         // Form C: Name als wertloser Schlüssel
     const k = Object.keys(entry).find(k => !REL_FIELDS.has(k) && entry[k] === null);
     if(k) name = k;
@@ -1267,17 +1272,20 @@ const CONTENT_FIELDS = [
 const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true};
 const contentOf = ()=> Object.assign({}, CONTENT_DEFAULT, S.content && S.content[1]);
 
+// Jeder Zeilenumbruch im Text bleibt einer, eine Leerzeile bleibt leer
 function wrapText(text, maxW, font){
-  const words = String(text).split(/\s+/).filter(Boolean);
   const lines = [];
-  let cur = '';
-  words.forEach(word=>{
-    const probe = cur ? cur + ' ' + word : word;
-    if(cur && measure(probe, font) > maxW){ lines.push(cur); cur = word; }
-    else cur = probe;
+  String(text).split('\n').forEach(absatz=>{
+    const words = absatz.split(/\s+/).filter(Boolean);
+    let cur = '';
+    words.forEach(word=>{
+      const probe = cur ? cur + ' ' + word : word;
+      if(cur && measure(probe, font) > maxW){ lines.push(cur); cur = word; }
+      else cur = probe;
+    });
+    lines.push(cur);
   });
-  if(cur) lines.push(cur);
-  return lines;
+  return lines.some(Boolean) ? lines : [];
 }
 
 function attrText(a, showType){
@@ -6616,8 +6624,9 @@ function pflegeFormular(box){
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
+       <datalist id="pfZiele">${ziele.map(z=>`<option value="${esc(z)}"></option>`).join('')}</datalist>
        ${e.rels.map((r,i)=>`<div class="pfb">
-          <div class="pfz">${wahl('pfb-to', i, ziele.concat(ziele.includes(r.to) ? [] : [r.to]).map(z=>[z,z]), 'Ziel der Beziehung')}
+          <div class="pfz"><input class="pfb-to" data-i="${i}" list="pfZiele" placeholder="${quellen ? 'System.Tabelle' : 'Ziel'}, auch neu" aria-label="Ziel der Beziehung">
             <button class="pfx" data-weg="rel" data-i="${i}" title="Beziehung entfernen" aria-label="Beziehung entfernen">×</button></div>
           <div class="pfz"><input class="pfb-name" data-i="${i}" placeholder="Name der Beziehung" aria-label="Beziehungsname">
             ${wahl('pfb-from', i, karten, 'Kardinalität an der Quelle')}<span class="pfsep">:</span>
@@ -6727,10 +6736,8 @@ function pfZeileNeu(art){
   pfLesen();
   if(art === 'src') pfEntwurf.quellListe.push({name:'', gruppe:null});
   else if(art === 'attr') pfEntwurf.attrs.push({name:'', type:'', nullable:false, pk:false, ak:false, fk:false, ref:'', extra:{}, _alt:null});
-  else {
-    const ziele = Object.keys(aktModell().objects);
-    pfEntwurf.rels.push({to: ziele[0] || '', name:'', from:'', toCard:'', _alt:null});
-  }
+  // Ohne Vorgabe: ein vorbelegtes Ziel filterte die Vorschlagsliste auf sich selbst
+  else pfEntwurf.rels.push({to:'', name:'', from:'', toCard:'', _alt:null});
   renderDetails();
 }
 
@@ -6752,9 +6759,21 @@ function pflegeSpeichern(){
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
   if(e.attrs.some(a => !a.name)){ toast('Jedes Attribut braucht einen Namen'); return; }
   if(e.rels.some(r => !r.to)){ toast('Jede Beziehung braucht ein Ziel'); return; }
+  // Ein Ziel, das es noch nicht gibt, wird als leeres Objekt angelegt — mit
+  // derselben Prüfung wie „Neu"; eine Quelltabelle als System.Tabelle
+  const neueZiele = [...new Set(e.rels.map(r => r.to))]
+    .filter(z => z !== neuName && z !== altName && !aktModell().objects[z]);
+  for(const z of neueZiele){
+    if(quellen){
+      const teile = z.split('.');
+      if(teile.length !== 2){ toast(`Ein neues Ziel als System.Tabelle angeben, etwa Webshop.Bestellung — nicht „${z}"`); return; }
+      if(!qtNamePruefen(teile[1], teile[0])) return;
+    } else if(!pfNamePruefen(z)) return;
+  }
 
   let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
+  neueZiele.forEach(z => { text = goObjektAnlegen(text, z, aktZerleger()); });
   if(neuName !== altName){
     text = goUmbenennen(text, altName, neuName, aktZerleger());
     pfIdsUmbenennen('o:' + altName, 'o:' + neuName);
@@ -6766,7 +6785,7 @@ function pflegeSpeichern(){
       if(q !== quellTextAkt()) S.quellText = q;
     }
   }
-  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert');
+  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : ''));
 }
 
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in

@@ -962,5 +962,57 @@ console.log('== Bedienweg: Quellen ordnen und überschneidend gruppieren ==');
   t('nur Domain geändert: die Quellen bleiben Zeichen für Zeichen, auch die Langform', quellBlock() === quellenVorher, quellBlock());
 }
 
+console.log('== Beschreibung, neues Beziehungsziel, leerer Name — in beiden Bereichen ==');
+{
+  const tricky = '"\nEr sagte "Hallo" # dazu';
+  const neueBeziehung = ziel=>{
+    dispatch(detail().querySelector('[data-neu="rel"]'), 'click', {});
+    const z = detail().querySelectorAll('.pfb-to');
+    z[z.length - 1].value = ziel;
+  };
+  await api.loadYaml("BusinessObjects:\n  A:\n    Domain: D\n    relationships:\n    - to: B\n      name: '  '\n  B:\n    Domain: D\n", 'neu.yaml');
+  api.setMode('komplett'); S.pflegeAn = true;
+
+  formularOeffnen('o:A');
+  $('pfDesc').value = tricky;
+  dispatch($('pfSave'), 'click', {});
+  t('Geschäftsobjekt: Beschreibung mit " und # übersteht das Speichern', S.model.objects.A.desc === tricky, JSON.stringify(S.model.objects.A.desc));
+  t('Geschäftsobjekt: der Name aus Leerzeichen ist beim Speichern weggefallen',
+    !/name:/.test(S.yamlText) && /- to: B\n/.test(S.yamlText), S.yamlText);
+
+  formularOeffnen('o:A');
+  neueBeziehung('Neu');
+  dispatch($('pfSave'), 'click', {});
+  t('ein neues Ziel legt das Geschäftsobjekt an', !!S.model.objects.Neu
+    && S.model.objects.A.rels.some(r => r.to === 'Neu'), S.yamlText);
+  t('die Meldung nennt das neue Objekt', /neu angelegt: Neu/.test($('toast').textContent), $('toast').textContent);
+
+  api.loadQuellen("SourceTables:\n  S:\n    T:\n      Domain: D\n      relationships:\n      - to: S.U\n        name: '  '\n    U:\n      Domain: D\n", 'q.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  formularOeffnen('o:S.T');
+  $('pfDesc').value = tricky;
+  dispatch($('pfSave'), 'click', {});
+  t('Quelltabelle: Beschreibung mit " und # übersteht das Speichern', S.quellModell.objects['S.T'].desc === tricky,
+    JSON.stringify(S.quellModell.objects['S.T'].desc));
+  t('Quelltabelle: der Name aus Leerzeichen ist beim Speichern weggefallen', !/name:/.test(S.quellText), S.quellText);
+
+  formularOeffnen('o:S.T');
+  neueBeziehung('NeuSys.NeuTab');
+  dispatch($('pfSave'), 'click', {});
+  t('eine neue Quelltabelle in einem neuen System als Ziel', !!S.quellModell.objects['NeuSys.NeuTab']
+    && /\n  NeuSys:\n    NeuTab:/.test(S.quellText)
+    && S.quellModell.objects['S.T'].rels.some(r => r.to === 'NeuSys.NeuTab'), S.quellText);
+
+  const vorher = S.quellText;
+  formularOeffnen('o:S.T');
+  neueBeziehung('OhnePunkt');
+  dispatch($('pfSave'), 'click', {});
+  t('ein neues Ziel ohne System wird abgewiesen', S.quellText === vorher && !S.quellModell.objects.OhnePunkt
+    && /System\.Tabelle/.test($('toast').textContent), $('toast').textContent);
+  api.pflegeEnde();
+  api.setMode('komplett');
+}
+
 finish();
 })();

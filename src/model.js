@@ -54,7 +54,9 @@ function readRel(entry, keyName){
   }
   if(!body.to) return null;
 
-  const explicit = body.name || body.label || body.bezeichnung || body.rolle || null;
+  // Ein Name aus Leerzeichen ist keiner
+  const nm = v => typeof v === 'string' ? v.trim() || null : v;
+  const explicit = nm(body.name) || nm(body.label) || nm(body.bezeichnung) || nm(body.rolle) || null;
   if(!explicit && !name && body === entry){         // Form C: Name als wertloser Schlüssel
     const k = Object.keys(entry).find(k => !REL_FIELDS.has(k) && entry[k] === null);
     if(k) name = k;
@@ -385,17 +387,20 @@ const CONTENT_FIELDS = [
 const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true};
 const contentOf = ()=> Object.assign({}, CONTENT_DEFAULT, S.content && S.content[1]);
 
+// Jeder Zeilenumbruch im Text bleibt einer, eine Leerzeile bleibt leer
 function wrapText(text, maxW, font){
-  const words = String(text).split(/\s+/).filter(Boolean);
   const lines = [];
-  let cur = '';
-  words.forEach(word=>{
-    const probe = cur ? cur + ' ' + word : word;
-    if(cur && measure(probe, font) > maxW){ lines.push(cur); cur = word; }
-    else cur = probe;
+  String(text).split('\n').forEach(absatz=>{
+    const words = absatz.split(/\s+/).filter(Boolean);
+    let cur = '';
+    words.forEach(word=>{
+      const probe = cur ? cur + ' ' + word : word;
+      if(cur && measure(probe, font) > maxW){ lines.push(cur); cur = word; }
+      else cur = probe;
+    });
+    lines.push(cur);
   });
-  if(cur) lines.push(cur);
-  return lines;
+  return lines.some(Boolean) ? lines : [];
 }
 
 function attrText(a, showType){
