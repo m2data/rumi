@@ -199,7 +199,9 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
   tolerant: Tabs als Einrückung sind erlaubt, Feldnamen gibt es deutsch wie
   englisch (`Domain`/`domain`, `desc`/`beschreibung`, …), und Beziehungen dürfen
   in mehreren Schreibweisen notiert sein. Mehrzeilige Texte gehen auch als
-  Blockskalar (`desc: |-` bzw. `>`).
+  Blockskalar (`desc: |-` bzw. `>`). Was der Leser nicht versteht, steht mit
+  Zeilennummer in der Prüfliste; gespeichert wird jede YAML einheitlich
+  (Beschreibungen als `desc: |`) — Einzelheiten im Handbuch.
 - **Zusatzattribute:** Jeder weitere Schlüssel mit Einzelwert an einem Objekt
   oder Attribut (Buchstaben, Ziffern, `_ - / .`) wird mitgeführt und lässt
   sich über „Einstellungen → Zusatzattribute …" zur Pflege einschalten.

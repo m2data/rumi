@@ -74,7 +74,8 @@ function outlineFlat(roots){
 function outlineToYaml(roots){
   const q = s => '"' + String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
   const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
-  const skalar = s => plain(s) ? s : q(s);
+  // schlicht nur, was der Leser als denselben Text zurückgibt (1e3 wäre eine Zahl)
+  const skalar = s => plain(s) && readYaml('x: ' + s).doc.x === s ? s : q(s);
   const lines = [];
   const listKey = S.mode === 'quellen' ? 'tabellen' : 'objekte';
   const emit = (node, ind)=>{

@@ -871,6 +871,79 @@ console.log('== Fremde Schreibweisen: U+2028, mehrzeilige Zeichenketten in Anfü
   t('Quelltabelle mit U+2028 hat ihre Beschreibung', qd('Chance') === 'Nicht gut ersichtlich:\n- Churn-Rate', JSON.stringify(qd('Chance')));
 }
 
+console.log('== YAML-Besonderheiten ==');
+{
+  const r = y => readYaml(y);
+  const d = y => r(y).doc;
+  const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const hinweis = (y, frag) => r(y).notes.some(n => (n.title + ' ' + n.body).includes(frag));
+  const zeig = y => JSON.stringify(d(y)) + ' | ' + r(y).notes.map(n => n.title).join(' / ');
+
+  t('1 Inline-Liste', gleich(d('a: [x, "y, z", 3]').a, ['x', 'y, z', 3]), zeig('a: [x, "y, z", 3]'));
+  t('2 Inline-Abbildung, verschachtelt', gleich(d('a: {b: 1, c: [x]}').a, {b: 1, c: ['x']}), zeig('a: {b: 1, c: [x]}'));
+  t('3 Inline-Liste über zwei Zeilen', gleich(d('a: [x,\n  y]\nb: 1'), {a: ['x', 'y'], b: 1}), zeig('a: [x,\n  y]\nb: 1'));
+  t('4 Anker und Alias', d('a: &k x\nb: *k').b === 'x', zeig('a: &k x\nb: *k'));
+  const ab = d('a: &k\n  c: 1\nb: *k');
+  t('5 Alias auf Abbildung ist eine Kopie', gleich(ab.b, {c: 1}) && ab.a !== ab.b, zeig('a: &k\n  c: 1\nb: *k'));
+  const mg = 'a: &k\n  c: 1\nb:\n  <<: *k\n  c: 2\n  d: 3';
+  t('6 Merge-Schlüssel, eigene Werte gehen vor', gleich(d(mg).b, {c: 2, d: 3}), zeig(mg));
+  t('7 unbekannter Alias: null mit Hinweis', d('b: *fehlt').b === null && hinweis('b: *fehlt', 'Alias'), zeig('b: *fehlt'));
+  const tg = 'a: !!str 123\nb: !!int "7"\nc: !foo x';
+  t('8 Tags', gleich(d(tg), {a: '123', b: 7, c: 'x'}) && hinweis(tg, 'Tag'), zeig(tg));
+  t('9 Schlüssel in Anführungszeichen', gleich(d('"a b": 1\n\'c:d\': 2'), {'a b': 1, 'c:d': 2}), zeig('"a b": 1\n\'c:d\': 2'));
+  t('10 a: x:y ist Text, url bleibt', d('a: x:y').a === 'x:y' && d('url: http://x').url === 'http://x', zeig('a: x:y'));
+  t('11 Schlüssel mit ?', gleich(d('? a\n: 1'), {a: 1}), zeig('? a\n: 1'));
+  t('12 Liste in Liste', gleich(d('a:\n- - x\n  - y\n- z').a, [['x', 'y'], 'z']), zeig('a:\n- - x\n  - y\n- z'));
+  const sk = 'a: Null\nb: NULL\nc: 1e3\nd: .5\ne: 0x1F\nf: +5\ng: 2024-01-02';
+  t('13 null und Zahlen nach YAML 1.2', gleich(d(sk), {a: null, b: null, c: 1000, d: 0.5, e: 31, f: 5, g: '2024-01-02'}), zeig(sk));
+  t('14 |+ behält Leerzeilen am Ende, | nicht', d('a: |+\n  x\n\nb: 1').a === 'x\n\n' && d('a: |\n  x\n\nb: 1').a === 'x',
+    JSON.stringify(d('a: |+\n  x\n\nb: 1').a));
+  t('15 schlichter Text: Leerzeile wird Umbruch', d('a: eins\n  zwei\n\n  drei').a === 'eins zwei\ndrei', zeig('a: eins\n  zwei\n\n  drei'));
+  t('16 Folgezeile mit Doppelpunkt wird angehängt, mit Hinweis',
+    d('a: eins\n  zwei: drei').a === 'eins zwei: drei' && hinweis('a: eins\n  zwei: drei', 'Zeile 2'), zeig('a: eins\n  zwei: drei'));
+  t('17 Tab im Wert bleibt', d('a: "x\ty"').a === 'x\ty', zeig('a: "x\ty"'));
+  t('18 --- und ... am Rand werden übergangen', gleich(d('---\na: 1\n...'), {a: 1}) && !r('---\na: 1\n...').notes.length, zeig('---\na: 1\n...'));
+  t('18 zweites Dokument: nur das erste, mit Hinweis', gleich(d('a: 1\n---\nb: 2'), {a: 1}) && hinweis('a: 1\n---\nb: 2', 'Dokument'),
+    zeig('a: 1\n---\nb: 2'));
+  t('19 Zeile ohne Schlüssel wird gemeldet', hinweis('a: 1\nfoo\n', 'Zeile 2') && hinweis('a: 1\nfoo\n', 'foo'), zeig('a: 1\nfoo\n'));
+  t('20 tiefere Zeile ohne Elternschlüssel wird gemeldet', d('a: 1\n    b: 2').a === 1 && hinweis('a: 1\n    b: 2', 'Zeile 2'), zeig('a: 1\n    b: 2'));
+  t('21 Anführungszeichen ohne Schluss', d("d: 'x").d === "'x" && hinweis("d: 'x", 'ohne Schluss'), zeig("d: 'x"));
+  t('22 der Hinweis kommt im Modell an', has(buildModel('BusinessObjects:\n  A:\n    Domain: D\n    foo\n').messages, 'warn', 'nicht gelesen'),
+    buildModel('BusinessObjects:\n  A:\n    Domain: D\n    foo\n').messages.map(m => m.title).join(' | '));
+}
+
+console.log('== Einheitliches Format (yamlEinheitlich) ==');
+{
+  const {api: y} = load(['yaml.js'], ['readYaml', 'yamlEinheitlich']);
+  const E = y.yamlEinheitlich;
+  const zeig = s => JSON.stringify(E(s));
+  t('E1 Text schlicht, wo es geht, sonst "…"', E("a: 'text'\nb: 'x: y'\nc: '1'\nd: ''") === 'a: text\nb: "x: y"\nc: "1"\nd: ""',
+    zeig("a: 'text'\nb: 'x: y'\nc: '1'\nd: ''"));
+  t('E2 mehrzeiliger Text wird Block', E("a: 'eins\n\n  zwei'\nb: 1") === 'a: |\n  eins\n  zwei\nb: 1', zeig("a: 'eins\n\n  zwei'\nb: 1"));
+  t('E3 Beschreibung immer als Block', E('desc: kurz') === 'desc: |\n  kurz', zeig('desc: kurz'));
+  t('E4 Inline-Liste und -Abbildung werden Block, [] bleibt',
+    E('a: [x, "y z"]\nb: {c: 1}\ne: []') === 'a:\n- x\n- y z\nb:\n  c: 1\ne: []', zeig('a: [x, "y z"]\nb: {c: 1}\ne: []'));
+  const bleibt = "a: 1\nb: true\nc: null\nd: &k x\ne: *k\nf: !!str 5\ng: 'x'  # Kommentar";
+  t('E5 Zahlen, Wahrheitswerte, Anker, Alias, Tag und Kommentar bleiben', E(bleibt) === bleibt, zeig(bleibt));
+  t('E6 Listeneinträge', E("l:\n- 'x'\n- name: 'y'\n  type: 'int'") === 'l:\n- x\n- name: y\n  type: int', zeig("l:\n- 'x'\n- name: 'y'\n  type: 'int'"));
+  const dir = path.join(__dirname, '..', 'models');
+  const crmArtig = fs.readFileSync(path.join(dir, 'willibald-quelltabellen.yaml'), 'utf8')
+    + "  Fremd:\n    T:\n      desc: 'eins\n\n        zwei'\n      prio: ''\n      tags: [a, b]\n      desc2: \"x\\\n        \\ y\"\n";
+  const dateien = fs.readdirSync(dir).filter(f => /\.ya?ml$/.test(f)).map(f => [f, fs.readFileSync(path.join(dir, f), 'utf8')])
+    .concat([['crm-artig', crmArtig]]);
+  // Beschreibungen werden wie im Formular getrimmt — sonst muss der Inhalt gleich bleiben
+  const ohneRand = v => Array.isArray(v) ? v.map(ohneRand) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.entries(v).map(([k, w]) => [k, /^(desc|beschreibung|description)$/.test(k) && typeof w === 'string' ? w.trim() : ohneRand(w)])) : v;
+  dateien.forEach(([n, s])=>{
+    const e = E(s);
+    t('E7 ' + n + ': einmal ist genug', E(e) === e);
+    t('E8 ' + n + ': gleicher Inhalt', JSON.stringify(ohneRand(y.readYaml(e).doc)) === JSON.stringify(ohneRand(y.readYaml(s).doc)));
+  });
+  // Ausweichweg: eine Zeile nur aus Leerzeichen trägt der Block nicht verlustfrei
+  const roh = 'a: "eins\\n   \\nzwei"';
+  t('E9 was als Block nicht verlustfrei ginge, bleibt in den alten Zeilen', E(roh) === roh, zeig(roh));
+}
+
 console.log('== Beziehungsname aus Leerzeichen ==');
 {
   const yl = "BusinessObjects:\n  A:\n    Domain: D\n    relationships:\n    - to: B\n      name: '  '\n  B:\n    Domain: D\n";

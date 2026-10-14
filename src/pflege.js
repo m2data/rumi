@@ -9,17 +9,6 @@
    Schreibvarianten unberührter Stellen überleben so jede Bearbeitung.
    ===================================================================== */
 
-/* Ein Wert fürs YAML. Angeführt wird nur, wo es sein muss — sonst läse sich
-   die Datei nach der ersten Bearbeitung anders als davor. */
-function yWert(v){
-  const s = String(v == null ? '' : v);
-  if(s === '' || /^\s|\s$/.test(s) || /[#"'\n\t]/.test(s) || /:(\s|$)/.test(s)
-     || /^[-?:,[\]{}&*!|>%@`]/.test(s) || /^(true|false|null|~)$/i.test(s)
-     || /^-?\d+(\.\d+)?$/.test(s))
-    return '"' + s.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
-  return s;
-}
-
 /* Die Felder eines Objektblocks, die die Pflege verantwortet. Ein Feld kann
    deutsch wie englisch heißen (siehe buildModel) — dann wird der vorhandene
    Schlüssel weiterbenutzt, sonst der erste als Vorgabe. */
@@ -200,7 +189,7 @@ function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
   if(rolle === 'desc'){
     // Eine geänderte Beschreibung immer als Block „desc: |"; unveränderte stellt
-    // erst pfDescEinheitlich beim Speichern über das Formular um — Übernahme
+    // erst yamlEinheitlich beim Speichern über das Formular um — Übernahme
     // und Attributdialog lassen unberührten Text Zeichen für Zeichen stehen.
     const neu = e.desc || '', vor = alt.desc || '';
     if(neu === vor) return f ? f.lines : [];
@@ -250,38 +239,6 @@ function pfFeldZeilen(rolle, f, col, e, alt){
       (a, ic, vorhanden)=> pfAttrZeilen(a, ic, a._alt ? vorhanden.get('attr:' + a._alt.name) : null));
   return pfListe(f, col, key, e.rels,
     r => (r._alt && pfRelGleich(r, r._alt)) ? 'bez:' + r._alt.to + '\u0000' + (r._alt.name || '') : null, pfRelZeilen);
-}
-
-/* Alle Beschreibungen einer Datei einheitlich als Block „desc: |". Der Wert
-   wird aus den Zeilen des Feldes selbst gelesen, nicht aus dem Modell — so
-   zählt nur, was an dieser Stelle steht. Was als Block nicht verlustfrei
-   ginge (yBlock gibt null) oder leer ist, bleibt unverändert stehen. */
-function pfDescEinheitlich(text, zerleger = splitBusinessObjects){
-  const B = zerleger(text);
-  if(!B) return text;
-  B.blocks.forEach(b=>{
-    if(!b.name) return;                         // Kopf eines Systemabschnitts
-    const F = splitObjectFields(b.lines);
-    const f = F.fields.find(x => pfRolle(x.key) === 'desc');
-    if(!f) return;
-    const col = yCol(f.lines[0]);
-    // Leerzeilen und Kommentare am Feldende gehören zum Folgenden, nicht zum Text
-    // (ein Kommentar tiefer eingerückt wäre Inhalt eines Blockskalars)
-    const zeilen = f.lines.slice(), nachspann = [];
-    while(zeilen.length > 1 && (zeilen[zeilen.length - 1].trim() === ''
-          || (yBlank(zeilen[zeilen.length - 1]) && yCol(zeilen[zeilen.length - 1]) <= col)))
-      nachspann.unshift(zeilen.pop());
-    let wert;
-    try{ wert = readYaml(['x:', ...zeilen.map(l => l.trim() === '' ? '' : '  ' + l.replace(/\t/g, '    ').slice(col))].join('\n')).doc.x[f.key]; }
-    catch(_){ return; }
-    if(typeof wert !== 'string' || !wert.trim()) return;
-    // Leerraum am Rand schneidet auch das Formular ab; ein Umbruch am Ende ginge als Block nicht
-    const block = yBlock(col, f.key, wert.trim());
-    if(!block) return;
-    f.lines = block.concat(nachspann);
-    b.lines = [F.head, ...F.vorspann, ...F.fields.reduce((s, x)=> s.concat(x.lines), [])];
-  });
-  return pfZusammen(B);
 }
 
 /* ---------- Die vier Eingriffe in den Modelltext ---------- */
@@ -829,7 +786,7 @@ function pflegeSpeichern(){
       if(q !== quellTextAkt()) S.quellText = q;
     }
   }
-  text = pfDescEinheitlich(text, aktZerleger());   // alle Beschreibungen der Datei als Block
+  text = yamlEinheitlich(text);                    // die ganze Datei einheitlich, wie beim Herunterladen
   pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : ''));
 }
 

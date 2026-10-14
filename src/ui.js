@@ -1081,7 +1081,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'loadLayout') $('layoutInput').click();
   // Speichern
   if(a === 'saveGO'){
-    download(S.yamlText, S.fileName.replace(/\.[^.]+$/, '') + '.yaml', 'text/yaml');
+    download(yamlEinheitlich(S.yamlText), S.fileName.replace(/\.[^.]+$/, '') + '.yaml', 'text/yaml');   // jede gespeicherte YAML einheitlich
     toast('Geschäftsobjekte gespeichert');
   }
   if(a === 'uebersicht'){
@@ -1095,7 +1095,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'openQuellDelta') $('quellDeltaInput').click();
   if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
   if(a === 'saveQuellen'){
-    download(quellTextAkt(), S.quellFileName, 'text/yaml');
+    download(yamlEinheitlich(quellTextAkt()), S.quellFileName, 'text/yaml');
     toast('Quelltabellen gespeichert');
   }
   if(a === 'uebernehmen') uebernahmeAusfuehren();
@@ -1721,8 +1721,12 @@ async function loadYaml(text, name, preset){
 function standAlsHtml(){
   const el = $('bakedState');
   const before = el.textContent;
+  // Die eingebetteten Dateien einheitlich wie beim Herunterladen (yamlEinheitlich)
+  const texte = modellTexte();
+  if(texte.yaml) texte.yaml = yamlEinheitlich(texte.yaml);
+  if(texte.quellYaml) texte.quellYaml = yamlEinheitlich(texte.quellYaml);
   el.textContent = JSON.stringify(
-    Object.assign(modellTexte(), layoutFile())
+    Object.assign(texte, layoutFile())
   ).replace(/</g, '\\u003c');
 
   // Generierte Bereiche leeren, damit die Datei klein bleibt

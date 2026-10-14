@@ -485,5 +485,44 @@ console.log('== Delta-Merge bringt einen Block auf die Einrückung der Basis =='
     r.text.includes('\n  Alt:') && r.text.includes('\n  Neu:'), r.text);
 }
 
+console.log('== Jede gespeicherte YAML ist einheitlich ==');
+{
+  const blobs = [];
+  const echt = win.URL.createObjectURL;
+  win.URL.createObjectURL = b => { blobs.push(b); return 'blob:x'; };
+  const text = () => blobs.length ? blobs[blobs.length - 1].teile.join('') : '';
+  const knopf = a => [...document.getElementById('menu').querySelectorAll('button')].find(b => b.dataset.act === a);
+
+  const go = "BusinessObjects:\n  A:\n    Domain: D\n    desc: kurz\n    x: 'a'\n";
+  await api.loadYaml(go, 'einheitlich.yaml');
+  api.setMode('komplett');
+  knopf('saveGO').click();
+  t('heruntergeladene Modell-YAML: Beschreibung als Block, Text schlicht',
+    text().includes('    desc: |\n      kurz\n') && text().includes('    x: a\n'), text());
+  t('der Arbeitstext in der App bleibt unverändert', S.yamlText === go, S.yamlText);
+
+  api.loadQuellen("SourceTables:\n  S:\n    T:\n      desc: 'eins\n\n        zwei'\n      Domain: D\n", 'q.yaml');
+  S.quellenAn = true;
+  knopf('saveQuellen').click();
+  t('heruntergeladene Quelltabellen-YAML: mehrzeilige Beschreibung als Block',
+    text().includes('      desc: |\n        eins\n        zwei\n'), text());
+
+  let baked = document.getElementById('bakedState');
+  if(!baked){
+    baked = document.createElement('script');
+    baked.setAttribute('id', 'bakedState');
+    baked.setAttribute('type', 'application/json');
+    baked.textContent = 'null';
+    document.body.appendChild(baked);
+  }
+  const html = api.standAlsHtml();
+  const m = html.match(/id="bakedState"[^>]*>([\s\S]*?)<\/script>/);
+  const stand = m ? JSON.parse(m[1]) : {};
+  t('„Stand speichern" bettet die einheitlichen Texte ein',
+    String(stand.yaml).includes('desc: |\n      kurz') && String(stand.quellYaml).includes('desc: |\n        eins'),
+    m ? m[1].slice(0, 200) : html.slice(0, 200));
+  win.URL.createObjectURL = echt;
+}
+
 finish();
 })();

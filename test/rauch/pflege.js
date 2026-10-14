@@ -1071,6 +1071,19 @@ console.log('== Beschreibung einheitlich als Block, danach im Reiter „Details"
   api.setMode('komplett');
 }
 
+console.log('== Ein Wert, den der Leser als Zahl oder null läse, wird angeführt ==');
+{
+  await api.loadYaml('BusinessObjects:\n  A:\n    Domain: D\n    attributes:\n    - name: X\n', 'zahl.yaml');
+  api.setMode('komplett'); S.pflegeAn = true;
+  formularOeffnen('o:A');
+  detail().querySelector('.pfa-type[data-i="0"]').value = '1e3';
+  detail().querySelector('.pfa-ref[data-i="0"]').value = 'NULL';
+  dispatch($('pfSave'), 'click', {});
+  const a = S.model.objects.A.attrs[0];
+  t('Typ 1e3 und Verweis NULL bleiben Text', /type: "1e3"/.test(S.yamlText) && /references: "NULL"/.test(S.yamlText)
+    && a.type === '1e3' && a.ref === 'NULL', S.yamlText);
+}
+
 console.log('== Speichern macht alle Beschreibungen der Datei einheitlich ==');
 {
   const go = [

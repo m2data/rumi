@@ -31,7 +31,11 @@ sonst messen zwei Tests still Verschiedenes.
 Quelltabellen): YAML-Rundlauf (Tabs wie
 Leerzeichen), Aufbau von Objekten, Attributen und Beziehungen sowie die
 Prüfregeln (unbekanntes Ziel, fehlende Domain, doppelte Beziehung, Selbstbezug …)
-und einen Rundlauf am ausgelieferten Modell.
+und einen Rundlauf am ausgelieferten Modell. Dazu die YAML-Besonderheiten
+(Inline-Sammlungen, Anker/Alias/Merge, Tags, mehrzeilige Zeichenketten in
+Anführungszeichen, Zahlen und null nach YAML 1.2, Meldung jeder nicht
+gelesenen Zeile) und `yamlEinheitlich`: einheitliche Schreibweise, einmal
+angewandt genügt, und an jeder Datei unter `models/` bleibt der Inhalt gleich.
 
 **`layout.test.js`** prüft `layout.js` (mit `render.js` fürs orthogonale
 Verfahren): alle vier Anordnungsverfahren liefern brauchbare Koordinaten,
@@ -72,7 +76,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   externen Quellen; dazu das
   Dateimenü Knopf für Knopf, die Ladewege über die Dateifelder und das Ablegen
   einer Datei auf der Zeichenfläche; dazu „Stand speichern" in dieselbe Datei
-  (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download).
+  (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download);
+  dazu, dass jede heruntergeladene YAML und der eingebettete Stand einheitlich
+  geschrieben sind (die Test-Attrappe für `Blob` behält dafür ihren Inhalt).
 - **`pflege.js`** — Geschäftsobjekte bearbeiten: Einstellung „Geschäftsobjekte
   bearbeiten" (Vorgabe aus, Haken im Menü „Einstellungen", nicht im Verlauf),
   Formular im Reiter „Details" (Quellen ordnen und überschneidend gruppieren),

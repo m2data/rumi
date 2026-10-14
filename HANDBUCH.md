@@ -805,15 +805,32 @@ und ist absichtlich nachsichtig:
   `kardinalitaet`; statt `business_keys` auch `BusinessKeys`; statt
   `source_systems` auch das ältere `sources`. Stehen beide Schreibweisen da,
   gilt die erstgenannte; beim Bearbeiten wird die vorhandene weitergeschrieben.
-- **Mehrzeilige Texte** als Blockskalar (`desc: |`, `|-`, `>`, `>-`) oder als
-  eingerückte Fortsetzungszeilen.
+- **Mehrzeilige Texte** als Blockskalar (`desc: |`, `|-`, `|+`, `>`, `>-`),
+  als eingerückte Fortsetzungszeilen (eine Leerzeile wird ein Zeilenumbruch)
+  oder in `'…'`/`"…"` über mehrere Zeilen, wie YAML-Werkzeuge lange Texte
+  schreiben (mit `\`-Fortsetzung und Escapes wie `\uHHHH`). Ein unsichtbarer
+  Zeilentrenner (U+2028, etwa aus Word eingefügt) gilt als Zeilenumbruch.
 - **Kommentare** mit `#` — auch am Zeilenende, sofern nicht in
   Anführungszeichen.
+- **Was YAML sonst kennt:** Inline-Listen und -Abbildungen (`[a, b]`,
+  `{a: 1}`, auch über mehrere Zeilen), Anker, Alias und Merge (`&k`, `*k`,
+  `<<: *k`), Tags wie `!!str`, Schlüssel in Anführungszeichen, `? schlüssel`,
+  Listen in Listen, `null`/`Null`/`~`, Zahlen wie `1e3` oder `0x1F`, ein `---`
+  am Anfang und `...` am Ende.
 
-Nicht ausgewertet wird die **Inline-Notation** (`{…}` und `[…]` mit Inhalt);
-solche Werte werden gemeldet und übergangen — bitte als eingerückten Block
-schreiben. Doppelte Schlüssel auf derselben Ebene werden gemeldet: der spätere
-gewinnt.
+Was der Leser nicht versteht, verwirft er nicht still: jede solche Stelle steht
+mit Zeilennummer in der Prüfliste — eine Zeile ohne `schlüssel: wert`, eine
+tiefer eingerückte Zeile ohne Elternschlüssel, ein Anführungszeichen ohne
+Schluss, ein Alias ohne Anker, ein eigenes Tag, ein zweites Dokument nach
+`---` (gelesen wird nur das erste). Doppelte Schlüssel auf derselben Ebene
+werden gemeldet: der spätere gewinnt.
+
+**Gespeichert wird einheitlich:** Beim Herunterladen der Modell- und der
+Quelltabellen-YAML, bei „Stand speichern“ und beim Speichern im Formular
+stehen alle Beschreibungen als Block `desc: |`, anderer mehrzeiliger Text
+ebenso; einzeiliger Text schlicht, wo es geht, sonst in `"…"`; Inline-Listen
+als Blockliste. Kommentare, Reihenfolge und Einrückung bleiben, ebenso Zahlen,
+Anker und Tags; die Zeilenenden werden LF.
 
 **Vier Schreibweisen für Beziehungen** werden gelesen:
 

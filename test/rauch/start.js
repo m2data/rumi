@@ -27,7 +27,8 @@ async function bootApp(file){
     sessionStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
     CSS:{ escape:s=>String(s).replace(/["\\]/g,'\\$&') },
     URL:{ createObjectURL:()=>'blob:x', revokeObjectURL(){} },
-    Blob:function(){}, Image:function(){}, FileReader:function(){}
+    // Ein Blob behält seine Teile, damit ein Test den Inhalt eines Downloads lesen kann
+    Blob:function(teile, opt){ this.teile = teile || []; this.type = opt && opt.type; }, Image:function(){}, FileReader:function(){}
   };
 
   let S, api = {};
