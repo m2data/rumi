@@ -55,30 +55,6 @@ function applyAutoLayout(g){
   spreadLabels();                          // überlappende Beziehungs-Labels entzerren
 }
 
-/* Ablage: im Claude-Artefakt window.storage, in einer heruntergeladenen
-   Datei localStorage. Beides kann fehlen, dann wird nicht gespeichert —
-   aber nicht still: bei einem großen Modell läuft localStorage über die
-   Quota, und ohne Warnung verschwänden Positionen erst beim nächsten
-   Öffnen. Einmal je Sitzung reicht, sonst nervt der Toast bei jedem Zug. */
-let storeWarned = false;
-function warnStoreOnce(){
-  if(storeWarned) return;
-  storeWarned = true;
-  toast('Speichern im Browser fehlgeschlagen (Speicher voll?) — Positionen über „Datei & Export" als JSON sichern');
-}
-const store = {
-  async get(key){
-    if(window.storage){
-      try{ const r = await window.storage.get(key); if(r && r.value) return r.value; }catch(_){}
-    }
-    try{ return localStorage.getItem(key); }catch(_){ return null; }
-  },
-  async set(key, value){
-    if(window.storage){ try{ await window.storage.set(key, value); }catch(_){} }
-    try{ localStorage.setItem(key, value); }catch(_){ warnStoreOnce(); }
-  }
-};
-
 const layoutFile = ()=> ({
   version: 5,
   verfahren: S.layout,
@@ -141,16 +117,11 @@ function positionsSnapshot(){
   return m;
 }
 
+/* Der Browser merkt sich nichts: bei file:// teilen sich alle lokalen
+   HTML-Dateien einen Speicher, und eine frisch geöffnete Datei zeigte dann
+   das Modell einer anderen. Was bleiben soll, steckt in der Datei selbst
+   („Stand speichern"); hier geht der Stand nur in den Verlauf. */
 function writeStore(){
-  const blob = layoutFile();
-  const snap = JSON.stringify(blob);
-  store.set('layouts:' + S.fileName, snap);
-  const sitzung = JSON.stringify(Object.assign(modellTexte(), blob));
-  store.set('sitzung', sitzung);
-  // Tab-eigene Sitzung: localStorage teilen sich alle Tabs (letzter Schreiber
-  // gewinnt) — sessionStorage gilt nur für diesen Tab und hat beim Neuladen
-  // Vorrang. So behält jeder Tab sein eigenes Modell.
-  try{ sessionStorage.setItem('sitzung', sitzung); }catch(_){ warnStoreOnce(); }
   recordHistory(verlaufsStand());
 }
 /* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
@@ -167,7 +138,13 @@ const verlaufsStand = ()=> JSON.stringify({yaml:S.yamlText, quellYaml:S.quellTex
    behalten (also 21 Stände). */
 const HIST_MAX = 20;
 let hist = [], histPos = -1, restoringHistory = false;
-function resetHistory(){ hist = [verlaufsStand()]; histPos = 0; }
+function resetHistory(){ hist = [verlaufsStand()]; histPos = 0; gesichert = hist[0]; }
+
+/* Zuletzt geladener oder als HTML gesicherter Stand. Weicht der aktuelle
+   davon ab, fragt der Browser beim Verlassen (auch beim Neuladen) nach —
+   ohne Ablage im Browser wäre die Arbeit sonst still verloren. */
+let gesichert = null;
+const ungesichert = ()=> !!S.pflege || verlaufsStand() !== gesichert;
 function recordHistory(snap){
   if(restoringHistory) return;
   if(histPos >= 0 && hist[histPos] === snap) return;      // keine echte Änderung
@@ -1624,9 +1601,11 @@ async function loadYaml(text, name, preset){
     S.yamlText = text;
     S.fileName = name || 'modell.yaml';
     S.selected = null;
-    S.saved = {1:{}, 2:{}, 3:{}};
-    S.routes = {1:{}, 2:{}, 3:{}};
-    S.content = {1:{}, 2:{}, 3:{}};
+    // Nur Ansicht 1 wie in adoptLayoutFile — sonst wiche ein zurückgenommener
+    // Stand der Form nach vom geladenen ab und gälte als ungesichert
+    S.saved = {1:{}};
+    S.routes = {1:{}};
+    S.content = {1:{}};
     S.hidden = new Set();
     // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
     S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
@@ -1637,10 +1616,6 @@ async function loadYaml(text, name, preset){
       if(preset.quellFileName) S.quellFileName = preset.quellFileName;
     }
     if(preset) adoptLayoutFile(preset);
-    else {
-      const raw = await store.get('layouts:' + S.fileName);
-      if(raw){ try{ adoptLayoutFile(JSON.parse(raw)); }catch(_){} }
-    }
     quellModellBauen();
     $('fileLabel').textContent = S.fileName;
     syncEinstMenu();
@@ -1679,6 +1654,7 @@ function standAlsHtml(){
 
 function exportHTML(){
   download(standAlsHtml(), S.fileName.replace(/\.[^.]+$/, '') + '-stand.html', 'text/html');
+  gesichert = verlaufsStand();
   toast('Eigenständige HTML-Datei gesichert');
 }
 
@@ -1722,6 +1698,7 @@ async function speichernInDatei(){
     const schreiber = await datei.createWritable();
     await schreiber.write(standAlsHtml());
     await schreiber.close();
+    gesichert = verlaufsStand();
     toast('Stand gespeichert: ' + datei.name);
   }catch(err){
     toast('Speichern fehlgeschlagen: ' + err.message);
@@ -1729,18 +1706,26 @@ async function speichernInDatei(){
 }
 
 /* ---------- Start ---------- */
+/* Frühere Fassungen legten die Sitzung im Browser ab. Die Reste werden
+   gelöscht — nur unsere Schlüssel: den localStorage teilen sich alle lokalen
+   Dateien. */
+function altesMerkenLoeschen(){
+  try{ sessionStorage.removeItem('sitzung'); }catch(_){}
+  try{
+    const weg = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k === 'sitzung' || k.startsWith('layouts:')) weg.push(k);
+    }
+    weg.forEach(k => localStorage.removeItem(k));
+  }catch(_){}
+}
+
 async function boot(){
   initSvg();
   let preset = null;
+  altesMerkenLoeschen();
   try{ preset = JSON.parse($('bakedState').textContent); }catch(_){}
-  if(!preset){
-    // Zuerst die Tab-eigene Sitzung: beim Neuladen behält jeder Tab sein Modell.
-    try{ preset = JSON.parse(sessionStorage.getItem('sitzung')); }catch(_){}
-  }
-  if(!preset){
-    // Sonst die geteilte Sitzung — der Start für neue Tabs und Fenster.
-    try{ preset = JSON.parse(await store.get('sitzung')); }catch(_){}
-  }
   if(preset && preset.yaml) await loadYaml(preset.yaml, preset.fileName, preset);
   else await loadYaml(DEFAULT_YAML, 'willibald-attr.yaml');
   // Angezeigt wird zum Start die Hierarchie mit ihrer obersten Stufe: sie
@@ -1759,12 +1744,19 @@ async function boot(){
 }
 boot();
 window.addEventListener('resize', ()=> applyTransform());
+window.addEventListener('beforeunload', e=>{
+  if(!ungesichert()) return;
+  e.preventDefault();
+  e.returnValue = '';                    // ältere Browser brauchen beides
+});
 /* Sind die Schriften da, stimmen die Kastenmaße erst wirklich — also einmal
    neu messen und anordnen. Im Hierarchie-Modus über das gewählte Diagramm:
    setView() würde den Ausschnitt aufheben und wieder alle Objekte zeigen. */
 function nachSchriftMessen(){
   if(!S.graph) return;
+  const sauber = !ungesichert();         // das Nachmessen allein ist keine Änderung
   if(S.mode !== 'komplett'){ if(S.hierSel) selectDiagram(S.hierSel); }
   else setView();
+  if(sauber) gesichert = verlaufsStand();
 }
 document.fonts && document.fonts.ready.then(nachSchriftMessen);

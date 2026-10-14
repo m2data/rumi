@@ -67,8 +67,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie.
 - **`hierarchie.js`** — Hierarchie-Modus: Baum, Ausschnitte, Beschreibung,
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
-- **`sitzung.js`** — Sitzung, Dateien, Export: Speicher-Quota, PNG-Maßstab und
-  -Limit, Delta-Merge, Tab-eigene Sitzung, keine externen Quellen; dazu das
+- **`sitzung.js`** — Sitzung, Dateien, Export: PNG-Maßstab und -Limit,
+  Delta-Merge, kein Merken im Browser samt Warnung beim Verlassen, keine
+  externen Quellen; dazu das
   Dateimenü Knopf für Knopf, die Ladewege über die Dateifelder und das Ablegen
   einer Datei auf der Zeichenfläche; dazu „Stand speichern" in dieselbe Datei
   (Dateizugriff vorhanden, Dialog abgebrochen, Dateizugriff fehlt → Download).

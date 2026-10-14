@@ -1,6 +1,6 @@
-/* Rauchtest: Sitzung, Dateien und Export — Dateinamen, Speicher-Quota,
-   PNG-Export, Exportschalter, Selbstständigkeit der HTML, Delta-Merge,
-   Tab-eigene Sitzung. */
+/* Rauchtest: Sitzung, Dateien und Export — Dateinamen, PNG-Export,
+   Exportschalter, Selbstständigkeit der HTML, Delta-Merge, kein Merken im
+   Browser und Warnung beim Verlassen. */
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
@@ -19,22 +19,6 @@ console.log('== Hierarchie-Export leitet den Namen vom Modell ab ==');
   S.fileName = 'willibald-attr.yaml';
   t('funktioniert auch für ein anderes Modell', api.uebersichtName() === 'willibald-attr-hierarchie.yaml', api.uebersichtName());
   S.fileName = prev;
-}
-
-console.log('== Speichern meldet volle Quota (einmal je Sitzung) ==');
-{
-  const echtes = win.localStorage.setItem.bind(win.localStorage);
-  const toastEl = document.getElementById('toast');
-  win.localStorage.setItem = ()=>{ throw new Error('QuotaExceededError'); };
-  toastEl.textContent = '';
-  api.persist();
-  t('voller Speicher löst einen Hinweis aus', toastEl.textContent.includes('Speichern im Browser fehlgeschlagen'),
-    JSON.stringify(toastEl.textContent));
-  toastEl.textContent = '';
-  api.persist();
-  t('der Hinweis kommt nur einmal je Sitzung', toastEl.textContent === '',
-    JSON.stringify(toastEl.textContent));
-  win.localStorage.setItem = echtes;
 }
 
 console.log('== PNG-Export: Maßstab wählbar, Größenlimit benannt ==');
@@ -174,30 +158,80 @@ console.log('== Delta-Geschäftsobjekte sind rückgängig machbar ==');
       === S.graph.nodes.length, 'Listeneinträge');
 }
 
-console.log('== Jeder Tab behält beim Neuladen seine eigene Sitzung ==');
+console.log('== Die Datei zeigt nur, was in ihr steckt ==');
 {
-  // Geteilte Sitzung (localStorage) und Tab-Sitzung (sessionStorage) zeigen auf
-  // verschiedene Modelle -> boot() muss die Tab-eigene bevorzugen.
+  /* Früher merkte sich der Browser die Sitzung — und weil sich bei file://
+     alle lokalen HTML-Dateien einen Speicher teilen, zeigte eine frisch
+     geöffnete Datei das Modell einer anderen. Jetzt gilt nur der eingebackene
+     Stand (hier keiner, also das mitgelieferte Beispiel). */
   const mini = name => JSON.stringify({fileName:name, view:1,
     yaml:'BusinessObjects:\n  ' + name.replace('.yaml','') + ':\n    Domain: T\n'});
-  win.localStorage.setItem('sitzung', mini('geteilt.yaml'));
-  win.sessionStorage.setItem('sitzung', mini('tabeigen.yaml'));
+  const L = win.localStorage, Ss = win.sessionStorage;
+  L.setItem('sitzung', mini('geteilt.yaml'));
+  L.setItem('layouts:x.yaml', '{}');
+  L.setItem('andere-app', 'bleibt');
+  Ss.removeItem('sitzung');                    // ein neuer Tab hat noch keine eigene
   await api.boot();
   for(let k=0;k<50;k++) await Promise.resolve();
-  t('Neuladen nimmt die Tab-eigene Sitzung (nicht die geteilte)',
-    S.fileName === 'tabeigen.yaml', 'fileName=' + S.fileName);
-  /* Der Start zeigt sonst die oberste Hierarchiestufe. Zu diesem Modell passt
-     die mitgelieferte Übersicht nicht (sie nennt Kunde und Bestellung, hier
-     gibt es nur „tabeigen") — das Diagramm wäre leer, also bleibt es bei der
-     Komplettansicht. */
-  t('zu einem fremden Modell bleibt der Start in der Komplettansicht',
-    S.mode === 'komplett' && S.graph.nodes.filter(n => !n.hidden).length > 0,
-    S.mode + ', ' + S.graph.nodes.filter(n => !n.hidden).length + ' sichtbar');
+  t('Öffnen ignoriert die geteilte Sitzung', S.fileName === 'willibald-attr.yaml', 'fileName=' + S.fileName);
+
+  Ss.setItem('sitzung', mini('tabeigen.yaml'));
+  await api.boot();
+  for(let k=0;k<50;k++) await Promise.resolve();
+  t('Öffnen ignoriert die Tab-Sitzung', S.fileName === 'willibald-attr.yaml', 'fileName=' + S.fileName);
+
+  const unsere = d => Object.keys(d).filter(k => k === 'sitzung' || k.startsWith('layouts:'));
+  t('Reste älterer Fassungen werden beim Öffnen gelöscht',
+    unsere(L._d).length === 0 && unsere(Ss._d).length === 0, unsere(L._d).concat(unsere(Ss._d)).join(','));
+  t('fremde Schlüssel bleiben stehen', L.getItem('andere-app') === 'bleibt');
+
+  const verlassen = ()=>{
+    let gewarnt = false;
+    const e = {preventDefault(){ gewarnt = true; }, returnValue: undefined};
+    (win._hoerer.beforeunload || []).forEach(f => f(e));
+    return gewarnt;
+  };
+  t('frisch geöffnet: keine Warnung beim Verlassen', !verlassen());
+  api.setMode('komplett');
+  t('das erste Umschalten ordnet an, gilt aber nicht als Änderung', !verlassen());
+
+  let n = S.graph.nodes.find(x => !x.hidden);
+  n.x += 80;
   api.persist();
-  t('persist() schreibt die Tab-eigene Sitzung mit',
-    (win.sessionStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));
-  t('persist() pflegt weiterhin die geteilte Sitzung',
-    (win.localStorage.getItem('sitzung') || '').includes('tabeigen.yaml'));
+  t('Arbeiten schreibt nichts in den Browser',
+    unsere(L._d).length === 0 && unsere(Ss._d).length === 0, unsere(L._d).concat(unsere(Ss._d)).join(','));
+  t('nach einer Änderung warnt das Verlassen', verlassen());
+  api.undo();
+  t('zurückgenommen bis zum Anfang: keine Warnung', !verlassen());
+
+  n = S.graph.byId.get(n.id);                  // Rückgängig baut den Graphen neu
+  n.x += 80;
+  api.persist();
+  t('die zweite Änderung warnt wieder', verlassen());
+  // Das Mini-DOM verwirft <script>-Blöcke; den Platzhalter fürs Einbacken nachreichen
+  if(!document.getElementById('bakedState')){
+    const baked = document.createElement('script');
+    baked.setAttribute('id', 'bakedState');
+    baked.textContent = 'null';
+    document.body.appendChild(baked);
+  }
+  win.showSaveFilePicker = async ()=>({name:'x.html',
+    createWritable: async ()=>({write: async ()=>{}, close: async ()=>{}})});
+  await api.speichernInDatei();
+  delete win.showSaveFilePicker;
+  t('nach „Stand speichern": keine Warnung', !verlassen());
+
+  S.pflege = n.id;
+  t('ein offenes Bearbeiten-Formular warnt', verlassen());
+  S.pflege = null;
+
+  // Ein bekanntes YAML bringt keine alten Positionen aus dem Browser mit
+  L.setItem('layouts:probe.yaml', JSON.stringify({ansichten:{1:{'o:Probe':{x:777, y:555}}}}));
+  await api.loadYaml('BusinessObjects:\n  Probe:\n    Domain: T\n', 'probe.yaml');
+  const p = S.graph.byId.get('o:Probe');
+  t('ein geladenes YAML übernimmt keine gemerkten Positionen', p && !(p.x === 777 && p.y === 555),
+    p ? p.x + '/' + p.y : 'kein Knoten');
+  L.removeItem('layouts:probe.yaml');
 }
 
 console.log('== Das Dateimenü löst die Aktionen aus ==');

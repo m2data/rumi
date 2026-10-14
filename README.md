@@ -142,7 +142,7 @@ gespeichert:
    als diese YAML ausgeben.
 2. **Hierarchiebeschreibung** – YAML (`models/williibald-übersicht.yaml`)
 3. **Positionsinformationen** – JSON (Anordnungen, Kantenzüge und
-   Diagramm-Bearbeitungen; wird beim Arbeiten automatisch gemerkt)
+   Diagramm-Bearbeitungen)
 
 Mit eingeschalteten Quelltabellen kommen zwei weitere dazu (Format siehe
 [Handbuch, Anhang D und E](HANDBUCH.md#anhang-d--quelltabellen-yaml)):

@@ -835,7 +835,7 @@ console.log('== Bedienweg: Zusatzattribute einschalten und pflegen ==');
   t('die übrigen Platzhalter bleiben', anzahl(S.yamlText, /schema\.org:\s*\n/g) === 10);
   t('die Details zeigen den Wert', /https:\/\/schema\.org\/Order/.test(detail().textContent));
 
-  const gemerkt = JSON.parse(win.localStorage.getItem('sitzung'));
+  const gemerkt = api.layoutFile();
   t('die Einstellung wird gemerkt', gemerkt.zusatzfelder && gemerkt.zusatzfelder.objekt.join(',') === 'schema.org');
   api.undo();
   t('Rückgängig nimmt die Bearbeitung zurück', !S.model.objects.Bestellung.extra['schema.org']);

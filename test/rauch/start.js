@@ -18,9 +18,12 @@ async function bootApp(file){
 
   const {document} = createDom(html);
   const win = {
-    addEventListener(){}, requestAnimationFrame(f){ f(0); },
+    // Hörer werden gemerkt, damit ein Test z. B. „beforeunload" auslösen kann
+    _hoerer:{}, addEventListener(typ, f){ (this._hoerer[typ] = this._hoerer[typ] || []).push(f); },
+    requestAnimationFrame(f){ f(0); },
     setTimeout:(f)=>0, clearTimeout(){}, storage:undefined,
-    localStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
+    localStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; },
+                   get length(){ return Object.keys(this._d).length; }, key(i){ return Object.keys(this._d)[i] ?? null; } },
     sessionStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; } },
     CSS:{ escape:s=>String(s).replace(/["\\]/g,'\\$&') },
     URL:{ createObjectURL:()=>'blob:x', revokeObjectURL(){} },

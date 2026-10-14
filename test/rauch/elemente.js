@@ -5,7 +5,7 @@
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
-const {S, api, win, document, dispatch} = await bootApp();
+const {S, api, document, dispatch} = await bootApp();
 const {t, finish} = makeT();
 
 const haken = id => dispatch(document.getElementById(id), 'click', {});
@@ -141,8 +141,8 @@ console.log('== Anhängsel gehen mit ihrem Objekt ==');
 
 console.log('== Einstellung wird gemerkt ==');
 {
-  const sitzung = JSON.parse(win.sessionStorage.getItem('sitzung'));
-  t('in der Sitzung abgelegt', sitzung.elemente && sitzung.elemente.quelle === true && sitzung.elemente.domaene === true,
+  const sitzung = Object.assign({yaml:S.yamlText, fileName:S.fileName}, api.layoutFile());
+  t('im Stand abgelegt', sitzung.elemente && sitzung.elemente.quelle === true && sitzung.elemente.domaene === true,
     JSON.stringify(sitzung.elemente));
   const stand = Object.assign({}, sitzung, {elemente:{quelle:false, domaene:true}});
   await api.loadYaml(S.yamlText, S.fileName, stand);

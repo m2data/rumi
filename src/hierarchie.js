@@ -368,12 +368,14 @@ function platziereGO(g, neu){
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
 function selectDiagram(id){
+  const sauber = !ungesichert();         // Ansehen ist keine Änderung, auch wenn erstmals angeordnet wird
   S.hierSel = id;
   S.hierEditing = false;   // beim Diagrammwechsel nicht im Bearbeiten-Modus bleiben
   renderOutlineTree();
   renderOutlineDesc();
   const node = id && S.outline ? outlineFind(S.outline.roots, id) : null;
   if(node) showDiagram(node);
+  if(sauber) gesichert = verlaufsStand();
 }
 
 /* Nur die Objekte des Knotens zeigen, Darstellung wie die Komplettansicht
@@ -424,6 +426,7 @@ function showDiagram(node){
 /* ---------- Modus wechseln ---------- */
 function setMode(mode){
   if(mode === 'quellen' && !S.quellenAn) mode = 'hierarchie';   // Bereich ausgeschaltet
+  const sauber = !ungesichert();         // Umschalten ist keine Änderung (siehe selectDiagram)
   S.mode = mode;
   // Die Quelltabellen sind ein zweiter Baum: dieselbe Oberfläche wie die Hierarchie
   const baum = mode !== 'komplett';
@@ -451,6 +454,7 @@ function setMode(mode){
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
     setView();
   }
+  if(sauber) gesichert = verlaufsStand();
 }
 
 /* ---------- Struktur bearbeiten: anlegen, umbenennen, löschen ---------- */

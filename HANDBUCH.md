@@ -41,11 +41,14 @@ Modell kommt auf zwei Wegen hinein:
   ablegen", und das Modell wird sofort gezeichnet.
 - **„Datei & Export → Geschäftsobjekte (YAML) …"** in der Kopfzeile.
 
-Der Arbeitsstand — Anordnung, Kantenzüge, ausgeblendete Objekte, Einstellungen
-— wird **im Browser gemerkt** und beim nächsten Öffnen wiederhergestellt. Jeder
-Tab behält dabei sein eigenes Modell. Verlassen kann man sich darauf nicht
-dauerhaft: Wer einen Stand aufheben oder weitergeben will, speichert ihn über
-„Datei & Export" (Kapitel 14).
+Der Browser merkt sich **nichts**: Eine HTML-Datei zeigt beim Öffnen genau den
+Stand, der in ihr steckt — oder, wenn keiner eingebacken ist, das mitgelieferte
+Beispiel. Den Arbeitsstand — Anordnung, Kantenzüge, ausgeblendete Objekte,
+Einstellungen — hebt man über „Datei & Export → Stand speichern" auf
+(Kapitel 14). Wer den Tab schließt oder neu lädt, solange es ungesicherte
+Änderungen gibt, wird vom Browser gefragt, ob er die Seite wirklich verlassen
+will. Bloßes Umschalten zwischen Ansichten und Diagrammen zählt dabei nicht als
+Änderung.
 
 ## 2. Der Bildschirm
 
