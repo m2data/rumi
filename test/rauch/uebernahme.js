@@ -24,6 +24,8 @@ const fuettern = async (id, name, text)=>{
   await warte();
 };
 const quellen = q => (q || []).join(',');
+// Laden fragt nach verwaisten Geschäftsobjekten; bis zum eigenen Abschnitt bleibt alles stehen
+global.confirm = ()=> false;
 
 const GO = [
   'BusinessObjects:',
@@ -470,6 +472,110 @@ console.log('== Willibald: zweimal laden ==');
   api.loadQuellen(T, 'w.yaml');
   t('zweiter Lauf: alles unverändert', S.yamlText === nachEins && /0 angelegt, 0 aktualisiert, 11 unverändert/.test($('toast').textContent),
     $('toast').textContent);
+}
+
+console.log('== Laden fragt nach verwaisten Geschäftsobjekten ==');
+{
+  /* Willibald ist voll geladen. Eine Datei nur mit dem Webshop lässt
+     VereinsPartner (Roadshow) und href_termintreue (Referenzdaten) ohne
+     Tabelle zurück; Bestellung und Position verlieren nur ihre Roadshow-Tabelle. */
+  const T = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8');
+  const nurWebshop = T.replace(/\n {2}Roadshow:[\s\S]*$/, '\n');
+  const fragen = [];
+  global.confirm = text => { fragen.push(text); return global.__ja; };
+
+  global.__ja = false;
+  api.loadQuellen(nurWebshop, 'webshop.yaml');
+  t('die Frage kommt einmal', fragen.length === 1, fragen.length + ' Fragen');
+  t('sie nennt die Verwaisten', /VereinsPartner/.test(fragen[0] || '') && /href_termintreue/.test(fragen[0] || ''), fragen[0]);
+  t('und nicht die nur teilweise betroffenen', !/Bestellung|Position/.test(fragen[0] || ''), fragen[0]);
+  t('Nein lässt die Verwaisten stehen', !!S.model.objects.VereinsPartner && !!S.model.objects.href_termintreue);
+  t('Nein lässt auch die alte Herkunft stehen', S.model.objects.Bestellung.tabQuellen.includes('Roadshow.Bestellung_VRS'),
+    S.model.objects.Bestellung.tabQuellen.join(','));
+
+  api.undo();
+  t('Rückgängig bringt die volle Datei zurück', !!S.quellModell.objects['Roadshow.VereinsPartner']);
+  fragen.length = 0;
+  global.__ja = true;
+  api.loadQuellen(nurWebshop, 'webshop.yaml');
+  t('Ja löscht die Verwaisten', !S.model.objects.VereinsPartner && !S.model.objects.href_termintreue,
+    Object.keys(S.model.objects).join(','));
+  // Leer stünde wieder die mitgelieferte Übersicht da — und die nennt VereinsPartner
+  const h = S.bereiche.hierarchie.outlineText;
+  t('… nimmt sie aus der Hierarchie', !!h && !/VereinsPartner/.test(h), JSON.stringify((h || '').slice(0, 60)));
+  t('… und die Beziehungen auf sie', !Object.values(S.model.objects).some(o => o.rels.some(r => r.to === 'VereinsPartner')));
+  const B = S.model.objects.Bestellung;
+  t('teilweise Betroffene bleiben', !!B && !!S.model.objects.Position);
+  t('… nur mit der verbliebenen Tabelle', B && B.tabQuellen.join(',') === 'Webshop.Bestellung', B && B.tabQuellen.join(','));
+  t('… und ohne Attributquellen der weggefallenen', B && !B.attrs.some(a => a.quellen.some(q => q.startsWith('Roadshow.'))));
+  t('der Toast nennt die Löschung', /2 gelöscht/.test($('toast').textContent), $('toast').textContent);
+
+  api.undo();
+  t('ein Schritt im Verlauf: alles wieder da', !!S.model.objects.VereinsPartner
+    && S.model.objects.Bestellung.tabQuellen.includes('Roadshow.Bestellung_VRS')
+    && !!S.quellModell.objects['Roadshow.VereinsPartner']);
+
+  fragen.length = 0;
+  api.loadQuellen(T, 'w.yaml');
+  t('ohne Verwaiste keine Frage', fragen.length === 0, fragen.length + ' Fragen');
+}
+
+console.log('== Delta Quelltabellen ergänzt und aktualisiert ==');
+{
+  const fragen = [];
+  global.confirm = text => { fragen.push(text); return true; };
+  const b = akt('openQuellDelta');
+  t('„Delta Quelltabellen" im Menü', !!b && /Delta Quelltabellen/.test(b.textContent));
+  t('nur bei eingeschalteten Quelltabellen', !!b && b.classList.contains('nur-quellen'));
+  let geoeffnet = false;
+  $('quellDeltaInput').onclick = ()=>{ geoeffnet = true; };
+  b && b.click();
+  t('der Knopf öffnet sein Dateifeld', geoeffnet);
+
+  const tabellenVorher = Object.keys(S.quellModell.objects);
+  const gosVorher = Object.keys(S.model.objects);
+  const vorher = S.quellText;
+  const kundeSpalten = S.quellModell.objects['Webshop.Kunde'].attrs.map(a => a.name);
+  await fuettern('quellDeltaInput', 'delta.yaml', [
+    'SourceTables:',
+    '    Webshop:',
+    '        Kunde:',
+    '            attributes:',
+    '            -   name: KundeID',
+    '                type: char(20)',
+    '            -   name: Treuepunkte',
+    '                type: int',
+    '        Gutschein:',
+    '            business_object: Gutschein',
+    '            attributes:',
+    '            -   name: Code',
+    '                type: varchar(20)',
+    '                primary_key: true',
+    '    Kasse:',
+    '        Bon:',
+    '            business_object: Bon',
+    ''
+  ].join('\n'));
+  const Q = S.quellModell.objects;
+  t('neue Tabelle kommt dazu', !!Q['Webshop.Gutschein'], Object.keys(Q).join(','));
+  t('… und ihr Geschäftsobjekt', !!S.model.objects.Gutschein);
+  t('neues System wird angelegt', !!Q['Kasse.Bon']);
+  const K = Q['Webshop.Kunde'];
+  t('vorhandene Tabelle: neue Spalte ergänzt', !!K && K.attrs.some(a => a.name === 'Treuepunkte'));
+  t('… die alten Spalten bleiben', !!K && kundeSpalten.every(n => K.attrs.some(a => a.name === n)),
+    K && K.attrs.map(a => a.name).join(','));
+  t('vorhandene Spalte: das Delta gewinnt', !!K && K.attrs.find(a => a.name === 'KundeID').type === 'char(20)');
+  t('nichts wird gelöscht', tabellenVorher.every(n => Q[n]) && gosVorher.every(n => S.model.objects[n]));
+  t('und nichts gefragt', fragen.length === 0, fragen.length + ' Fragen');
+  t('die Rückmeldung zählt', /2 neu, 1 zusammengeführt/.test($('toast').textContent), $('toast').textContent);
+
+  api.undo();
+  t('ein Schritt im Verlauf', S.quellText === vorher && !S.model.objects.Gutschein);
+
+  const nachUndo = S.quellText;
+  await fuettern('quellDeltaInput', 'kaputt.yaml', 'BusinessObjects:\n  X:\n    Domain: D\n');
+  t('eine Datei ohne SourceTables wird benannt', /Quelltabellen/.test($('toast').textContent), $('toast').textContent);
+  t('… und der Stand bleibt', S.quellText === nachUndo);
 }
 
 finish();

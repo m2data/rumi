@@ -481,6 +481,8 @@ Alles über **Datei & Export**.
 | Delta Geschäftsobjekte (YAML) … | **ergänzt** das Modell (siehe unten) |
 | Hierarchiebeschreibung (YAML) … | ersetzt den Diagrammbaum |
 | Positionsinformationen (JSON) … | übernimmt Anordnungen, Kantenzüge und Einstellungen |
+| Quelltabellen (YAML) … | ersetzt die Tabellen; fragt nach verwaisten Geschäftsobjekten (Kapitel 17) |
+| Delta Quelltabellen (YAML) … | **ergänzt** die Tabellen, löscht nichts (Kapitel 17) |
 
 **Ein Delta einspielen** vereinigt zwei Modelle: gleichnamige Objekte werden zu
 einem **Superset** aus beiden Fassungen. Näheres im [Anhang A](#delta-zwei-modelle-vereinigen).
@@ -681,6 +683,21 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   `Relation_Sources` und der Beschreibung. Eine Tabelle, die in der geladenen
   Tabellendatei gar nicht vorkommt, bleibt unangetastet — sie kann aus einer
   anderen Datei stammen.
+- **Verwaiste Geschäftsobjekte beim Laden:** Fehlen in der neu geladenen Datei
+  Tabellen der bisherigen, und stammt ein Geschäftsobjekt **nur** aus solchen
+  Tabellen (alle Einträge in `Table_Sources` fehlen), fragt das Laden, ob diese
+  Objekte mitgelöscht werden. **Ja** löscht sie samt der Beziehungen auf sie und
+  ihrer Einträge in der Hierarchie; Objekte, die noch eine Tabelle der neuen
+  Datei haben, bleiben und verlieren nur die Herkunft aus den weggefallenen
+  Tabellen. **Nein** lässt alles stehen. Ohne verwaiste Objekte kommt keine
+  Frage. Das Ganze ist ein Schritt im Verlauf.
+- **Delta Quelltabellen:** „Datei & Export → Delta Quelltabellen (YAML) …"
+  ersetzt die Tabellen nicht, sondern ergänzt sie — wie das Delta der
+  Geschäftsobjekte: neue Tabellen kommen in den Abschnitt ihres Systems (ein
+  neues System entsteht am Ende), gleichnamige werden zusammengeführt
+  (Spalten und Beziehungen beider Fassungen bleiben, gleichnamige und
+  Einzelwerte wie Domain, desc, business_object nimmt das Delta). Gelöscht
+  wird nichts, gefragt wird darum auch nicht. Danach läuft die Übernahme.
 - Die Rückmeldung zählt je Geschäftsobjekt: „Übernahme: 1 angelegt, 5
   aktualisiert, 3 unverändert".
 - Ein Objektname mit `:`, `#` oder `"` wird nicht angelegt und gemeldet.

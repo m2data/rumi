@@ -1092,6 +1092,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
   // Quelltabellen: zwei eigene Dateien, wie Modell und Hierarchiebeschreibung
   if(a === 'openQuellen') $('quellInput').click();
+  if(a === 'openQuellDelta') $('quellDeltaInput').click();
   if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
   if(a === 'saveQuellen'){
     download(quellTextAkt(), S.quellFileName, 'text/yaml');
@@ -1539,24 +1540,93 @@ function ansichtNeu(opts){
 
 /* Quelltabellen laden: eine eigene Datei. Ist sie nicht lesbar, bleibt der
    bisherige Stand. Die Diagramme behalten ihre Anordnung; neue Tabellen
-   werden platziert. */
+   werden platziert. Fehlen Tabellen der bisherigen Datei, wird gefragt, ob
+   die Geschäftsobjekte, die nur aus ihnen stammen, mitgelöscht werden; dann
+   verlieren auch die übrigen die Herkunft aus diesen Tabellen. */
 function loadQuellen(text, name){
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
   try{ buildModel(text, 'quelle'); }
   catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
+  const alt = Object.keys(S.quellModell ? S.quellModell.objects : {});
   S.quellText = text;
   S.quellFileName = name || 'quelltabellen.yaml';
   quellModellBauen();
   S.bereiche.quellen.outline = null;
+  const weg = new Set(alt.filter(n => !S.quellModell.objects[n]));
+  const waisen = Object.values(S.model.objects)
+    .filter(o => o.tabQuellen.length && o.tabQuellen.every(n => weg.has(n))).map(o => o.name);
+  const loeschen = waisen.length > 0 && confirm(waisenFrage(waisen));
+  if(loeschen) waisenLoeschen(waisen);
+  else weg.clear();                      // ohne Zustimmung bleibt es beim Bisherigen
   // Beim Laden läuft die Übernahme in die Geschäftsobjekte mit — ein Schritt im Verlauf
-  const u = goAusQuellenUebernehmen();
+  const u = goAusQuellenUebernehmen(weg);
   // Erst die Ansicht, dann ablegen: der Neuaufbau legt neue Kästen ab, und
   // davor geschrieben entstünden zwei Verlaufsschritte statt einem
   if(S.mode === 'quellen') setMode('quellen');
-  else if(u.geaendert){ renderMessages(); syncLayoutMenu(); ansichtNeu({autoFit:false}); }
+  else if(u.geaendert || loeschen){ renderMessages(); syncLayoutMenu(); ansichtNeu({autoFit:false}); }
   writeStore();
   const n = Object.keys(S.quellModell.objects).length;
   const bad = S.quellModell.messages.filter(m => m.level !== 'info').length;
-  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : '') + ' · ' + uebernahmeText(u));
+  toast(n + ' Quelltabellen geladen' + (bad ? ` · ${bad} Hinweise` : '')
+    + (loeschen ? ` · ${waisen.length} gelöscht` : '') + ' · ' + uebernahmeText(u));
+}
+
+function waisenFrage(namen){
+  const liste = namen.length > 8 ? namen.slice(0, 8).join(', ') + ` … und ${namen.length - 8} weitere` : namen.join(', ');
+  return `${namen.length} Geschäftsobjekt(e) stammen nur aus Tabellen, die in der neuen Datei fehlen: ${liste}.`
+    + ' Mitlöschen? Beziehungen auf sie werden mit entfernt.';
+}
+
+/* Wie das Löschen in der Pflege: der Block samt eingehender Beziehungen und
+   der Eintrag in der Hierarchie. Ist die Übersicht noch die mitgelieferte,
+   wird sie dabei übernommen — sonst stünden die Objekte dort weiter. */
+function waisenLoeschen(namen){
+  let text = S.yamlText;
+  namen.forEach(n => { text = goObjektLoeschen(text, n) ?? text; });
+  S.yamlText = text;
+  S.model = buildModel(text);
+  const H = S.bereiche.hierarchie;
+  const roh = H.outlineText || (typeof DEFAULT_UEBERSICHT !== 'undefined' ? DEFAULT_UEBERSICHT : '');
+  const neu = namen.reduce((t, n)=> uebersichtObjekt(t, n, null), roh);
+  if(neu !== roh){ H.outlineText = neu; H.outline = null; }
+}
+
+/* Delta Quelltabellen: wie das Delta der Geschäftsobjekte, nur zwei Ebenen
+   tief. Neue Tabellen kommen in den Abschnitt ihres Systems (fehlt er, wird
+   er angelegt), gleichnamige werden zum Superset verschmolzen. Gelöscht wird
+   nichts. */
+function mergeQuellText(baseText, deltaText){
+  const B = splitQuellTabellen(baseText), D = splitQuellTabellen(deltaText);
+  if(!B || !D) return null;
+  const spalte = blk => yCol(blk.lines[0]);
+  let added = 0, merged = 0;
+  D.blocks.filter(d => d.name).forEach(d=>{
+    const da = B.blocks.find(b => b.name === d.name);
+    if(da){
+      merged++;
+      da.lines = mergeObjectBlocks(da.lines, shiftLines(d.lines, spalte(da) - spalte(d)));
+    } else {
+      added++;
+      B.einhaengen({name: d.name, lines: d.lines}, d.name.slice(0, d.name.indexOf('.')));
+    }
+  });
+  return {text: pfZusammen(B), added, merged};
+}
+
+function loadQuellDelta(text){
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  try{ buildModel(text, 'quelle'); }
+  catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
+  const m = mergeQuellText(quellTextAkt(), text);
+  if(!m){ toast('Keine Quelltabellen in der Datei gefunden'); return; }
+  S.quellText = m.text;
+  quellModellBauen();
+  S.bereiche.quellen.outline = null;
+  const u = goAusQuellenUebernehmen();
+  if(S.mode === 'quellen') setMode('quellen');
+  else if(u.geaendert){ renderMessages(); syncLayoutMenu(); ansichtNeu({autoFit:false}); }
+  writeStore();
+  toast(`Delta Quelltabellen: ${m.added} neu, ${m.merged} zusammengeführt · ` + uebernahmeText(u));
 }
 
 /* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
@@ -1571,6 +1641,11 @@ function loadQuellDiagramme(text){
 $('quellInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t => loadQuellen(t, f.name));
+  e.target.value = '';
+});
+$('quellDeltaInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t => loadQuellDelta(t));
   e.target.value = '';
 });
 $('quellDiagInput').addEventListener('change', e=>{

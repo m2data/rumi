@@ -68,7 +68,7 @@ function descErneuern(desc, tabelle, text){
    zugeordnete Tabelle wird bei jedem Lauf abgeglichen — Fehlendes kommt dazu,
    schon Übernommenes wird aus der Quelle erneuert. Jeder Schritt trägt
    nichts doppelt ein; ändert sich nichts, bleibt der Text gleich. */
-function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
+function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
   const tabellen = quellModell.objects;
   const {zu, neu} = zuordnungFortschreiben(tabellen);
   const ziel = name => { const b = zu.get(name); return b && !PF_VERBOTEN.test(b) ? b : null; };
@@ -89,10 +89,11 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
 
   /* Weggefallenes zuerst — nur für Tabellen der geladenen Datei. Eine Tabelle,
      die hier gar nicht vorkommt, kann ebenso aus einer anderen Datei stammen:
-     sie bleibt unangetastet. */
+     sie bleibt unangetastet. Außer sie steht in `weg`: dann fehlt sie in einer
+     neu geladenen Datei, und der Nutzer hat ihr Entfernen bestätigt. */
   for(const o of Object.values(goModell.objects)){
     const betroffen = new Set([...o.tabQuellen, ...o.attrs.flatMap(a => a.quellen.map(qtTabelle)),
-      ...o.rels.flatMap(x => x.quellen.map(h => h.split('→')[0]))].filter(n => tabellen[n]));
+      ...o.rels.flatMap(x => x.quellen.map(h => h.split('→')[0]))].filter(n => tabellen[n] || weg.has(n)));
     if(!betroffen.size) continue;
     const e = entFuer(o.name).e;
     betroffen.forEach(n=>{
@@ -180,8 +181,8 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys){
    geändert) oder unverändert. Hat sich etwas geändert (r.geaendert), sind
    beide Modelle neu gebaut. Ansicht, Ablage und Verlauf sind Sache des
    Aufrufers. */
-function goAusQuellenUebernehmen(){
-  const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn.objekt);
+function goAusQuellenUebernehmen(weg){
+  const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn.objekt, weg);
   Object.assign(r, {angelegt:0, aktualisiert:0, unveraendert:0});
   let text = S.yamlText;
   for(const [name, ent] of r.entwuerfe){

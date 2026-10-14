@@ -91,7 +91,10 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
   Aktualisieren bei jedem Lauf (Beschreibungsblock erneuern, Eigenschaften aus
   übereinstimmenden Quellen, Weggefallenes entfernen, Schutzregel für Tabellen
-  anderer Dateien, zweiter Lauf ohne Änderung), ein Verlaufsschritt, Erhalt der Herkunft beim
+  anderer Dateien, zweiter Lauf ohne Änderung), Rückfrage nach verwaisten
+  Geschäftsobjekten beim Laden (Ja/Nein, Hierarchie, eingehende Beziehungen,
+  teilweise Betroffene), Delta Quelltabellen (ergänzen, zusammenführen, nichts
+  löschen, neues System), ein Verlaufsschritt, Erhalt der Herkunft beim
   Bearbeiten; dazu Domain als Liste und die führende Domäne (leading_domain) in
   Objektliste, Kasten, Domänen-Element,
   Suche, Details und Formular.

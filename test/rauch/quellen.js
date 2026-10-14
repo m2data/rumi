@@ -283,6 +283,9 @@ console.log('== Pflege: anlegen und löschen ==');
 }
 
 console.log('== Zwei gleichnamige Tabellen ==');
+// Ab hier werden eigene Tabellendateien geladen: die Frage nach verwaisten
+// Geschäftsobjekten verneinen, damit das Modell für die Folgeabschnitte bleibt
+global.confirm = ()=> false;
 {
   const vorher = S.quellText, name = S.quellFileName;
   api.loadQuellen([

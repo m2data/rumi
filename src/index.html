@@ -100,6 +100,7 @@
         <button data-act="loadUebersicht">Hierarchiebeschreibung (YAML) …</button>
         <button data-act="loadLayout">Positionsinformationen (JSON) …</button>
         <button class="nur-quellen" data-act="openQuellen">Quelltabellen (YAML) …</button>
+        <button class="nur-quellen" data-act="openQuellDelta" title="Quelltabellen ergänzen; gleichnamige werden zusammengeführt, nichts wird gelöscht">Delta Quelltabellen (YAML) …</button>
         <button class="nur-quellen" data-act="loadQuellDiagramme">Quelltabellen-Diagramme (YAML) …</button>
         <div class="head">SPEICHERN</div>
         <button class="withkey" data-act="saveHtml"
@@ -242,6 +243,7 @@
 <input type="file" id="layoutInput" accept=".json" hidden>
 <input type="file" id="uebersichtInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="quellDeltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellDiagInput" accept=".yaml,.yml,.txt" hidden>
 <script id="bakedState" type="application/json">null</script>
 
