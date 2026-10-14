@@ -288,6 +288,23 @@ console.log('== Details einer Quelle und einer Domäne als eigener Kasten ==');
   dispatch(document.getElementById('optDomaene'), 'click', {});
 }
 
+console.log('== Detailbereich ohne eingehende Beziehungen ==');
+{
+  /* Eingehende Beziehungen stehen nicht mehr im Detailbereich; ob es zu ihnen
+     einen Fremdschlüssel gibt, sagt die Prüfung. */
+  api.setMode('komplett');
+  const ziel = S.graph.nodes.find(n => n.kind === 'object' && !n.hidden
+    && Object.values(S.model.objects).some(o => o.rels.some(r => r.to === n.name)));
+  t('ein Objekt mit eingehender Beziehung ist sichtbar', !!ziel);
+  if(ziel){
+    api.setSelection([ziel.id]);
+    const html = document.getElementById('detailBody').innerHTML;
+    t('der Detailbereich zeigt keine eingehenden Beziehungen', !/EINGEHEND/.test(html), ziel.name);
+    t('die ausgehenden bleiben', /BEZIEHUNGEN AUSGEHEND/.test(html));
+  }
+  api.setSelection([]);
+}
+
 console.log('== Zweiter Klick in der Objektliste hebt die Auswahl auf ==');
 {
   /* Über den Kasten läuft das Abwählen durch endPointer, über die Liste durch

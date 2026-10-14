@@ -412,6 +412,34 @@ console.log('== Verweis auf ein Attribut, das im Ziel fehlt ==');
          'warn', 'Attribut im Ziel fehlt'));
 }
 
+console.log('== Fremdschlüssel zur eingehenden Beziehung ==');
+{
+  /* Der Fremdschlüssel sitzt im Ziel der Beziehung: zu Kunde → Bestellung
+     verweist Bestellung über "references" auf Kunde. Geprüft wird nur, wer
+     überhaupt Attribute hat. */
+  const yl = (rels, attrsA, attrsB) => 'BusinessObjects:\n'
+    + '  A:\n    Domain: D\n    attributes:\n    - name: ID\n' + attrsA
+    + (rels ? '    relationships:\n' + rels : '')
+    + '  B:\n    Domain: D\n' + (attrsB === null ? '' : '    attributes:\n    - name: X\n' + attrsB);
+  const zuB = '    - to: B\n';
+  const fk = m => m.messages.filter(x => x.group === 'Fremdschlüssel fehlt');
+  const ohne = buildModel(yl(zuB, '', ''));
+  t('Fremdschlüssel fehlt wird gemeldet', has(ohne.messages, 'warn', 'A → B: Fremdschlüssel fehlt'),
+    ohne.messages.map(x => x.title).join(' | '));
+  t('Fremdschlüssel vorhanden', !fk(buildModel(yl(zuB, '', '      references: A.ID\n'))).length);
+  t('Ziel ohne Attribute wird nicht geprüft', !fk(buildModel(yl(zuB, '', null))).length);
+  t('FK im Ausgangsobjekt zählt nicht', fk(buildModel(yl(zuB, '      references: B.X\n', ''))).length === 1);
+  t('eine Meldung je Paar',
+    fk(buildModel(yl('    - to: B\n      name: hat\n    - to: B\n      name: kennt\n', '', ''))).length === 1);
+  const selbst = buildModel('BusinessObjects:\n  A:\n    Domain: D\n    attributes:\n    - name: ID\n    relationships:\n    - to: A\n');
+  t('Selbstbezug ohne Verweis wird gemeldet', has(selbst.messages, 'warn', 'A → A: Fremdschlüssel fehlt'));
+  const q = r => buildModel('SourceTables:\n  Webshop:\n    A:\n      relationships:\n      - to: Webshop.B\n'
+    + '      attributes:\n      - name: ID\n    B:\n      attributes:\n      - name: AID\n' + r, 'quelle');
+  t('Quelltabellen: Verweis vorhanden', !fk(q('        references: Webshop.A.ID\n')).length,
+    q('        references: Webshop.A.ID\n').messages.map(x => x.title).join(' | '));
+  t('Quelltabellen: ohne Verweis gemeldet', has(q('').messages, 'warn', 'Webshop.A → Webshop.B: Fremdschlüssel fehlt'));
+}
+
 console.log('== Doppelter Schlüssel auf derselben Ebene ==');
 {
   const y = [
@@ -801,7 +829,10 @@ console.log('== Quelltabellen: Beispieldatei ==');
   t('kein business_keys mehr in der Datei', !/business_keys/.test(fs.readFileSync(path.join(dir, 'willibald-quelltabellen.yaml'), 'utf8')));
   t('drei Quellsysteme', systeme.join(',') === 'Referenzdaten,Roadshow,Webshop', systeme.join(','));
   t('Kennungen System.Tabelle', Object.values(WQ.objects).every(o => o.name === o.system + '.' + o.tabelle));
-  t('keine Fehler und Hinweise', !WQ.messages.some(m => m.level !== 'info'),
+  // Bestellung_VRS führt keine Spalte zum VereinsPartner — eine echte Lücke der Datei
+  const fkLuecke = 'Roadshow.VereinsPartner → Roadshow.Bestellung_VRS: Fremdschlüssel fehlt';
+  t('der fehlende Fremdschlüssel zum VereinsPartner wird gemeldet', WQ.messages.some(m => m.title === fkLuecke));
+  t('sonst keine Fehler und Hinweise', !WQ.messages.some(m => m.level !== 'info' && m.title !== fkLuecke),
     WQ.messages.filter(m => m.level !== 'info').map(m => m.title).join(' | '));
   t('jede Tabelle steht unter source_systems ihres Geschäftsobjekts',
     Object.values(WQ.objects).every(o => W.objects[o.bo] && W.objects[o.bo].sources.includes(o.tabelle)));

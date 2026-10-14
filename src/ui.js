@@ -438,9 +438,6 @@ function renderDetails(){
         <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
   } else {
     const o = n.ref;
-    const incoming = [];
-    Object.values(aktModell().objects).forEach(src=>
-      src.rels.forEach(r=>{ if(r.to === o.name) incoming.push({from:src.name, r}); }));
     const tabelle = S.mode === 'quellen';
     box.innerHTML =
       `<div class="grouphead">${tabelle ? 'QUELLTABELLE' : 'GESCHÄFTSOBJEKT'}</div>
@@ -481,13 +478,6 @@ function renderDetails(){
           <button class="pickedge" data-edge="o:${esc(o.name)}|o:${esc(r.to)}|${o.rels.slice(0,ri).filter(x=>x.to===r.to).length}" title="Kante im Diagramm auswählen und bearbeiten">Kante</button>
           <span class="card">${esc(CARD_LABEL[r.from]||r.from||'?')} : ${esc(CARD_LABEL[r.toCard]||r.toCard||'?')}</span></div>`
           + (r.quellen.length ? `<div class="aref relsrc">aus ${r.quellen.map(esc).join(', ')}</div>` : '')).join('')
-        : '<div class="empty">keine</div>'}
-       <div class="grouphead">BEZIEHUNGEN EINGEHEND</div>
-       ${incoming.length ? incoming.map((x,xi)=>`<div class="rel"><span class="arrow">←</span>
-          <button data-goto="o:${esc(x.from)}">${esc(x.from)}</button>
-          ${x.r.name ? `<span class="relname">${esc(x.r.name)}</span>` : ''}
-          <button class="pickedge" data-edge="o:${esc(x.from)}|o:${esc(o.name)}|${incoming.slice(0,xi).filter(y=>y.from===x.from && y.r.to===x.r.to).length}" title="Kante im Diagramm auswählen und bearbeiten">Kante</button>
-          <span class="card">${esc(CARD_LABEL[x.r.from]||x.r.from||'?')} : ${esc(CARD_LABEL[x.r.toCard]||x.r.toCard||'?')}</span></div>`).join('')
         : '<div class="empty">keine</div>'}`;
   }
   box.querySelectorAll('[data-goto]').forEach(b=>

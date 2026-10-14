@@ -328,13 +328,15 @@ function buildModel(text, art = 'go'){
     if(users.length > 1)
       messages.push({level:'info', group:'Quelle mehrfach genutzt', title:`Quelle "${s}" mehrfach genutzt`, body:`Verwendet von: ${users.join(', ')}.`});
 
+  // Quelltabellen: System.Tabelle.Spalte — das Ziel sind die ersten beiden Teile
+  const verweisZiel = ref => {
+    const teile = String(ref).split('.');
+    return quelle ? [teile.slice(0, 2).join('.'), teile[2]] : [teile[0], teile[1]];
+  };
   for(const o of Object.values(objects))
     for(const a of o.attrs){
       if(!a.ref) continue;
-      // Quelltabellen: System.Tabelle.Spalte — das Ziel sind die ersten beiden Teile
-      const teile = String(a.ref).split('.');
-      const tObj = quelle ? teile.slice(0, 2).join('.') : teile[0];
-      const tAttr = quelle ? teile[2] : teile[1];
+      const [tObj, tAttr] = verweisZiel(a.ref);
       if(!names.has(tObj)){
         messages.push({level:'err', group:'Verweisziel unbekannt', obj:o.name, title:`${o.name}.${a.name}: Verweisziel unbekannt`,
           body:`"${a.ref}" zeigt auf ${A.das} "${tObj}", das unter ${rootKey} nicht definiert ist.`});
@@ -344,6 +346,18 @@ function buildModel(text, art = 'go'){
         messages.push({level:'warn', group:'Attribut im Ziel fehlt', obj:o.name, title:`${o.name}.${a.name}: Attribut im Ziel fehlt`,
           body:`"${a.ref}" verweist auf ein Attribut "${tAttr}", das bei ${tObj} nicht aufgeführt ist.`});
     }
+
+  // Der Fremdschlüssel einer Beziehung sitzt in ihrem Ziel: zu Kunde → Bestellung
+  // verweist Bestellung auf Kunde. Wer keine Attribute führt, wird nicht geprüft.
+  for(const o of Object.values(objects)){
+    if(!o.attrs.length) continue;
+    const verwiesen = new Set(o.attrs.filter(a => a.ref).map(a => verweisZiel(a.ref)[0]));
+    for(const q of Object.values(objects)){
+      if(verwiesen.has(q.name) || !q.rels.some(r => r.to === o.name)) continue;
+      messages.push({level:'warn', group:'Fremdschlüssel fehlt', obj:o.name, title:`${q.name} → ${o.name}: Fremdschlüssel fehlt`,
+        body:`${o.name} hat Attribute, aber keines verweist über "references" auf ${q.name}.`});
+    }
+  }
 
   const allRels = Object.values(objects).reduce((s,o)=> s + o.rels.length, 0);
   const named = Object.values(objects).reduce((s,o)=> s + o.rels.filter(r=>r.name).length, 0);
