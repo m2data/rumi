@@ -828,6 +828,49 @@ console.log('== Beschreibung: Anführungszeichen, Kommentare, Zeilenumbrüche ==
   t('Zeilenumbruch im Diagramm der Quelltabellen', q && JSON.stringify(q.desc) === '["a","b"]', q && JSON.stringify(q.desc));
 }
 
+console.log('== Fremde Schreibweisen: U+2028, mehrzeilige Zeichenketten in Anführungszeichen ==');
+{
+  // U+2028 (Zeilentrenner, aus Word/Excel eingefügt) ließ die ganze Zeile still herausfallen
+  const a = readYaml('A:\n  desc: "a\u2028b"\n  x: 1\n').doc.A;
+  t('U+2028 in "…" bricht die Zeile nicht, wird Zeilenumbruch', a.desc === 'a\nb' && a.x === 1, JSON.stringify(a));
+  t('U+2028 im schlichten Wert', readYaml('A:\n  desc: a\u2028b\n').doc.A.desc === 'a\nb');
+
+  // So schreiben YAML-Werkzeuge im Python-Stil lange Texte
+  const d = y => readYaml('A:\n  desc: ' + y + '\n  x: 1\n').doc.A;
+  t("'…' über mehrere Zeilen, Leerzeile wird Umbruch", d("'eins\n\n    zwei'").desc === 'eins\nzwei', JSON.stringify(d("'eins\n\n    zwei'")));
+  t('Faltung: ein einfacher Umbruch wird Leerzeichen', d("'eins\n    zwei'").desc === 'eins zwei');
+  t("'' in '…' ist ein Apostroph", d("'it''s\n    so'").desc === "it's so");
+  t('"…" mit \\-Fortsetzung und \\ ', d('"a\\\n    \\ b\\nc"').desc === 'a b\nc', JSON.stringify(d('"a\\\n    \\ b\\nc"').desc));
+  t('danach geht es mit dem nächsten Schlüssel weiter', d("'eins\n\n    zwei'").x === 1);
+  t('Escapes \\u00e4 \\x41 \\/', d('"\\u00e4\\x41\\/"').desc === 'äA/', JSON.stringify(d('"\\u00e4\\x41\\/"').desc));
+
+  // Gegenprobe: ein Apostroph am Anfang ohne Schluss verschluckt keine Folgezeilen
+  const g = readYaml("A:\n  d: 'x\n  e: y'\n").doc.A;
+  t('ein Apostroph ohne Schluss bleibt schlicht', g.d === "'x" && g.e === "y'", JSON.stringify(g));
+
+  // Nachgebaut aus einer Quelltabellen-Datei, wie sie ein anderes Werkzeug schreibt
+  const Q = buildModel([
+    'SourceTables:',
+    '  CRM:',
+    '    Familie:',
+    "      desc: 'ist die Familie aus dem Portfolio",
+    '',
+    "        Wird gepflegt und weitergegeben'",
+    '      Domain: CRM',
+    '    Angebot:',
+    '      desc: "Im CRM sind keine (!) Angebote hinterlegt, \\nes existieren nur PDFs und im SAP wird teilweise\\',
+    '        \\ ein Angebot angelegt, \\ndas ist keine Pflicht"',
+    '      Domain: CRM',
+    '    Chance:',
+    '      desc: "Nicht gut ersichtlich:\u2028- Churn-Rate"',
+    '      Domain: CRM',
+    ''].join('\n'), 'quelle');
+  const qd = n => (Q.objects['CRM.' + n] || {}).desc;
+  t('Quelltabelle mit mehrzeiligem \'…\'', qd('Familie') === 'ist die Familie aus dem Portfolio\nWird gepflegt und weitergegeben', JSON.stringify(qd('Familie')));
+  t('Quelltabelle mit "…\\-Fortsetzung', qd('Angebot') === 'Im CRM sind keine (!) Angebote hinterlegt, \nes existieren nur PDFs und im SAP wird teilweise ein Angebot angelegt, \ndas ist keine Pflicht', JSON.stringify(qd('Angebot')));
+  t('Quelltabelle mit U+2028 hat ihre Beschreibung', qd('Chance') === 'Nicht gut ersichtlich:\n- Churn-Rate', JSON.stringify(qd('Chance')));
+}
+
 console.log('== Beziehungsname aus Leerzeichen ==');
 {
   const yl = "BusinessObjects:\n  A:\n    Domain: D\n    relationships:\n    - to: B\n      name: '  '\n  B:\n    Domain: D\n";

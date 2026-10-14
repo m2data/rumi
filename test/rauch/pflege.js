@@ -1071,5 +1071,75 @@ console.log('== Beschreibung einheitlich als Block, danach im Reiter „Details"
   api.setMode('komplett');
 }
 
+console.log('== Speichern macht alle Beschreibungen der Datei einheitlich ==');
+{
+  const go = [
+    'BusinessObjects:',
+    '  A:',
+    '    Domain: D',
+    '    desc: schlicht: mit Doppelpunkt',
+    '  B:',
+    '    desc: >',
+    '      gefaltet über',
+    '      zwei Zeilen',
+    '    Domain: D',
+    '  C:',
+    "    desc: 'eins",
+    '',
+    "      zwei'",
+    '    Domain: D',
+    '  E:',
+    "    desc: ''",
+    '    Domain: D',
+    '  F:',
+    '    desc: "endet auf Umbruch\\n"',
+    '    Domain: D',
+    ''].join('\n');
+  await api.loadYaml(go, 'einheitlich.yaml');
+  api.setMode('komplett'); S.pflegeAn = true;
+  const vorher = Object.fromEntries(Object.values(S.model.objects).map(o => [o.name, o.desc]));
+  formularOeffnen('o:A');
+  $('pfDomain').value = 'E2';
+  dispatch($('pfSave'), 'click', {});
+  const nachher = Object.fromEntries(Object.values(S.model.objects).map(o => [o.name, o.desc]));
+  t('jede Beschreibung steht als Block in der Datei',
+    S.yamlText.includes('    desc: |\n      schlicht: mit Doppelpunkt\n')
+    && S.yamlText.includes('    desc: |\n      gefaltet über zwei Zeilen\n')
+    && S.yamlText.includes('    desc: |\n      eins\n      zwei\n'), S.yamlText);
+  t('ein Umbruch am Ende fällt wie im Formular weg, der Text wird Block',
+    S.yamlText.includes('    desc: |\n      endet auf Umbruch\n') && nachher.F === 'endet auf Umbruch', JSON.stringify(nachher.F));
+  delete vorher.F; delete nachher.F;
+  t('die Beschreibungen selbst sind unverändert', JSON.stringify(vorher) === JSON.stringify(nachher)
+    && nachher.C === 'eins\nzwei', JSON.stringify(nachher));
+  t("desc: '' bleibt stehen", /\n {4}desc: ''\n/.test(S.yamlText), S.yamlText);
+
+  formularOeffnen('o:B');
+  $('pfDesc').value = 'a\u2028b';
+  dispatch($('pfSave'), 'click', {});
+  t('U+2028 aus dem Textfeld wird eine echte Zeile', S.yamlText.includes('    desc: |\n      a\n      b\n')
+    && S.model.objects.B.desc === 'a\nb', JSON.stringify(S.model.objects.B.desc));
+
+  api.loadQuellen([
+    'SourceTables:',
+    '  S:',
+    '    T:',
+    '      desc: "x\\',
+    '        \\ y\\nz"',
+    '      Domain: D',
+    '    U:',
+    '      desc: schlicht',
+    '      Domain: D',
+    ''].join('\n'), 'einheitlich-q.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  formularOeffnen('o:S.U');
+  $('pfDomain').value = 'D2';
+  dispatch($('pfSave'), 'click', {});
+  t('Quelltabellen: jede Beschreibung als Block, Wert unverändert',
+    S.quellText.includes('      desc: |\n        x y\n        z\n') && S.quellText.includes('      desc: |\n        schlicht\n')
+    && S.quellModell.objects['S.T'].desc === 'x y\nz', S.quellText);
+  api.setMode('komplett');
+}
+
 finish();
 })();

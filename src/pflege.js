@@ -199,11 +199,11 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
 function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
   if(rolle === 'desc'){
-    // Immer als Block „desc: |" — eine unveränderte Beschreibung wird nur beim
-    // Speichern über das Formular umgestellt (e.descNeu), nicht bei Übernahme
-    // oder Attributdialog: dort bleibt unberührter Text Zeichen für Zeichen.
+    // Eine geänderte Beschreibung immer als Block „desc: |"; unveränderte stellt
+    // erst pfDescEinheitlich beim Speichern über das Formular um — Übernahme
+    // und Attributdialog lassen unberührten Text Zeichen für Zeichen stehen.
     const neu = e.desc || '', vor = alt.desc || '';
-    if(neu === vor && !(e.descNeu && neu)) return f ? f.lines : [];
+    if(neu === vor) return f ? f.lines : [];
     if(!neu) return [];
     const zeilen = yBlock(col, key, neu) || [' '.repeat(col) + key + ': ' + yWert(neu)];
     return f ? zeilen.concat(pfNachspann(f.lines.slice())) : zeilen;
@@ -250,6 +250,38 @@ function pfFeldZeilen(rolle, f, col, e, alt){
       (a, ic, vorhanden)=> pfAttrZeilen(a, ic, a._alt ? vorhanden.get('attr:' + a._alt.name) : null));
   return pfListe(f, col, key, e.rels,
     r => (r._alt && pfRelGleich(r, r._alt)) ? 'bez:' + r._alt.to + '\u0000' + (r._alt.name || '') : null, pfRelZeilen);
+}
+
+/* Alle Beschreibungen einer Datei einheitlich als Block „desc: |". Der Wert
+   wird aus den Zeilen des Feldes selbst gelesen, nicht aus dem Modell — so
+   zählt nur, was an dieser Stelle steht. Was als Block nicht verlustfrei
+   ginge (yBlock gibt null) oder leer ist, bleibt unverändert stehen. */
+function pfDescEinheitlich(text, zerleger = splitBusinessObjects){
+  const B = zerleger(text);
+  if(!B) return text;
+  B.blocks.forEach(b=>{
+    if(!b.name) return;                         // Kopf eines Systemabschnitts
+    const F = splitObjectFields(b.lines);
+    const f = F.fields.find(x => pfRolle(x.key) === 'desc');
+    if(!f) return;
+    const col = yCol(f.lines[0]);
+    // Leerzeilen und Kommentare am Feldende gehören zum Folgenden, nicht zum Text
+    // (ein Kommentar tiefer eingerückt wäre Inhalt eines Blockskalars)
+    const zeilen = f.lines.slice(), nachspann = [];
+    while(zeilen.length > 1 && (zeilen[zeilen.length - 1].trim() === ''
+          || (yBlank(zeilen[zeilen.length - 1]) && yCol(zeilen[zeilen.length - 1]) <= col)))
+      nachspann.unshift(zeilen.pop());
+    let wert;
+    try{ wert = readYaml(['x:', ...zeilen.map(l => l.trim() === '' ? '' : '  ' + l.replace(/\t/g, '    ').slice(col))].join('\n')).doc.x[f.key]; }
+    catch(_){ return; }
+    if(typeof wert !== 'string' || !wert.trim()) return;
+    // Leerraum am Rand schneidet auch das Formular ab; ein Umbruch am Ende ginge als Block nicht
+    const block = yBlock(col, f.key, wert.trim());
+    if(!block) return;
+    f.lines = block.concat(nachspann);
+    b.lines = [F.head, ...F.vorspann, ...F.fields.reduce((s, x)=> s.concat(x.lines), [])];
+  });
+  return pfZusammen(B);
 }
 
 /* ---------- Die vier Eingriffe in den Modelltext ---------- */
@@ -554,7 +586,8 @@ function pfLesen(){
   e.name = $('pfName').value.trim();
   e.domains = liste($('pfDomain').value);
   if($('pfLeading')) e.leading = $('pfLeading').value;
-  e.desc = $('pfDesc').value.trim();
+  // Zeilentrenner U+2028/U+2029 (aus Word eingefügt) wie beim Lesen als Umbruch
+  e.desc = $('pfDesc').value.replace(/[\u2028\u2029]/g, '\n').trim();
   if($('pfKeys')) e.keys = liste($('pfKeys').value);
   e.quellListe.forEach((q, i)=>{ const f = box.querySelector('.pfq-name[data-i="' + i + '"]'); if(f) q.name = f.value.trim(); });
   if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
@@ -782,7 +815,6 @@ function pflegeSpeichern(){
     } else if(!pfNamePruefen(z)) return;
   }
 
-  e.descNeu = true;                 // die Beschreibung des gespeicherten Objekts einheitlich als Block
   let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   neueZiele.forEach(z => { text = goObjektAnlegen(text, z, aktZerleger()); });
@@ -797,6 +829,7 @@ function pflegeSpeichern(){
       if(q !== quellTextAkt()) S.quellText = q;
     }
   }
+  text = pfDescEinheitlich(text, aktZerleger());   // alle Beschreibungen der Datei als Block
   pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : ''));
 }
 
