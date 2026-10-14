@@ -683,10 +683,13 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   `Relation_Sources` und der Beschreibung. Eine Tabelle, die in der geladenen
   Tabellendatei gar nicht vorkommt, bleibt unangetastet — sie kann aus einer
   anderen Datei stammen.
-- **Verwaiste Geschäftsobjekte beim Laden:** Fehlen in der neu geladenen Datei
-  Tabellen der bisherigen, und stammt ein Geschäftsobjekt **nur** aus solchen
-  Tabellen (alle Einträge in `Table_Sources` fehlen), fragt das Laden, ob diese
-  Objekte mitgelöscht werden. **Ja** löscht sie samt der Beziehungen auf sie und
+- **Verwaiste Geschäftsobjekte beim Laden:** Ein Geschäftsobjekt gehört zur
+  bisherigen Tabellendatei, wenn es aus ihren Tabellen stammt (`Table_Sources`)
+  oder eine ihrer Tabellen es unter `business_object` nennt — so auch die
+  Objekte zur mitgelieferten Vorlage, die nie übernommen wurde. Bleibt ihm in
+  der neu geladenen Datei keine Tabelle und nennt die neue Datei es auch nicht,
+  ist es verwaist, und das Laden fragt, ob die verwaisten Objekte mitgelöscht
+  werden. Von Hand angelegte Objekte ohne Bezug zu Tabellen zählen nicht dazu. **Ja** löscht sie samt der Beziehungen auf sie und
   ihrer Einträge in der Hierarchie; Objekte, die noch eine Tabelle der neuen
   Datei haben, bleiben und verlieren nur die Herkunft aus den weggefallenen
   Tabellen. **Nein** lässt alles stehen. Ohne verwaiste Objekte kommt keine

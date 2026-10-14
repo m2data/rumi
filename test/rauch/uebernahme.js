@@ -520,6 +520,44 @@ console.log('== Laden fragt nach verwaisten Geschäftsobjekten ==');
   t('ohne Verwaiste keine Frage', fragen.length === 0, fragen.length + ' Fragen');
 }
 
+console.log('== Vorlage ohne Table_Sources: Laden fragt trotzdem ==');
+{
+  /* Wie beim echten Öffnen: Willibald-Modell und die Tabellen als Vorlage,
+     nichts übernommen. Zugehörig sind die Objekte dann nur über
+     business_object der Vorlage. */
+  const {S: S2, api: api2} = await bootApp();
+  const alle = Object.keys(S2.model.objects);
+  t('Ausgangslage: 11 Objekte, keines mit Table_Sources',
+    alle.length === 11 && !Object.values(S2.model.objects).some(o => o.tabQuellen.length),
+    alle.length + ' Objekte');
+  S2.yamlText = api2.goObjektAnlegen(S2.yamlText, 'Eigenes');
+  S2.model = api2.buildModel(S2.yamlText);
+  api2.persist();
+
+  const fragen = [];
+  global.confirm = text => { fragen.push(text); return global.__ja; };
+  const neu = 'SourceTables:\n  CRM:\n    Person:\n      business_object: Kunde\n';
+  global.__ja = true;
+  api2.loadQuellen(neu, 'crm.yaml');
+  t('die Frage kommt', fragen.length === 1, fragen.length + ' Fragen');
+  t('sie nennt die Vorlage, nicht was die neue Datei nennt',
+    /Bestellung/.test(fragen[0] || '') && !/\bKunde\b/.test(fragen[0] || ''), fragen[0]);
+  const K = S2.model.objects.Kunde;
+  t('was die neue Datei nennt, bleibt und wird beliefert', !!K && K.tabQuellen.join(',') === 'CRM.Person',
+    K && K.tabQuellen.join(','));
+  const rest = alle.filter(n => n !== 'Kunde');
+  t('der Rest der Vorlage wird gelöscht', rest.every(n => !S2.model.objects[n]),
+    rest.filter(n => S2.model.objects[n]).join(','));
+  t('von Hand angelegt bleibt', !!S2.model.objects.Eigenes);
+
+  api2.undo();
+  fragen.length = 0;
+  global.__ja = false;
+  api2.loadQuellen(neu, 'crm.yaml');
+  t('Nein lässt alle stehen', alle.every(n => S2.model.objects[n]) && !!S2.model.objects.Eigenes,
+    Object.keys(S2.model.objects).join(','));
+}
+
 console.log('== Delta Quelltabellen ergänzt und aktualisiert ==');
 {
   const fragen = [];

@@ -1547,14 +1547,21 @@ function loadQuellen(text, name){
   if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
   try{ buildModel(text, 'quelle'); }
   catch(err){ toast('Quelltabellen nicht lesbar: ' + err.message); return; }
-  const alt = Object.keys(S.quellModell ? S.quellModell.objects : {});
+  const altTabellen = S.quellModell ? S.quellModell.objects : {};
   S.quellText = text;
   S.quellFileName = name || 'quelltabellen.yaml';
   quellModellBauen();
   S.bereiche.quellen.outline = null;
-  const weg = new Set(alt.filter(n => !S.quellModell.objects[n]));
+  const weg = new Set(Object.keys(altTabellen).filter(n => !S.quellModell.objects[n]));
+  /* Zur bisherigen Datei gehört ein Objekt über Table_Sources oder weil eine
+     ihrer Tabellen es unter business_object nennt — die mitgelieferte Vorlage
+     ist nie übernommen, ihre Objekte haben keine Table_Sources. Verwaist ist
+     es, wenn ihm keine Tabelle bleibt und die neue Datei es nicht nennt. */
+  const zuAlt = new Set(zuordnungFortschreiben(altTabellen).zu.values());
+  const zuNeu = new Set(zuordnungFortschreiben(S.quellModell.objects).zu.values());
   const waisen = Object.values(S.model.objects)
-    .filter(o => o.tabQuellen.length && o.tabQuellen.every(n => weg.has(n))).map(o => o.name);
+    .filter(o => (o.tabQuellen.length || zuAlt.has(o.name))
+      && o.tabQuellen.every(n => weg.has(n)) && !zuNeu.has(o.name)).map(o => o.name);
   const loeschen = waisen.length > 0 && confirm(waisenFrage(waisen));
   if(loeschen) waisenLoeschen(waisen);
   else weg.clear();                      // ohne Zustimmung bleibt es beim Bisherigen
