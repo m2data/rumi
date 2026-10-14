@@ -815,6 +815,8 @@ console.log('== Beschreibung: Anführungszeichen, Kommentare, Zeilenumbrüche ==
   t('Kommentar hinter maskiertem Anführungszeichen ist keiner', d === '"\nEr sagte "Hallo" # dazu', JSON.stringify(d));
   t('ein echter Kommentar hinter der Zeichenkette bleibt Kommentar',
     readYaml('A:\n  desc: "a" # weg\n').doc.A.desc === 'a');
+  const tb = readYaml('A:\n  desc: |\n    a\tb\n    c\t\td\n').doc.A.desc;
+  t('Blockskalar behält Tabs im Text', tb === 'a\tb\nc\t\td', JSON.stringify(tb));
 
   const {api: g, S: gs} = load(['yaml.js', 'model.js'], ['buildModel', 'makeGraph']);
   gs.content = {1: {desc:true}};

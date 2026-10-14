@@ -208,6 +208,13 @@ console.log('== Pflege: Wechsel in ein neues System ==');
   api.undo();
 }
 
+// Die Beschreibung des gespeicherten Objekts wird zum Block „desc: |" (gewollt);
+// der Zeilenvergleich gilt dem Rest
+const ohneDesc = text => { const out = []; let col = -1;
+  text.split('\n').forEach(l => { const c = l.match(/^ */)[0].length;
+    if(col >= 0 && (l.trim() === '' || c > col)) return; col = -1;
+    if(/^\s*desc:/.test(l)){ col = c; return; } out.push(l); });
+  return out; };
 console.log('== Pflege: nur die geänderten Zeilen ==');
 {
   const vorher = S.quellText || '';
@@ -216,7 +223,8 @@ console.log('== Pflege: nur die geänderten Zeilen ==');
   formularOeffnen('o:Webshop.Produkt');
   $('pfBO').value = '';
   klick('pfSave');
-  const a = basis.split('\n'), b = S.quellText.split('\n');
+  const a = ohneDesc(basis), b = ohneDesc(S.quellText);
+  t('die Beschreibung steht danach als Block', /\n {6}desc: \|\n {8}Beschreibt einen angebotenen Artikel/.test(S.quellText));
   t('genau eine Zeile weniger', b.length === a.length - 1, a.length + ' → ' + b.length);
   t('es fehlt nur die Zuordnung von Produkt',
     a.filter(l => !b.includes(l)).join('|') === '      business_object: Produkt', a.filter(l => !b.includes(l)).join('|'));

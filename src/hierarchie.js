@@ -68,8 +68,9 @@ function outlineFlat(roots){
 }
 
 /* Die Übersicht (inkl. der in der App bearbeiteten Texte und Objektmengen)
-   zurück in das YAML-Format schreiben. Beschreibungen als doppelt quotierte
-   einzeilige Werte mit \n-Escapes, damit sie der Leser verlustfrei zurückliest. */
+   zurück in das YAML-Format schreiben. Beschreibungen als Blockskalar
+   (yBlock), sonst als doppelt quotierte einzeilige Werte mit \n-Escapes —
+   beides liest der Leser verlustfrei zurück. */
 function outlineToYaml(roots){
   const q = s => '"' + String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
   const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
@@ -81,7 +82,8 @@ function outlineToYaml(roots){
     const pad = '  '.repeat(ind);
     lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
     const txt = diagramText(node);
-    if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
+    // als Block wie die Beschreibungen der Objekte; was so nicht verlustfrei ginge, maskiert
+    if(txt) lines.push(...(yBlock(pad.length + 2, 'beschreibung', txt) || [`${pad}  beschreibung: ${q(txt)}`]));
     const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
     if(objs.length){
       lines.push(`${pad}  ${listKey}:`);

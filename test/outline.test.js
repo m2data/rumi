@@ -73,6 +73,12 @@ console.log('== YAML-Rundlauf der Übersicht ==');
   t('mehrzeilige Beschreibung mit Raute überlebt den Rundlauf',
     rt.roots[0].beschreibung === 'Zeile eins\n\nZeile zwei # mit Raute\n- Punkt',
     JSON.stringify(rt.roots[0].beschreibung));
+  // Wie die Beschreibungen der Objekte: als Block, Zeilenumbrüche sichtbar
+  S.hierText = { [top.id]: '**fett**\n\n- Punkt: x' };
+  const y4 = outlineToYaml(roots);
+  t('Übersichtsbeschreibung steht als Block in der Datei',
+    y4.includes('  beschreibung: |\n    **fett**\n\n    - Punkt: x\n'), y4.split('\n').slice(0, 6).join('⏎'));
+  t('und kommt so zurück', buildOutline(y4, model).roots[0].beschreibung === '**fett**\n\n- Punkt: x');
   S.hierText = {};
 }
 

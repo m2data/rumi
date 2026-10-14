@@ -95,8 +95,8 @@ console.log('== Nur geänderte Stellen: Kommentare und Formatierung bleiben ==')
     !/relationships/.test(ohneRels) && !/- to: B/.test(ohneRels), ohneRels);
 
   const mitDesc = api.goObjektAendern(text, 'A', entwurf({desc:'Erste Zeile\nZweite Zeile'}), alt);
-  t('ein noch fehlendes Feld wird ergänzt, Zeilenumbrüche maskiert',
-    /desc: "Erste Zeile\\nZweite Zeile"/.test(mitDesc), mitDesc);
+  t('ein noch fehlendes Feld wird ergänzt, als Block mit sichtbaren Zeilenumbrüchen',
+    mitDesc.includes('    desc: |\n      Erste Zeile\n      Zweite Zeile\n'), mitDesc);
 }
 
 console.log('== Ein Listenfeld, das schon einen Wert hinter dem Doppelpunkt trägt ==');
@@ -1011,6 +1011,63 @@ console.log('== Beschreibung, neues Beziehungsziel, leerer Name — in beiden Be
   t('ein neues Ziel ohne System wird abgewiesen', S.quellText === vorher && !S.quellModell.objects.OhnePunkt
     && /System\.Tabelle/.test($('toast').textContent), $('toast').textContent);
   api.pflegeEnde();
+  api.setMode('komplett');
+}
+
+console.log('== Beschreibung einheitlich als Block, danach im Reiter „Details" ==');
+{
+  const reiter = ()=> (document.querySelector('.sidetab[aria-selected="true"]') || {dataset:{}}).dataset.pane;
+  await api.loadYaml('BusinessObjects:\n  A:\n    Domain: D\n    desc: "a\\nb"\n  B:\n    Domain: D\n', 'block.yaml');
+  api.setMode('komplett'); S.pflegeAn = true;
+
+  formularOeffnen('o:A');
+  $('pfDomain').value = 'E';
+  dispatch($('pfSave'), 'click', {});
+  t('eine unveränderte Beschreibung wird beim Speichern zum Block',
+    S.yamlText.includes('    desc: |\n      a\n      b\n') && S.model.objects.A.desc === 'a\nb', S.yamlText);
+
+  formularOeffnen('o:A');
+  $('pfDesc').value = 'Zeile 1\n\nZeile 3: x';
+  dispatch($('pfSave'), 'click', {});
+  t('Geschäftsobjekt: Beschreibung als Block, Leerzeile ohne Leerzeichen',
+    S.yamlText.includes('    desc: |\n      Zeile 1\n\n      Zeile 3: x\n') && S.model.objects.A.desc === 'Zeile 1\n\nZeile 3: x', S.yamlText);
+
+  formularOeffnen('o:A');
+  $('pfDesc').value = 'Hinweis: wichtig';
+  dispatch($('pfSave'), 'click', {});
+  t('einzeilige Beschreibung ebenfalls als Block', S.yamlText.includes('    desc: |\n      Hinweis: wichtig\n'), S.yamlText);
+
+  formularOeffnen('o:A');
+  $('pfDesc').value = 'a\n   \nb';
+  dispatch($('pfSave'), 'click', {});
+  t('Ausweichweg: was als Block nicht verlustfrei ginge, kommt exakt zurück',
+    S.model.objects.A.desc === 'a\n   \nb', JSON.stringify(S.model.objects.A.desc));
+
+  // In der Hierarchie baut das Speichern das Diagramm neu auf — danach
+  // stand der Reiter „Beschreibung" des Diagramms vorn, die Auswahl war weg.
+  api.setMode('hierarchie');
+  const imDiagramm = id => S.graph.byId.has(id);
+  const id = ['o:A', 'o:B'].find(imDiagramm) || 'o:A';
+  formularOeffnen(id);
+  $('pfDesc').value = 'Neu in der Hierarchie';
+  dispatch($('pfSave'), 'click', {});
+  t('Hierarchie: nach dem Speichern stehen die Details des Objekts vorn',
+    S.selected === id && reiter() === 'details' && !$('pfDesc')
+    && ((detail().querySelector('.descbox') || {}).textContent || '').includes('Neu in der Hierarchie'),
+    JSON.stringify({sel: S.selected, reiter: reiter(), formular: !!$('pfDesc')}));
+
+  api.loadQuellen('SourceTables:\n  S:\n    T:\n      Domain: D\n      desc: alt\n', 'qb.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  formularOeffnen('o:S.T');
+  $('pfDesc').value = 'Tabelle 1\n\nTabelle 3';
+  dispatch($('pfSave'), 'click', {});
+  t('Quelltabelle: Beschreibung als Block', S.quellText.includes('      desc: |\n        Tabelle 1\n\n        Tabelle 3\n')
+    && S.quellModell.objects['S.T'].desc === 'Tabelle 1\n\nTabelle 3', S.quellText);
+  t('Quelltabellen: nach dem Speichern stehen die Details der Tabelle vorn',
+    S.selected === 'o:S.T' && reiter() === 'details' && !$('pfDesc')
+    && ((detail().querySelector('.descbox') || {}).textContent || '').includes('Tabelle 3'),
+    JSON.stringify({sel: S.selected, reiter: reiter(), formular: !!$('pfDesc')}));
   api.setMode('komplett');
 }
 

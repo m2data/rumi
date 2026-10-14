@@ -198,6 +198,16 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
    Modell — daran hängt die Entscheidung „unverändert, also unangetastet". */
 function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
+  if(rolle === 'desc'){
+    // Immer als Block „desc: |" — eine unveränderte Beschreibung wird nur beim
+    // Speichern über das Formular umgestellt (e.descNeu), nicht bei Übernahme
+    // oder Attributdialog: dort bleibt unberührter Text Zeichen für Zeichen.
+    const neu = e.desc || '', vor = alt.desc || '';
+    if(neu === vor && !(e.descNeu && neu)) return f ? f.lines : [];
+    if(!neu) return [];
+    const zeilen = yBlock(col, key, neu) || [' '.repeat(col) + key + ': ' + yWert(neu)];
+    return f ? zeilen.concat(pfNachspann(f.lines.slice())) : zeilen;
+  }
   if(PF_EINZEL.includes(rolle)){
     const neu = e[rolle] || '', vor = alt[rolle] || '';
     if(neu === vor) return f ? f.lines : [];
@@ -438,9 +448,15 @@ function pfUebernehmen(text, selId, meldung){
   S.pflege = null; pfEntwurf = null;
   if(!S.outline) parseOutline();
   renderMessages(); syncLayoutMenu();
-  if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
-  else { S.sel = new Set(); S.selected = null; }
+  S.sel = new Set(); S.selected = null;
   ansichtNeu({autoFit:false});
+  // Erst danach auswählen: in Hierarchie und Quelltabellen wählt der Neuaufbau
+  // das Diagramm neu, hebt die Auswahl auf und stellt den Reiter „Beschreibung"
+  // vor — das gespeicherte Objekt war dann nicht mehr zu sehen.
+  if(selId && S.graph.byId.has(selId)){
+    S.sel = new Set([selId]); S.selected = selId;
+    draw(); setSidePane('details'); renderDetails();
+  }
   // Im Bereich der Quelltabellen legt kein setView den Stand ab; ohne diesen
   // Aufruf fehlte die Bearbeitung im Verlauf, Strg+Z nähme die Aktion davor.
   writeStore();
@@ -766,6 +782,7 @@ function pflegeSpeichern(){
     } else if(!pfNamePruefen(z)) return;
   }
 
+  e.descNeu = true;                 // die Beschreibung des gespeicherten Objekts einheitlich als Block
   let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   neueZiele.forEach(z => { text = goObjektAnlegen(text, z, aktZerleger()); });

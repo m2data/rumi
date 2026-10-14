@@ -265,6 +265,13 @@ console.log('== Pflege erhält die Herkunft ==');
   api.undo();
 }
 
+// Die Beschreibung des gespeicherten Objekts wird zum Block „desc: |" (gewollt);
+// der Zeilenvergleich gilt dem Rest
+const ohneDesc = text => { const out = []; let col = -1;
+  text.split('\n').forEach(l => { const c = l.match(/^ */)[0].length;
+    if(col >= 0 && (l.trim() === '' || c > col)) return; col = -1;
+    if(/^\s*desc:/.test(l)){ col = c; return; } out.push(l); });
+  return out; };
 console.log('== Quelltabellen ohne Business Keys ==');
 {
   api.loadQuellen('SourceTables:\n  CRM:\n    Person:\n      business_object: Kunde\n      business_keys:\n      - KundeID\n      desc: Eine Person.\n', 'alt.yaml');
@@ -278,7 +285,7 @@ console.log('== Quelltabellen ohne Business Keys ==');
   t('das Formular der Tabelle hat kein Feld „Business Keys"', !!$('pfName') && !$('pfKeys'));
   $('pfDesc').value = 'Ein Mensch.';
   klick('pfSave');
-  t('beim Speichern bleibt das alte Feld im Text stehen', /business_keys:\n      - KundeID\n/.test(S.quellText) && /desc: Ein Mensch\./.test(S.quellText), S.quellText);
+  t('beim Speichern bleibt das alte Feld im Text stehen', /business_keys:\n      - KundeID\n/.test(S.quellText) && /desc: \|\n {8}Ein Mensch\.\n/.test(S.quellText), S.quellText);
   api.undo(); api.undo();
   api.setMode('komplett');
 }
@@ -387,7 +394,7 @@ console.log('== Formular der Quelltabelle: genau eine Domäne ==');
   t('zwei Domänen werden abgelehnt', S.quellText === vorher && /genau eine Domäne/.test($('toast').textContent), $('toast').textContent);
   $('pfDomain').value = 'Lagerhaus';
   klick('pfSave');
-  const a = vorher.split('\n'), b = S.quellText.split('\n');
+  const a = ohneDesc(vorher), b = ohneDesc(S.quellText);
   t('eine Domäne wird als Einzelwert geschrieben, nur diese Zeile',
     b.length === a.length && b.filter(l => !a.includes(l)).join('|') === '      Domain: Lagerhaus', b.filter(l => !a.includes(l)).join('|'));
   api.undo();

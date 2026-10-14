@@ -755,7 +755,8 @@ function expandBlockScalars(text){
     for(; j < raw.length; j++){
       if(raw[j].trim() === ''){ block.push(''); continue; }
       if(colw(raw[j]) <= keyCol) break;
-      block.push(raw[j].replace(/\t/g, ' '.repeat(TAB_WIDTH)));
+      // nur Tabs der Einrückung umrechnen — ein Tab im Text bleibt einer
+      block.push(raw[j].replace(/^[ \t]+/, m => m.replace(/\t/g, ' '.repeat(TAB_WIDTH))));
     }
     while(block.length && block[block.length-1] === '') block.pop();   // Leerzeilen am Ende geh\u00F6ren nicht dazu
     const common = Math.min(Infinity, ...block.filter(b => b !== '').map(b => b.match(/^ */)[0].length));
@@ -772,6 +773,22 @@ function expandBlockScalars(text){
     i = j - 1;
   }
   return out.join('\n');
+}
+
+/* Ein Text als Blockskalar „key: |": jede Zeile eingerückt darunter, so dass
+   Zeilenumbrüche in der Datei sichtbar sind und nichts maskiert wird. Der
+   Block wird probehalber zurückgelesen; ginge dabei etwas verloren (eine Zeile
+   nur aus Leerzeichen, ein Tab am Zeilenanfang …), kommt null zurück und der
+   Aufrufer schreibt wie bisher einen maskierten Einzeiler. */
+function yBlock(col, key, text){
+  const s = String(text);
+  const zeilen = [' '.repeat(col) + key + ': |',
+    ...s.split('\n').map(l => l === '' ? '' : ' '.repeat(col + 2) + l)];
+  try{
+    const probe = readYaml(['x:', ...zeilen.map(l => l === '' ? '' : '  ' + l.slice(col))].join('\n') + '\n').doc;
+    if(probe.x && probe.x[key] === s) return zeilen;
+  }catch(_){}
+  return null;
 }
 
 function readYaml(text){
@@ -5469,8 +5486,9 @@ function outlineFlat(roots){
 }
 
 /* Die Übersicht (inkl. der in der App bearbeiteten Texte und Objektmengen)
-   zurück in das YAML-Format schreiben. Beschreibungen als doppelt quotierte
-   einzeilige Werte mit \n-Escapes, damit sie der Leser verlustfrei zurückliest. */
+   zurück in das YAML-Format schreiben. Beschreibungen als Blockskalar
+   (yBlock), sonst als doppelt quotierte einzeilige Werte mit \n-Escapes —
+   beides liest der Leser verlustfrei zurück. */
 function outlineToYaml(roots){
   const q = s => '"' + String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\t/g,'\\t') + '"';
   const plain = s => /^[A-Za-z0-9_][A-Za-z0-9_ .\-]*$/.test(s);
@@ -5482,7 +5500,8 @@ function outlineToYaml(roots){
     const pad = '  '.repeat(ind);
     lines.push(`${pad}${node.name}:`);   // Namen sind Map-Schlüssel: roh (der Leser entquotet Schlüssel nicht)
     const txt = diagramText(node);
-    if(txt) lines.push(`${pad}  beschreibung: ${q(txt)}`);
+    // als Block wie die Beschreibungen der Objekte; was so nicht verlustfrei ginge, maskiert
+    if(txt) lines.push(...(yBlock(pad.length + 2, 'beschreibung', txt) || [`${pad}  beschreibung: ${q(txt)}`]));
     const objs = S.hierShown[node.id] ? S.hierShown[node.id].map(i => i.replace(/^o:/, '')) : (node.objekte || []);
     if(objs.length){
       lines.push(`${pad}  ${listKey}:`);
@@ -6203,6 +6222,16 @@ function pfListe(f, col, key, werte, schluessel, erzeuge){
    Modell — daran hängt die Entscheidung „unverändert, also unangetastet". */
 function pfFeldZeilen(rolle, f, col, e, alt){
   const key = f ? f.key : pfStd(rolle);
+  if(rolle === 'desc'){
+    // Immer als Block „desc: |" — eine unveränderte Beschreibung wird nur beim
+    // Speichern über das Formular umgestellt (e.descNeu), nicht bei Übernahme
+    // oder Attributdialog: dort bleibt unberührter Text Zeichen für Zeichen.
+    const neu = e.desc || '', vor = alt.desc || '';
+    if(neu === vor && !(e.descNeu && neu)) return f ? f.lines : [];
+    if(!neu) return [];
+    const zeilen = yBlock(col, key, neu) || [' '.repeat(col) + key + ': ' + yWert(neu)];
+    return f ? zeilen.concat(pfNachspann(f.lines.slice())) : zeilen;
+  }
   if(PF_EINZEL.includes(rolle)){
     const neu = e[rolle] || '', vor = alt[rolle] || '';
     if(neu === vor) return f ? f.lines : [];
@@ -6443,9 +6472,15 @@ function pfUebernehmen(text, selId, meldung){
   S.pflege = null; pfEntwurf = null;
   if(!S.outline) parseOutline();
   renderMessages(); syncLayoutMenu();
-  if(selId && modell.objects[selId.slice(2)]){ S.sel = new Set([selId]); S.selected = selId; }
-  else { S.sel = new Set(); S.selected = null; }
+  S.sel = new Set(); S.selected = null;
   ansichtNeu({autoFit:false});
+  // Erst danach auswählen: in Hierarchie und Quelltabellen wählt der Neuaufbau
+  // das Diagramm neu, hebt die Auswahl auf und stellt den Reiter „Beschreibung"
+  // vor — das gespeicherte Objekt war dann nicht mehr zu sehen.
+  if(selId && S.graph.byId.has(selId)){
+    S.sel = new Set([selId]); S.selected = selId;
+    draw(); setSidePane('details'); renderDetails();
+  }
   // Im Bereich der Quelltabellen legt kein setView den Stand ab; ohne diesen
   // Aufruf fehlte die Bearbeitung im Verlauf, Strg+Z nähme die Aktion davor.
   writeStore();
@@ -6771,6 +6806,7 @@ function pflegeSpeichern(){
     } else if(!pfNamePruefen(z)) return;
   }
 
+  e.descNeu = true;                 // die Beschreibung des gespeicherten Objekts einheitlich als Block
   let text = goObjektAendern(aktText(), altName, e, alt, aktZerleger());
   if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   neueZiele.forEach(z => { text = goObjektAnlegen(text, z, aktZerleger()); });

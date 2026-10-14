@@ -22,7 +22,8 @@ function expandBlockScalars(text){
     for(; j < raw.length; j++){
       if(raw[j].trim() === ''){ block.push(''); continue; }
       if(colw(raw[j]) <= keyCol) break;
-      block.push(raw[j].replace(/\t/g, ' '.repeat(TAB_WIDTH)));
+      // nur Tabs der Einrückung umrechnen — ein Tab im Text bleibt einer
+      block.push(raw[j].replace(/^[ \t]+/, m => m.replace(/\t/g, ' '.repeat(TAB_WIDTH))));
     }
     while(block.length && block[block.length-1] === '') block.pop();   // Leerzeilen am Ende geh\u00F6ren nicht dazu
     const common = Math.min(Infinity, ...block.filter(b => b !== '').map(b => b.match(/^ */)[0].length));
@@ -39,6 +40,22 @@ function expandBlockScalars(text){
     i = j - 1;
   }
   return out.join('\n');
+}
+
+/* Ein Text als Blockskalar „key: |": jede Zeile eingerückt darunter, so dass
+   Zeilenumbrüche in der Datei sichtbar sind und nichts maskiert wird. Der
+   Block wird probehalber zurückgelesen; ginge dabei etwas verloren (eine Zeile
+   nur aus Leerzeichen, ein Tab am Zeilenanfang …), kommt null zurück und der
+   Aufrufer schreibt wie bisher einen maskierten Einzeiler. */
+function yBlock(col, key, text){
+  const s = String(text);
+  const zeilen = [' '.repeat(col) + key + ': |',
+    ...s.split('\n').map(l => l === '' ? '' : ' '.repeat(col + 2) + l)];
+  try{
+    const probe = readYaml(['x:', ...zeilen.map(l => l === '' ? '' : '  ' + l.slice(col))].join('\n') + '\n').doc;
+    if(probe.x && probe.x[key] === s) return zeilen;
+  }catch(_){}
+  return null;
 }
 
 function readYaml(text){
