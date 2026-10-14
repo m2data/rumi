@@ -1,6 +1,3 @@
-Die Beziehungen sind jeweils ausschließlich am Geschäftsobjekt der **1-Seite** abgelegt. Bei Zuordnungsobjekten wie `Segmentmitgliedschaft` existieren daher Beziehungen von beiden übergeordneten 1-Seiten zum Zuordnungsobjekt.
-
-```yaml
 BusinessObjects:
 
   Kunde:
@@ -505,4 +502,3 @@ BusinessObjects:
         cardinality:
           from: exactly_one
           to: zero_or_many
-```
