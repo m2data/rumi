@@ -629,5 +629,23 @@ console.log('== Delta Quelltabellen ergänzt und aktualisiert ==');
   t('… und der Stand bleibt', S.quellText === nachUndo);
 }
 
+console.log('== Neue Tabellen ersetzen alle bisherigen: schon beim ersten Laden ==');
+{
+  // Stammen alle Geschäftsobjekte aus Tabellen, die in der neuen Datei
+  // fehlen, löscht das Bejahen sie alle. Der Abschnitt BusinessObjects steht
+  // dann einen Augenblick leer da — das darf das Laden nicht abbrechen.
+  await api.loadYaml('BusinessObjects:\n  Alt:\n    Domain: D\n', 'alt.yaml');
+  api.loadQuellen('SourceTables:\n  Vorher:\n    Alt:\n      business_object: Alt\n', 'vorher.yaml');
+  t('Ausgangslage: Alt stammt aus einer Tabelle', S.model.objects.Alt.tabQuellen.join(',') === 'Vorher.Alt');
+  global.confirm = ()=> true;
+  let fehler = null;
+  try{ api.loadQuellen('SourceTables:\n  Neu:\n    Ding:\n      business_object: Ding\n', 'neu.yaml'); }catch(e){ fehler = e.message; }
+  global.confirm = ()=> false;
+  t('kein Fehler', !fehler, fehler);
+  t('beim ersten Mal nur noch das neue Objekt', Object.keys(S.model.objects).join(',') === 'Ding', Object.keys(S.model.objects).join(','));
+  t('das Modell passt zum Text', !/\n  Alt:/.test(S.yamlText) && /\n  Ding:/.test(S.yamlText), S.yamlText);
+  t('die Rückmeldung nennt die Gelöschten', /1 gelöscht/.test($('toast').textContent), $('toast').textContent);
+}
+
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });

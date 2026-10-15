@@ -152,7 +152,9 @@ function buildModel(text, art = 'go'){
   const {doc, notes} = readYaml(text);
   const messages = notes.slice();
 
-  const rootKey = A.roots.find(k => doc && doc[k] && typeof doc[k] === 'object');
+  // Ein leerer Abschnitt („BusinessObjects:" ohne Einträge, etwa nach dem
+  // Löschen des letzten Objekts) ist ein leeres Modell, kein fehlender
+  const rootKey = A.roots.find(k => doc && k in doc && (doc[k] === null || typeof doc[k] === 'object'));
   if(!rootKey) throw new Error(`Kein Abschnitt "${A.abschnitt}" gefunden.`);
 
   /* Optionaler Kopf: Herkunft und Lizenz des Modells. Gehört zu den Daten,
@@ -189,7 +191,7 @@ function buildModel(text, art = 'go'){
   };
 
   const objects = {};
-  for(const {name, def, system, tabelle} of eintraegeAus(doc[rootKey], quelle, messages)){
+  for(const {name, def, system, tabelle} of eintraegeAus(doc[rootKey] || {}, quelle, messages)){
     const rels = readRels(def.relationships, name, messages);
     // Quelltabellen verweisen voll qualifiziert (System.Tabelle). Ohne System
     // — so in der flachen Form — gilt das eigene System, und es wird gemeldet.

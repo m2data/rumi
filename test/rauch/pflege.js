@@ -457,6 +457,19 @@ console.log('== Löschen über den Bedienweg ==');
     document.getElementById('objectList').querySelectorAll('button[data-id]').length === S.graph.nodes.length);
 }
 
+console.log('== Das letzte Objekt löschen ==');
+{
+  const vorher = S.yamlText, anzahl = Object.keys(S.model.objects).length;
+  let fehler = null;
+  try{ Object.keys(S.model.objects).forEach(n => api.pflegeObjektWeg(n)); }catch(e){ fehler = e.message; }
+  t('kein Fehler, auch beim letzten', !fehler, fehler);
+  t('das Modell ist leer und passt zum Text', !Object.keys(S.model.objects).length
+    && /BusinessObjects:\s*$/.test(S.yamlText), S.yamlText.slice(-80));
+  t('das Diagramm ist leer', !S.graph.nodes.length);
+  for(let k = 0; k < anzahl; k++) api.undo();
+  t('Strg+Z bringt alles zurück', S.yamlText === vorher && Object.keys(S.model.objects).length === anzahl);
+}
+
 console.log('== Bearbeiten ist rückgängig zu machen ==');
 {
   const vorher = S.yamlText;

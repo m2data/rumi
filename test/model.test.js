@@ -642,6 +642,14 @@ console.log('== Quelltabellen: gruppiert nach Quellsystem ==');
   let fehler = '';
   try{ buildModel('BusinessObjects:\n  A:\n    Domain: D\n', 'quelle'); }catch(e){ fehler = e.message; }
   t('ohne Abschnitt SourceTables ein Fehler', /Kein Abschnitt "SourceTables"/.test(fehler), fehler);
+
+  // Ein leerer Abschnitt ist ein leeres Modell, kein fehlender — so steht er
+  // nach dem Löschen des letzten Objekts da
+  const leer = (text, art)=>{ try{ return Object.keys(buildModel(text, art).objects).length; }catch(e){ return e.message; } };
+  t('„BusinessObjects:" ohne Einträge: leeres Modell', leer('meta:\n  titel: X\n\nBusinessObjects:\n') === 0,
+    leer('meta:\n  titel: X\n\nBusinessObjects:\n'));
+  t('„SourceTables:" ohne Einträge: leeres Modell', leer('SourceTables:\n', 'quelle') === 0, leer('SourceTables:\n', 'quelle'));
+  t('ganz ohne Abschnitt bleibt es ein Fehler', /Kein Abschnitt "BusinessObjects"/.test(leer('meta:\n  titel: X\n')));
   const G = buildModel('BusinessObjects:\n  A:\n    source_system: X\n');
   t('an Geschäftsobjekten bleibt source_system ein Zusatzattribut', G.objects.A.extra.source_system === 'X' && G.objects.A.system === undefined);
 }
