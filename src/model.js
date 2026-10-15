@@ -394,12 +394,23 @@ const CONTENT_FIELDS = [
   {k:'domain',   label:'Domain'},
   {k:'keys',     label:'Business Keys'},
   {k:'sources',  label:'Quellen'},
-  {k:'attrs',    label:'Attribute'},
+  {k:'tabSources', label:'Quelltabellen'},
+  {k:'attrs',   label:'Attribute'},
   {k:'keysOnly', label:'nur Schlüsselattribute', sub:'attrs'},
   {k:'types',    label:'Datentypen zeigen',      sub:'attrs'}
 ];
-const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, attrs:false, keysOnly:false, types:true};
+const CONTENT_DEFAULT = {desc:false, domain:false, keys:false, sources:false, tabSources:false, attrs:false, keysOnly:false, types:true};
 const contentOf = ()=> Object.assign({}, CONTENT_DEFAULT, S.content && S.content[1]);
+
+/* Die eigenen Elemente, die in der aktuellen Ansicht wirken: Quellen und
+   Quelltabellen gibt es nur bei den Geschäftsobjekten, das Geschäftsobjekt
+   nur bei den Quelltabellen. Ein gemerkter Haken bleibt in der anderen
+   Ansicht stehen, wirkt dort aber nicht. */
+const elementeAktiv = ()=>{
+  const E = S.elemente || {}, go = S.mode !== 'quellen';
+  return {quelle: go && !!E.quelle, tabquellen: go && !!E.tabquellen,
+          domaene: !!E.domaene, geschaeftsobjekt: !go && !!E.geschaeftsobjekt};
+};
 
 // Jeder Zeilenumbruch im Text bleibt einer, eine Leerzeile bleibt leer
 function wrapText(text, maxW, font){
@@ -433,13 +444,17 @@ function makeGraph(model){
   const byId = new Map();
 
   const C = contentOf();
-  const E = S.elemente || {};
+  const E = elementeAktiv();
   for(const o of Object.values(model.objects)){
     const rows = [];
     if(C.keys) o.keys.forEach(k => rows.push({kind:'key', text:k}));
     if(C.sources && !E.quelle && quellenVon(o).length){
       if(rows.length) rows.push({kind:'sep'});
       quellenVon(o).forEach(s => rows.push({kind:'src', text:s}));
+    }
+    if(C.tabSources && !E.tabquellen && o.tabQuellen.length && S.mode !== 'quellen'){
+      if(rows.length) rows.push({kind:'sep'});
+      o.tabQuellen.forEach(s => rows.push({kind:'tab', text:s}));
     }
     if(C.attrs){
       const list = C.keysOnly ? o.attrs.filter(a => a.pk || a.ak || a.fk) : o.attrs;
@@ -510,6 +525,7 @@ function makeGraph(model){
   for(const o of Object.values(model.objects)){
     if(E.domaene && o.fuehrend) anhaengsel(o, 'd:'+o.name, 'domain', o.fuehrend, 'domaene', 'Domäne');   // nur die führende
     if(E.quelle) quellenVon(o).forEach(s => anhaengsel(o, 'q:'+o.name+'|'+s, 'source', s, 'quelle', 'quelle'));
+    if(E.tabquellen) o.tabQuellen.forEach(s => anhaengsel(o, 't:'+o.name+'|'+s, 'tabsource', s, 'tabquelle', 'Quelltabelle'));
   }
 
   /* Das Geschäftsobjekt als eigenes Element (nur bei den Quelltabellen): anders
@@ -518,7 +534,7 @@ function makeGraph(model){
      Kein Anhängsel, denn er hat keinen einzelnen Eltern-Kasten; er wird mit
      angeordnet wie ein Objekt und ist sichtbar, solange es eine seiner
      Tabellen ist. */
-  if(S.mode === 'quellen' && E.geschaeftsobjekt){
+  if(E.geschaeftsobjekt){
     const tabellen = new Map();
     for(const o of Object.values(model.objects)){
       if(!o.bo || !(S.model && S.model.objects[o.bo])) continue;

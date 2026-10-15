@@ -11,7 +11,7 @@ const S = {
   saved:{1:{}},
   routes:{1:{}},
   content:{1:{}},
-  elemente:{quelle:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Domäne/GO als eigener Kasten
+  elemente:{quelle:false, tabquellen:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Quelltabelle/Domäne/GO als eigener Kasten
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),

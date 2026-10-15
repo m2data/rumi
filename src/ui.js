@@ -97,7 +97,7 @@ function adoptLayoutFile(obj){
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
   if(obj.elemente && typeof obj.elemente === 'object')
-    S.elemente = {quelle: !!obj.elemente.quelle, domaene: !!obj.elemente.domaene,
+    S.elemente = {quelle: !!obj.elemente.quelle, tabquellen: !!obj.elemente.tabquellen, domaene: !!obj.elemente.domaene,
                   geschaeftsobjekt: !!obj.elemente.geschaeftsobjekt};
   if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
   if(obj.hierarchie) baumUebernehmen(S.bereiche.hierarchie, obj.hierarchie);
@@ -426,14 +426,15 @@ function renderDetails(){
       tabellen.map(u=>`<div class="rel"><span class="arrow">←</span>
         <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
   } else if(n.eltern){
-    // Anhängsel: wer sonst noch diese Quelle nutzt bzw. in dieser Domäne liegt
-    const quelle = n.kind === 'source';
+    // Anhängsel: wer sonst noch diese Quelle bzw. Quelltabelle nutzt oder in dieser Domäne liegt
+    const quelle = n.kind === 'source', tabelle = n.kind === 'tabsource';
     const nutzer = Object.values(aktModell().objects)
-      .filter(o => quelle ? quellenVon(o).includes(n.name) : o.fuehrend === n.name).map(o => o.name);
+      .filter(o => quelle ? quellenVon(o).includes(n.name) : tabelle ? o.tabQuellen.includes(n.name) : o.fuehrend === n.name)
+      .map(o => o.name);
     box.innerHTML =
-      `<div class="grouphead">${quelle ? 'QUELLE' : 'DOMÄNE'}</div>
+      `<div class="grouphead">${quelle ? 'QUELLE' : tabelle ? 'QUELLTABELLE' : 'DOMÄNE'}</div>
        <dl class="kv"><dt>Name</dt><dd>${esc(n.name)}</dd></dl>
-       <div class="grouphead">${quelle ? 'VERSORGT' : 'GESCHÄFTSOBJEKTE'}</div>` +
+       <div class="grouphead">${quelle || tabelle ? 'VERSORGT' : 'GESCHÄFTSOBJEKTE'}</div>` +
       nutzer.map(u=>`<div class="rel"><span class="arrow">←</span>
         <button data-goto="o:${esc(u)}">${esc(u)}</button></div>`).join('');
   } else {
@@ -593,9 +594,11 @@ function renderLegend(){
     row('zero_or_one', 'null oder eins');
   const ohne = (k, txt)=> `<div><svg width="66" height="22" viewBox="0 0 66 22" aria-hidden="true">
       <g class="eg ${k}"><path class="e-path" d="M4 11H60"/></g></svg>${txt}, ohne Kardinalität</div>`;
-  if(S.elemente.quelle)  html += ohne('quelle', 'Quelle');
-  if(S.elemente.domaene) html += ohne('domaene', 'Domäne');
-  if(S.elemente.geschaeftsobjekt && S.mode === 'quellen') html += ohne('go', 'Geschäftsobjekt');
+  const E = elementeAktiv();
+  if(E.quelle)     html += ohne('quelle', 'Quelle');
+  if(E.tabquellen) html += ohne('tabquelle', 'Quelltabelle');
+  if(E.domaene)    html += ohne('domaene', 'Domäne');
+  if(E.geschaeftsobjekt) html += ohne('go', 'Geschäftsobjekt');
   $('legend').innerHTML = html;
 }
 
@@ -714,17 +717,20 @@ $('alignBar').querySelectorAll('button').forEach(b=> b.onclick = ()=> alignSelec
 
 function renderContentMenu(){
   const C = contentOf();
-  // Steht Quelle bzw. Domäne als eigener Kasten daneben, fehlt sie im Kasten
-  const gesperrt = {sources: !!S.elemente.quelle, domain: !!S.elemente.domaene};
+  // Steht Quelle, Quelltabelle bzw. Domäne als eigener Kasten daneben, fehlt sie im Kasten
+  const E = elementeAktiv();
+  const gesperrt = {sources: E.quelle, tabSources: E.tabquellen, domain: E.domaene};
   let html = '';
   CONTENT_FIELDS.forEach(f=>{
+    if(f.k === 'tabSources' && S.mode === 'quellen') return;   // Table_Sources gibt es nur am Geschäftsobjekt
     const locked = !!gesperrt[f.k];
     const off = (f.sub && !C[f.sub]) || locked;
     html += `<button class="opt${f.sub ? ' indent' : ''}${off ? ' off' : ''}" data-content="${f.k}"
       role="menuitemcheckbox" aria-checked="${!locked && !!C[f.k]}">${esc(f.label)}<span class="tick">✓</span></button>`;
   });
-  if(gesperrt.sources || gesperrt.domain)
-    html += `<div class="note">${[gesperrt.domain && 'Domäne', gesperrt.sources && 'Quellen'].filter(Boolean).join(' und ')}
+  const eigen = [gesperrt.domain && 'Domäne', gesperrt.sources && 'Quellen', gesperrt.tabSources && 'Quelltabellen'].filter(Boolean);
+  if(eigen.length)
+    html += `<div class="note">${eigen.length > 1 ? eigen.slice(0, -1).join(', ') + ' und ' + eigen[eigen.length - 1] : eigen[0]}
       stehen als eigene Elemente neben dem Objekt (Einstellungen).</div>`;
   $('contentList').innerHTML = html;
   $('contentList').querySelectorAll('[data-content]').forEach(b=> b.onclick = ()=>{

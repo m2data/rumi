@@ -7,6 +7,7 @@
 .n-tag{font:500 9.5px "IBM Plex Mono",monospace;letter-spacing:.07em}
 .n-tag.key{fill:#1D3F72}
 .n-tag.src{fill:#8A5B00}
+.n-tag.tab{fill:#6B3FA0}
 .n-tag.attr{fill:#5E717F}
 .n-attr-tag{font:500 8.5px "IBM Plex Mono",monospace;fill:#B4145F;letter-spacing:.06em}
 .n-attr-type{font:400 10px "IBM Plex Mono",monospace;fill:#5E717F}
@@ -17,6 +18,8 @@
 .node.source .n-head{fill:#8A5B00}
 .node.domain .n-box{fill:#EAF4EE;stroke:#2E6B4A;stroke-width:1.2;stroke-dasharray:5 3}
 .node.domain .n-head{fill:#2E6B4A}
+.node.tabsource .n-box{fill:#F3EEF9;stroke:#6B3FA0;stroke-width:1.2;stroke-dasharray:5 3}
+.node.tabsource .n-head{fill:#6B3FA0}
 .node.gobj .n-box{fill:#E9EFF8;stroke:#1D3F72;stroke-width:1.4;stroke-dasharray:5 3}
 .node.gobj .n-head{fill:#1D3F72}
 .node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
@@ -33,6 +36,9 @@
 .eg.domaene .e-path{stroke:#2E6B4A;stroke-dasharray:6 4}
 .eg.domaene .e-mk{stroke:#2E6B4A}
 .eg.domaene .e-dot{stroke:#2E6B4A}
+.eg.tabquelle .e-path{stroke:#6B3FA0;stroke-dasharray:6 4}
+.eg.tabquelle .e-mk{stroke:#6B3FA0}
+.eg.tabquelle .e-dot{stroke:#6B3FA0}
 .eg.go .e-path{stroke:#1D3F72;stroke-dasharray:6 4}
 .eg.go .e-mk{stroke:#1D3F72}
 .eg.go .e-dot{stroke:#1D3F72}

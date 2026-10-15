@@ -89,17 +89,20 @@ Beziehungen. Die Kästen tragen ab Werk nur den Objektnamen; Domain, Business
 Keys, Quellen, Attribute und Beschreibung lassen sich über „Inhalt" dazunehmen
 (Kapitel 10).
 
-Unter **Einstellungen → Als eigenes Element** lassen sich zwei Angaben aus dem
+Unter **Einstellungen → Als eigenes Element** lassen sich drei Angaben aus dem
 Kasten herausnehmen und als **eigener Kasten** daneben stellen:
 
 - **Quellen** — jede Quelle eines Objekts wird ein eigener Kasten, verbunden
   über eine Linie mit der Beschriftung „quelle".
+- **Quelltabellen** — jede Tabelle aus `Table_Sources` eines Objekts wird ein
+  eigener Kasten, verbunden über eine Linie mit der Beschriftung „Quelltabelle".
 - **Domäne** — die **führende** Domäne eines Objekts wird ein eigener Kasten,
   verbunden über eine Linie mit der Beschriftung „Domäne". Ohne führende
   Domäne (mehrere Domänen, keine festgelegt — Kapitel 13) gibt es keinen.
 
-Beide Haken sind unabhängig und gelten in der Komplettansicht **und** in der
-Hierarchie. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
+Die Haken sind unabhängig und gelten in der Komplettansicht **und** in der
+Hierarchie; „Quellen" und „Quelltabellen" gibt es bei den Quelltabellen
+(Kapitel 17) nicht. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
 Objekte dieselbe Quelle oder Domäne haben. So läuft keine Linie quer durchs
 Diagramm zu einem gemeinsamen Knoten. Die Linien tragen keine Kardinalität,
 denn eine Zuordnung ist keine fachliche Beziehung. Ist ein Element
@@ -305,6 +308,7 @@ gleichermaßen:
 - Domain *(gesperrt, solange die Domäne als eigenes Element steht)*
 - Business Keys
 - Quellen *(gesperrt, solange die Quellen als eigene Elemente stehen)*
+- Quelltabellen *(die Einträge aus `Table_Sources`; gesperrt, solange sie als eigene Elemente stehen)*
 - Attribute
   - nur Schlüsselattribute *(zeigt nur PK, AK und FK)*
   - Datentypen zeigen
@@ -596,7 +600,8 @@ darunter die Beschreibung, rechts das Diagramm.
   Objektliste hinein. Diese Diagramme stehen in einer eigenen Datei (Anhang E).
 - Die **Objektliste** gruppiert nach Quellsystem; die **Prüfung** gilt den
   Tabellen; die **Suche** findet auch Quellsystem und Geschäftsobjekt.
-- „Quellen" als eigenes Element zeigt hier das eine Quellsystem der Tabelle.
+- „Quellen" und „Quelltabellen" als eigenes Element gibt es hier nicht; sie
+  gehören zu den Geschäftsobjekten.
 
 **Geschäftsobjekt als eigenes Element.** „Einstellungen → Geschäftsobjekt"
 stellt das zugeordnete Geschäftsobjekt als eigenen Kasten ins Diagramm — anders
@@ -931,7 +936,7 @@ Sie enthält:
 | `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
 | `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
 | `inhalt` | was in den Kästen steht |
-| `elemente` | ob Quelle, Domäne und (bei den Quelltabellen) das Geschäftsobjekt als eigene Elemente stehen |
+| `elemente` | ob Quelle, Quelltabelle, Domäne und (bei den Quelltabellen) das Geschäftsobjekt als eigene Elemente stehen |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
 | `uebersichtText` | die Hierarchiebeschreibung |

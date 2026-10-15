@@ -132,6 +132,8 @@ body.modus-hierarchie .sidetab.tab-komplett{display:none}
 body.modus-quellen .sidetab.tab-komplett{display:flex}
 /* Alles zu den Quelltabellen erst, wenn sie eingeschaltet sind */
 body:not(.quellen-an) .nur-quellen{display:none !important}
+/* Quellen und Quelltabellen als eigenes Element nur bei den Geschäftsobjekten */
+body.modus-quellen .nur-go{display:none !important}
 /* Werkzeugleiste zum Bearbeiten der Hierarchie */
 .hier-tools{display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px 0}
 .hier-tools[hidden]{display:none}

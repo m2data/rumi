@@ -32,7 +32,7 @@ function nodeMarkup(n, cls){
       y += GAP_SEC; continue;
     }
     const cy = y + ROW_H/2;
-    const tag = row.kind === 'key' ? 'BK' : row.kind === 'src' ? 'src' : 'attr';
+    const tag = row.kind === 'key' ? 'BK' : row.kind === 'src' ? 'src' : row.kind === 'tab' ? 'tab' : 'attr';
     s += `<text class="n-tag ${row.kind}" x="${PAD_X}" y="${cy+3.5}">${tag}</text>`;
     if(row.kind === 'attr'){
       const a = row.a;
@@ -42,7 +42,7 @@ function nodeMarkup(n, cls){
       if(a.type)
         s += `<text class="n-attr-type" x="${n.w-PAD_X}" y="${cy+3.5}" text-anchor="end">${esc(a.type)}</text>`;
     } else {
-      s += `<text class="n-row${row.kind === 'src' ? ' dimtext' : ''}" x="${PAD_X+PREFIX_W}" y="${cy+4}">${esc(row.text)}</text>`;
+      s += `<text class="n-row${row.kind === 'src' || row.kind === 'tab' ? ' dimtext' : ''}" x="${PAD_X+PREFIX_W}" y="${cy+4}">${esc(row.text)}</text>`;
     }
     y += ROW_H;
   }

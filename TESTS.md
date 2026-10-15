@@ -69,6 +69,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
 - **`elemente.js`** — Quelle und Domäne als eigene Elemente (Einstellungen):
   je Objekt eigene Kästen rechts daneben, gesperrter Inhalt-Eintrag, Ein- und
   Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie.
+- **`tabquellen.js`** — Table_Sources als eigenes Element und als Zeilen im
+  Kasten, nur bei den Geschäftsobjekten: bei den Quelltabellen weder
+  „Quellen" noch „Quelltabellen", gemerkte Einstellung.
 - **`hierarchie.js`** — Hierarchie-Modus: Baum, Ausschnitte, Beschreibung,
   Strukturänderungen, verknüpfte Objekte, Markdown im Export.
 - **`sitzung.js`** — Sitzung, Dateien, Export: PNG-Maßstab und -Limit,

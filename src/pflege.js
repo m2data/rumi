@@ -903,6 +903,7 @@ function elementSchalten(k){
 function syncEinstMenu(){
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   $('optQuelle').setAttribute('aria-checked', String(!!S.elemente.quelle));
+  $('optTabQuelle').setAttribute('aria-checked', String(!!S.elemente.tabquellen));
   $('optDomaene').setAttribute('aria-checked', String(!!S.elemente.domaene));
   $('optQuellen').setAttribute('aria-checked', String(S.quellenAn));
   $('optQuellPflege').setAttribute('aria-checked', String(S.quellPflegeAn));
@@ -937,6 +938,7 @@ $('optQuellen').addEventListener('click', ()=> quellenSchalten(!S.quellenAn));
 $('optQuellPflege').addEventListener('click', ()=> quellPflegeSchalten(!S.quellPflegeAn));
 $('optGO').addEventListener('click', ()=> elementSchalten('geschaeftsobjekt'));
 $('optQuelle').addEventListener('click', ()=> elementSchalten('quelle'));
+$('optTabQuelle').addEventListener('click', ()=> elementSchalten('tabquellen'));
 $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
