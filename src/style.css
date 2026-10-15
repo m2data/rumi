@@ -32,7 +32,10 @@ header{
 .brand{display:flex;align-items:center;gap:10px;padding:0 16px;border-right:1px solid var(--hair-soft)}
 .brand .mark{width:22px;height:22px;flex:0 0 auto}
 .brand h1{font-size:14px;font-weight:600;letter-spacing:-.01em;margin:0;white-space:nowrap}
-.brand .file{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.brand .file{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;
+  display:block;width:16em;margin:0 0 0 -3px;padding:0 2px;border:1px solid transparent;border-radius:2px;background:none}
+.brand .file:hover{border-color:var(--hair-soft)}
+.brand .file:focus{outline:none;border-color:var(--muted);color:inherit}
 
 .modes{display:flex;align-items:center;gap:5px;padding:0 12px;border-right:1px solid var(--hair-soft)}
 .mode-btn{

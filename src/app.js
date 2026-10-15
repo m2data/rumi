@@ -29,6 +29,7 @@ const S = {
   uebernahmeMeldungen:[],   // Infos der letzten Übernahme für die Prüfung (stehen in keinen Daten)
   t:{x:0, y:0, k:1},
   fileName:'willibald.yaml',
+  modellName:'willibald',   // frei änderbar, Basis aller gespeicherten Dateinamen
   // Hierarchie (redaktionelle Diagramme): eigener Modus neben der Komplettansicht
   mode:'komplett',          // 'komplett' | 'hierarchie' | 'quellen'
   bereiche:{hierarchie: neuerBaum(), quellen: neuerBaum()}

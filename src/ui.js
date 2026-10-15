@@ -131,7 +131,7 @@ function writeStore(){
 }
 /* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
    Geschäftsobjekt-Modell und die Quelltabellen (eigene Datei). */
-const modellTexte = ()=> ({fileName:S.fileName, yaml:S.yamlText,
+const modellTexte = ()=> ({fileName:S.fileName, modellName:S.modellName, yaml:S.yamlText,
                            quellFileName:S.quellFileName, quellYaml:S.quellText});
 const verlaufsStand = ()=> JSON.stringify({yaml:S.yamlText, quellYaml:S.quellText, stand:layoutFile()});
 
@@ -1082,7 +1082,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'loadLayout') $('layoutInput').click();
   // Speichern
   if(a === 'saveGO'){
-    download(yamlEinheitlich(S.yamlText), S.fileName.replace(/\.[^.]+$/, '') + '.yaml', 'text/yaml');   // jede gespeicherte YAML einheitlich
+    download(yamlEinheitlich(S.yamlText), dateiName('', '.yaml'), 'text/yaml');   // jede gespeicherte YAML einheitlich
     toast('Geschäftsobjekte gespeichert');
   }
   if(a === 'uebersicht'){
@@ -1090,23 +1090,23 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     download(outlineToYaml(S.outline.roots), uebersichtName(), 'text/yaml');
     toast('Hierarchiebeschreibung gespeichert');
   }
-  if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), diagramName()+'-positionen.json', 'application/json');
+  if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), dateiName('_pos', '.json'), 'application/json');
   // Quelltabellen: zwei eigene Dateien, wie Modell und Hierarchiebeschreibung
   if(a === 'openQuellen') $('quellInput').click();
   if(a === 'openQuellDelta') $('quellDeltaInput').click();
   if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
   if(a === 'saveQuellen'){
-    download(yamlEinheitlich(quellTextAkt()), S.quellFileName, 'text/yaml');
+    download(yamlEinheitlich(quellTextAkt()), dateiName('_quellen', '.yaml'), 'text/yaml');
     toast('Quelltabellen gespeichert');
   }
   if(a === 'uebernehmen') uebernahmeAusfuehren();
   if(a === 'saveQuellDiagramme'){
-    download(quellDiagrammeYaml(), quellDiagrammeName(), 'text/yaml');
+    download(quellDiagrammeYaml(), dateiName('_quellhier', '.yaml'), 'text/yaml');
     toast('Quelltabellen-Diagramme gespeichert');
   }
   if(a === 'saveHtml') speichernInDatei();
   // Diagramm exportieren
-  if(a === 'svg') download(exportSVG(), diagramName()+'.svg', 'image/svg+xml');
+  if(a === 'svg') download(exportSVG(), dateiName('', '.svg'), 'image/svg+xml');
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
 
@@ -1151,13 +1151,19 @@ function ctxMenuOeffnen(n, x, y){
   if(r.bottom > window.innerHeight) m.style.top = Math.max(0, y - r.height) + 'px';
 }
 
-const slug = s => String(s).toLowerCase()
-  .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
-  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-const diagramName = ()=> slug(S.fileName.replace(/\.[^.]+$/, '')) + '-geschaeftsobjektmodell';
-// Der Hierarchie-Export heißt wie die Geschäftsobjekt-Datei plus „-hierarchie".
-const uebersichtName = ()=> S.fileName.replace(/\.[^.]+$/, '') + '-hierarchie.yaml';
-const quellDiagrammeName = ()=> S.quellFileName.replace(/\.[^.]+$/, '') + '-diagramme.yaml';
+/* Alle gespeicherten Dateien heißen nach dem Modellnamen oben links, die Art
+   steht im Zusatz: _hier, _pos, _quellen, _quellhier. */
+const dateiName = (zusatz, endung)=> S.modellName + zusatz + endung;
+const uebersichtName = ()=> dateiName('_hier', '.yaml');
+/* Was im Dateinamen nicht stehen darf, fällt weg; ein leerer Name gilt nicht. */
+const modellNameSauber = s => String(s).replace(/[\\/:*?"<>|]/g, '').trim();
+const modellNameFeld = $('modellName');
+modellNameFeld.addEventListener('change', ()=>{
+  const name = modellNameSauber(modellNameFeld.value);
+  if(name) S.modellName = name;
+  modellNameFeld.value = S.modellName;
+});
+modellNameFeld.addEventListener('keydown', ev=>{ if(ev.key === 'Enter') modellNameFeld.blur(); });
 /* Die Diagramm-YAML der Quelltabellen, aus jedem Modus heraus. */
 function quellDiagrammeYaml(){
   return imBereich('quellen', ()=>{
@@ -1232,7 +1238,7 @@ function exportPNG(scale){
     c.toBlob(bl=>{
       URL.revokeObjectURL(url);
       if(!bl){ toast('PNG-Export fehlgeschlagen — SVG nutzen'); return; }
-      downloadBlob(bl, diagramName()+'.png');
+      downloadBlob(bl, dateiName('', '.png'));
     });
   };
   img.onerror = ()=>{ toast('PNG-Export fehlgeschlagen — SVG nutzen'); URL.revokeObjectURL(url); };
@@ -1687,6 +1693,7 @@ async function loadYaml(text, name, preset){
     S.model = model;
     S.yamlText = text;
     S.fileName = name || 'modell.yaml';
+    S.modellName = (preset && preset.modellName) || modellNameSauber(S.fileName.replace(/\.[^.]+$/, '')) || 'modell';
     S.selected = null;
     // Nur Ansicht 1 wie in adoptLayoutFile — sonst wiche ein zurückgenommener
     // Stand der Form nach vom geladenen ab und gälte als ungesichert
@@ -1704,7 +1711,7 @@ async function loadYaml(text, name, preset){
     }
     if(preset) adoptLayoutFile(preset);
     quellModellBauen();
-    $('fileLabel').textContent = S.fileName;
+    modellNameFeld.value = S.modellName;
     syncEinstMenu();
     renderMessages();
     syncLayoutMenu();
@@ -1744,7 +1751,7 @@ function standAlsHtml(){
 }
 
 function exportHTML(){
-  download(standAlsHtml(), S.fileName.replace(/\.[^.]+$/, '') + '-stand.html', 'text/html');
+  download(standAlsHtml(), dateiName('', '.html'), 'text/html');
   gesichert = verlaufsStand();
   toast('Eigenständige HTML-Datei gesichert');
 }
@@ -1755,7 +1762,7 @@ function htmlDateiname(){
   const pfad = (window.location && window.location.pathname) || '';
   let roh = '';
   try{ roh = decodeURIComponent(pfad.split('/').pop() || ''); }catch(_){ roh = ''; }
-  return /\.html?$/i.test(roh) ? roh : S.fileName.replace(/\.[^.]+$/, '') + '-stand.html';
+  return /\.html?$/i.test(roh) ? roh : dateiName('', '.html');
 }
 
 /* In eine bestehende Datei zurückschreiben, statt bei jedem Sichern eine neue

@@ -395,9 +395,9 @@ console.log('== Laden und Speichern ==');
   document.createElement = tag=>{ const el = echtesElement(tag); if(tag === 'a') geladen.push(el); return el; };
   const letzter = ()=> geladen.length ? geladen[geladen.length-1].download : '(keiner)';
   akt('saveQuellen').click();
-  t('Quelltabellen werden unter ihrem Dateinamen gesichert', letzter() === 'willibald-quelltabellen.yaml', letzter());
+  t('Quelltabellen heißen nach dem Modell mit _quellen', letzter() === S.modellName + '_quellen.yaml', letzter());
   akt('saveQuellDiagramme').click();
-  t('die Diagramme als …-diagramme.yaml', letzter() === 'willibald-quelltabellen-diagramme.yaml', letzter());
+  t('die Diagramme mit _quellhier', letzter() === S.modellName + '_quellhier.yaml', letzter());
   document.createElement = echtesElement;
 
   const gerufen = [];

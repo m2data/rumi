@@ -11,14 +11,25 @@ const {t, finish} = makeT();
 // Komplettansicht und stellt sie darum ausdrücklich her.
 api.setMode('komplett');
 
-console.log('== Hierarchie-Export leitet den Namen vom Modell ab ==');
+console.log('== Modellname oben links ==');
 {
-  const prev = S.fileName;
-  S.fileName = 'sap-finanz.yaml';
-  t('Hierarchiename = Basisname + -hierarchie', api.uebersichtName() === 'sap-finanz-hierarchie.yaml', api.uebersichtName());
-  S.fileName = 'willibald-attr.yaml';
-  t('funktioniert auch für ein anderes Modell', api.uebersichtName() === 'willibald-attr-hierarchie.yaml', api.uebersichtName());
-  S.fileName = prev;
+  const feld = document.getElementById('modellName');
+  t('zum Start steht der Dateiname ohne Endung im Feld',
+    feld.value === 'willibald-attr' && S.modellName === 'willibald-attr', feld.value);
+  feld.value = '  Mein:Modell?  ';
+  dispatch(feld, 'change', {});
+  t('ein getippter Name gilt, ohne unzulässige Zeichen', S.modellName === 'MeinModell', S.modellName);
+  t('das Feld zeigt den bereinigten Namen', feld.value === 'MeinModell', feld.value);
+  feld.value = '  ';
+  dispatch(feld, 'change', {});
+  t('ein leerer Name gilt nicht', S.modellName === 'MeinModell' && feld.value === 'MeinModell', S.modellName);
+  t('die Hierarchie heißt Name + _hier', api.uebersichtName() === 'MeinModell_hier.yaml', api.uebersichtName());
+  // Ein gesicherter Stand bringt seinen Namen mit, auch wenn er vom Dateinamen abweicht
+  const stand = Object.assign({yaml:S.yamlText, fileName:S.fileName, modellName:'Gesichert'}, api.layoutFile());
+  await api.loadYaml(stand.yaml, stand.fileName, stand);
+  t('der Stand bringt seinen Modellnamen mit', S.modellName === 'Gesichert' && feld.value === 'Gesichert', S.modellName);
+  await api.loadYaml(stand.yaml, stand.fileName, Object.assign({}, stand, {modellName:undefined}));
+  t('ohne Namen im Stand gilt der Dateiname', S.modellName === 'willibald-attr', S.modellName);
 }
 
 console.log('== PNG-Export: Maßstab wählbar, Größenlimit benannt ==');
@@ -271,17 +282,22 @@ console.log('== Das Dateimenü löst die Aktionen aus ==');
     gerufen.join(',') === 'fileInput,deltaInput,uebersichtInput,layoutInput', gerufen.join(','));
   t('ein Lade-Knopf schließt das Menü', !menu.classList.contains('open'));
 
-  // Speichern: Name und Endung der erzeugten Datei
+  // Speichern: jede Datei heißt nach dem Modellnamen, die Art steht im Zusatz
+  const feld = document.getElementById('modellName');
+  feld.value = 'Vertrieb';
+  dispatch(feld, 'change', {});
   akt('saveGO').click();
-  t('Geschäftsobjekte werden als .yaml gesichert', /\.yaml$/.test(letzter()), letzter());
+  t('Geschäftsobjekte ohne Zusatz', letzter() === 'Vertrieb.yaml', letzter());
   akt('uebersicht').click();
-  t('die Hierarchiebeschreibung trägt ihren eigenen Namen',
-    letzter() === api.uebersichtName(), letzter());
+  t('die Hierarchie mit _hier', letzter() === 'Vertrieb_hier.yaml', letzter());
   akt('layout').click();
-  t('die Anordnung geht als -positionen.json heraus',
-    /-positionen\.json$/.test(letzter()), letzter());
+  t('die Positionen mit _pos', letzter() === 'Vertrieb_pos.json', letzter());
+  akt('saveQuellen').click();
+  t('die Quelltabellen mit _quellen', letzter() === 'Vertrieb_quellen.yaml', letzter());
+  akt('saveQuellDiagramme').click();
+  t('die Quelltabellen-Hierarchie mit _quellhier', letzter() === 'Vertrieb_quellhier.yaml', letzter());
   akt('svg').click();
-  t('der Diagramm-Export endet auf .svg', /\.svg$/.test(letzter()), letzter());
+  t('der Diagramm-Export als Name.svg', letzter() === 'Vertrieb.svg', letzter());
 }
 
 console.log('== Stand in dieselbe Datei zurückschreiben ==');
@@ -326,6 +342,7 @@ console.log('== Stand in dieselbe Datei zurückschreiben ==');
   t('geschrieben wird eine vollständige HTML', /^<!DOCTYPE html>/.test(geschrieben || ''),
     (geschrieben || '').slice(0, 30));
   t('der Modelltext steckt darin', (geschrieben || '').includes('BusinessObjects'));
+  t('der Modellname ebenso', (geschrieben || '').includes('"modellName":"' + S.modellName + '"'), S.modellName);
   t('die Datei wird ordentlich geschlossen', geschlossen);
   t('dabei entsteht kein Download', geladen.length === 0, geladen.length + ' Downloads');
   t('der eingebackene Stand ist danach wieder wie zuvor', baked.textContent === vorher,
@@ -347,8 +364,8 @@ console.log('== Stand in dieselbe Datei zurückschreiben ==');
   // 3) Browser ohne Dateizugriff (Firefox, Safari, Sandkasten): Download wie bisher
   delete win.showSaveFilePicker;
   knopf.click();
-  t('ohne Dateizugriff wird heruntergeladen',
-    /-stand\.html$/.test(geladen.length && geladen[geladen.length-1].download),
+  t('ohne Dateizugriff wird als Name.html heruntergeladen',
+    (geladen.length && geladen[geladen.length-1].download) === S.modellName + '.html',
     geladen.length ? geladen[geladen.length-1].download : '(keine)');
   t('und das auch gemeldet', toastEl.textContent.includes('gesichert'), toastEl.textContent);
 }
@@ -398,6 +415,8 @@ console.log('== Dateien über die Dateifelder laden ==');
   t('das geladene Modell ersetzt das alte',
     Object.keys(S.model.objects).join(',') === 'Apfel,Birne', Object.keys(S.model.objects).join(','));
   t('der Dateiname wird übernommen', S.fileName === 'klein.yaml', S.fileName);
+  t('und wird zum Modellnamen', S.modellName === 'klein'
+    && document.getElementById('modellName').value === 'klein', S.modellName);
   t('das Feld ist danach wieder leer', document.getElementById('fileInput').value === '');
 
   await fuettern('deltaInput', 'delta.yaml',
