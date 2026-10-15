@@ -478,6 +478,59 @@ Bearbeiten-Schalter gemerkt und mitgegeben; Strg+Z nimmt sie zurück.
 
 Alles über **Datei & Export**.
 
+### Projektordner (für Git)
+
+Wer das Modell in einem Git-Repository pflegt, legt alle Dateien zusammen in
+einen Ordner. Sie heißen nach dem **Modellnamen oben links**:
+
+| Datei | Inhalt |
+| --- | --- |
+| `Name.yaml` | Geschäftsobjekte (Anhang A) |
+| `Name_hier.yaml` | Hierarchiebeschreibung (Anhang B) |
+| `Name_pos.json` | Positionsinformationen (Anhang C) |
+| `Name_quellen.yaml` | Quelltabellen (Anhang D), sobald welche geladen oder eingeschaltet sind |
+| `Name_quellhier.yaml` | Quelltabellen-Diagramme (Anhang E), ebenso |
+
+- **Projektordner öffnen …** lädt alle Dateien des Ordners auf einmal. Die
+  Geschäftsobjekt-Datei ist die `.yaml` ohne Zusatz; die übrigen werden über
+  ihren Namen gefunden. Fehlt eine, ist das kein Fehler, sie wird übersprungen.
+  Liegen mehrere Geschäftsobjekt-Dateien im Ordner, zählt die mit passender
+  `_pos.json`. Bleibt es mehrdeutig, wird nichts geladen, und die Meldung nennt
+  die Dateien. Unterordner werden nicht durchsucht.
+- **Projekt speichern** (Strg+S) schreibt alle Dateien auf einmal. Ihr Inhalt
+  ist derselbe wie bei den Einzelpunkten unter „Speichern". Einzige Ausnahme:
+  Die `_pos.json` enthält im Projekt die Texte der Hierarchie und der
+  Quelltabellen-Diagramme **nicht**, denn sie stehen schon in `_hier.yaml` und
+  `_quellhier.yaml`. So zeigt Git jede Änderung nur einmal.
+- Ist ein Projektordner offen, speichert **Strg+S** das Projekt. Sonst sichert
+  es wie bisher in die HTML-Datei.
+- Wird der Modellname geändert, entstehen beim nächsten Speichern neue Dateien
+  unter dem neuen Namen. Die alten bleiben liegen. Die Meldung nennt sie, und
+  sie sollten entfernt werden, sonst ist das nächste Öffnen nicht eindeutig.
+
+> **Welcher Browser?** Nur **Chrome und Edge** schreiben direkt in den Ordner
+> zurück. Beim ersten Speichern fragt der Browser einmal nach dem Ordner und
+> nach der Erlaubnis, dort zu schreiben. Er merkt sich den Ordner. Nach dem
+> Neuladen steht im Menü **„Zuletzt: Ordner öffnen"**: Ein Klick holt die
+> Erlaubnis zurück und lädt.
+>
+> **Firefox und Safari** können einen Ordner nur **lesen**. „Projektordner
+> öffnen …" lädt dort genauso alle Dateien. Der Browser fragt vorher, ob er die
+> Dateien „hochladen" darf; sie verlassen den Rechner dabei nicht. „Projekt
+> speichern" lädt die Dateien dagegen **herunter**: Sie landen im
+> Download-Ordner und müssen von dort ins Projektverzeichnis kopiert werden.
+> Beim ersten Mal fragt der Browser eventuell, ob die Seite mehrere Dateien
+> herunterladen darf. Das muss erlaubt werden, sonst kommt nur die erste an.
+>
+> Die Anwendung muss über `http(s)` geöffnet sein, nicht per Doppelklick als
+> Datei, sonst gibt der Browser keinen Ordnerzugriff.
+
+Die HTML-Datei („Stand speichern (HTML)") bleibt das Format zum
+**Weitergeben**: Sie bringt alles in einer Datei mit, eignet sich aber nicht für
+Git.
+
+### Einzelne Dateien
+
 **Laden**
 
 | Punkt | Wirkung |
@@ -498,7 +551,7 @@ Das Einspielen ist eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
 | Punkt | Ergebnis |
 | --- | --- |
 | Geschäftsobjekte (YAML) | das Modell, mit allen Bearbeitungen |
-| Hierarchiebeschreibung (YAML) | der Diagrammbaum, `…-hierarchie.yaml` |
+| Hierarchiebeschreibung (YAML) | der Diagrammbaum, `Name_hier.yaml` |
 | Positionsinformationen (JSON) | Anordnungen, Kantenzüge, Einstellungen |
 
 **Diagramm exportieren**
@@ -516,6 +569,7 @@ Das Einspielen ist eine ganz normale Aktion — Strg+Z nimmt es wieder heraus.
 | Taste | Wirkung |
 | --- | --- |
 | `F` | Einpassen |
+| Strg+S | Projekt speichern, ist kein Projektordner offen: Stand in die HTML (Kapitel 14) |
 | Strg+A | alle sichtbaren Objekte wählen |
 | Pfeiltasten | Auswahl fein verschieben |
 | Umschalt+Pfeiltasten | Auswahl um ein Rasterfeld verschieben |
@@ -557,6 +611,16 @@ gespeicherten Stand.
 nicht geladen") — die Datei ist keine Diagrammdatei, meist eine verwechselte
 Geschäftsobjekt- oder Quelltabellen-Datei. Die Meldung nennt den richtigen
 Ladeweg; die bisherigen Diagramme bleiben unverändert.
+
+**„Projekt speichern" lädt nur herunter.** Der Browser kann nicht in einen
+Ordner schreiben. Das gilt für Firefox und Safari sowie für eine per
+Doppelklick geöffnete Datei. Die Dateien liegen dann im Download-Ordner und
+gehören von dort ins Projektverzeichnis. Direkt in den Ordner schreiben nur
+Chrome und Edge, mit über `http(s)` geöffneter Seite (Kapitel 14).
+
+**„Mehrere Geschäftsobjekt-Dateien im Ordner"** — meist liegen nach einem
+geänderten Modellnamen noch die Dateien unter dem alten Namen daneben. Die
+nicht mehr gebrauchten entfernen, dann ist das Öffnen wieder eindeutig.
 
 **Der Knopf „Quelltabellen" fehlt.** Er erscheint erst mit „Einstellungen →
 Quelltabellen verwenden" (Kapitel 17).
@@ -927,6 +991,7 @@ Text und seine Unterdiagramme.
 - Die Datei lässt sich vollständig **in der App** bearbeiten (Kapitel 11) und
   über „Speichern" wieder ausgeben. Beschreibungen stehen in der Ausgabe als
   einzeilige Werte mit `\n`-Escapes — der Leser stellt sie verlustfrei her.
+- Im Projektordner heißt sie `Name_hier.yaml` (Kapitel 14).
 
 ## Anhang C — Positionsinformationen (JSON)
 
@@ -953,6 +1018,10 @@ Sie enthält:
 Der HTML-Export („Stand als HTML sichern") trägt dieselben Angaben zusammen mit
 dem Modell in einer Datei — für die Weitergabe ist er der bequemere Weg. Er
 enthält auch die Quelltabellen-YAML.
+
+Im Projektordner heißt die Datei `Name_pos.json` und enthält `uebersichtText` und
+`quelltabellen.uebersichtText` **nicht**, denn diese Texte stehen dort in
+`Name_hier.yaml` und `Name_quellhier.yaml` (Kapitel 14).
 
 ## Anhang D — Quelltabellen (YAML)
 
@@ -1026,3 +1095,5 @@ Ein Name ohne System (ältere Dateien) gilt, wenn genau eine Tabelle so heißt;
 gibt es ihn in mehreren Systemen, wird er gemeldet und nicht gezeigt.
 Anordnungen, die vor dem 2026-10-08 in diesen Diagrammen gelegt wurden, hängen
 an den alten Kennungen und werden neu gelegt.
+
+Im Projektordner heißt die Datei `Name_quellhier.yaml` (Kapitel 14).

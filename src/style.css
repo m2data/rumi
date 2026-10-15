@@ -70,6 +70,7 @@ header{
   display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;
   font-family:var(--ui);font-size:12px;color:var(--ink);cursor:pointer;border-radius:2px;
 }
+.menu button[hidden]{display:none}
 .menu button:hover{background:var(--obj-soft)}
 .menu button[disabled]{color:var(--muted);opacity:.5;cursor:default}
 .menu button[disabled]:hover{background:none}

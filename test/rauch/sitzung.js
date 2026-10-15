@@ -543,5 +543,174 @@ console.log('== Jede gespeicherte YAML ist einheitlich ==');
   win.URL.createObjectURL = echt;
 }
 
+console.log('== Projektordner: alle Dateien auf einmal laden und speichern ==');
+{
+  /* Ein nachgebauter Ordner-Handle wie aus showDirectoryPicker: values()
+     liefert die Dateien, getFileHandle schreibt in denselben Inhalt zurück. */
+  const ordnerAttrappe = (name, inhalt = {})=>({
+    name, kind:'directory', inhalt,
+    async *values(){
+      for(const n of Object.keys(inhalt))
+        yield {kind:'file', name:n, getFile: async ()=>({text: async ()=> inhalt[n]})};
+    },
+    async getFileHandle(n){
+      return {createWritable: async ()=>{
+        let puffer = '';
+        return {write: async x=>{ puffer += x; }, close: async ()=>{ inhalt[n] = puffer; }};
+      }};
+    }
+  });
+  const warten = async ()=>{ for(let k = 0; k < 80; k++) await Promise.resolve(); };
+  const toastText = ()=> document.getElementById('toast').textContent;
+  const verlassen = ()=>{
+    let gewarnt = false;
+    (win._hoerer.beforeunload || []).forEach(f => f({preventDefault(){ gewarnt = true; }}));
+    return gewarnt;
+  };
+  const menu = document.getElementById('menu');
+  const akt = a => [...menu.querySelectorAll('button')].find(b => b.dataset.act === a);
+  const strgS = ()=> dispatch(document.body, 'keydown', {key:'s', ctrlKey:true});
+
+  // Strg+S ohne Projektordner bleibt beim Sichern in die HTML
+  let htmlGefragt = 0;
+  win.showSaveFilePicker = async ()=>{ htmlGefragt++; const e = new Error('abbruch'); e.name = 'AbortError'; throw e; };
+  strgS(); await warten();
+  t('Strg+S ohne Projektordner sichert in die HTML', htmlGefragt === 1, htmlGefragt + '');
+  t('das Menü bietet beide Projektpunkte an', !!akt('projektOeffnen') && !!akt('projektSpeichern'));
+
+  // Ein Stand mit allem: Modell, Hierarchie mit einer Lage im Diagramm, Quelltabellen
+  await api.loadYaml('BusinessObjects:\n  Apfel:\n    Domain: Obst\n  Birne:\n    Domain: Obst\n', 'obst.yaml');
+  api.loadUebersicht('Korb:\n  objekte:\n    - Apfel\n    - Birne\n');
+  api.loadQuellen('SourceTables:\n  S:\n    T:\n      Domain: Obst\n', 'q.yaml');
+  S.quellenAn = true;
+  api.setMode('hierarchie');
+  const n = S.graph.nodes.find(x => !x.hidden);
+  n.x += 120;
+  api.persist();
+  const lage = JSON.stringify(S.bereiche.hierarchie.hierSaved);
+  t('Vorbereitung: eine Lage im Diagramm ist gespeichert', lage.includes(n.id), lage);
+
+  // Was die Einzelknöpfe herunterladen, zum Vergleich
+  const blobs = [];
+  const echt = win.URL.createObjectURL;
+  win.URL.createObjectURL = b => { blobs.push(b); return 'blob:x'; };
+  const einzeln = a => { akt(a).click(); return blobs[blobs.length - 1].teile.join(''); };
+  const goEinzeln = einzeln('saveGO'), hierEinzeln = einzeln('uebersicht');
+  const quellEinzeln = einzeln('saveQuellen'), quellhierEinzeln = einzeln('saveQuellDiagramme');
+  win.URL.createObjectURL = echt;
+
+  // Chrome/Edge: das erste Speichern fragt nach dem Ordner
+  const ordner = ordnerAttrappe('repo');
+  let gefragt = 0;
+  win.showDirectoryPicker = async ()=>{ gefragt++; return ordner; };
+  await api.projektSpeichern();
+  const namen = Object.keys(ordner.inhalt).sort().join(',');
+  t('ohne offenen Ordner wird einmal nach ihm gefragt', gefragt === 1, gefragt + '');
+  t('alle fünf Dateien heißen nach dem Modellnamen',
+    namen === 'obst.yaml,obst_hier.yaml,obst_pos.json,obst_quellen.yaml,obst_quellhier.yaml', namen);
+  const pos = JSON.parse(ordner.inhalt['obst_pos.json']);
+  t('die _pos.json trägt die Diagrammtexte nicht doppelt',
+    !('uebersichtText' in pos) && !('uebersichtText' in pos.quelltabellen), Object.keys(pos).join(','));
+  t('die _pos.json trägt die Lagen der Diagramme', JSON.stringify(pos.hierarchie.anordnung) === lage);
+  t('die Inhalte gleichen denen der Einzelknöpfe',
+    ordner.inhalt['obst.yaml'] === goEinzeln && ordner.inhalt['obst_hier.yaml'] === hierEinzeln
+    && ordner.inhalt['obst_quellen.yaml'] === quellEinzeln && ordner.inhalt['obst_quellhier.yaml'] === quellhierEinzeln);
+  t('der einzelne Positionen-Knopf behält die Diagrammtexte', 'uebersichtText' in api.layoutFile());
+  t('danach gilt der Stand als gesichert', !verlassen());
+  t('die Meldung nennt den Ordner', /5 Dateien in repo gespeichert/.test(toastText()), toastText());
+
+  // Weiter im selben Ordner: kein Dialog mehr, auch nicht über Strg+S
+  S.graph.byId.get(n.id).x += 40;
+  api.persist();
+  t('eine Änderung warnt beim Verlassen', verlassen());
+  strgS(); await warten();
+  t('Strg+S speichert ins offene Projekt, ohne zu fragen', gefragt === 1 && htmlGefragt === 1,
+    `Ordner ${gefragt}, HTML ${htmlGefragt}`);
+  t('und gilt danach als gesichert', !verlassen());
+  const gespeichert = Object.assign({}, ordner.inhalt);
+
+  // Rundreise: ein anderes Modell, dann den Ordner wieder öffnen
+  await api.loadYaml('BusinessObjects:\n  Fremd:\n    Domain: X\n', 'fremd.yaml');
+  await api.projektOeffnen();
+  t('das Öffnen fragt nach dem Ordner', gefragt === 2, gefragt + '');
+  t('das Modell kommt aus dem Ordner', Object.keys(S.model.objects).includes('Apfel') && S.modellName === 'obst',
+    Object.keys(S.model.objects).join(',') + ' / ' + S.modellName);
+  t('die Hierarchie ebenso', S.bereiche.hierarchie.outlineText.includes('Korb'));
+  const lageGespeichert = JSON.stringify(JSON.parse(gespeichert['obst_pos.json']).hierarchie.anordnung);
+  t('die Lagen im Diagramm bleiben erhalten (auch die nach Strg+S)',
+    JSON.stringify(S.bereiche.hierarchie.hierSaved) === lageGespeichert && lageGespeichert !== lage,
+    JSON.stringify(S.bereiche.hierarchie.hierSaved));
+  t('die Quelltabellen ebenso', S.quellenAn && /T:/.test(S.quellText), S.quellText);
+  t('frisch geladen: keine Warnung beim Verlassen', !verlassen());
+  t('die Meldung nennt, was geladen wurde', /Projekt repo: .*_hier, _pos, _quellen, _quellhier/.test(toastText()), toastText());
+  await api.projektSpeichern();
+  const geaendert = Object.keys(gespeichert).filter(k => gespeichert[k] !== ordner.inhalt[k]);
+  t('erneutes Speichern ändert keine Datei', geaendert.length === 0
+    && Object.keys(ordner.inhalt).length === Object.keys(gespeichert).length, geaendert.join(','));
+
+  // Ein neuer Modellname: neue Dateien, und der Hinweis auf die alten
+  const feld = document.getElementById('modellName');
+  feld.value = 'obst2';
+  dispatch(feld, 'change', {});
+  await api.projektSpeichern();
+  t('nach neuem Namen entstehen die Dateien unter ihm', 'obst2.yaml' in ordner.inhalt);
+  t('und die Meldung nennt die alten', /obst\.yaml — bitte entfernen/.test(toastText()), toastText());
+
+  // Falsche Ordner werden abgelehnt, der Stand bleibt
+  const vorher = S.yamlText;
+  win.showDirectoryPicker = async ()=> ordnerAttrappe('zwei', {'a.yaml':'BusinessObjects:\n  A:\n    Domain: D\n',
+    'b.yaml':'BusinessObjects:\n  B:\n    Domain: D\n'});
+  await api.projektOeffnen();
+  t('zwei Geschäftsobjekt-Dateien ohne Positionen: nichts geladen', S.yamlText === vorher
+    && /Mehrere Geschäftsobjekt-Dateien im Ordner: a\.yaml, b\.yaml/.test(toastText()), toastText());
+  win.showDirectoryPicker = async ()=> ordnerAttrappe('falsch', {'a.yaml':'BusinessObjects:\n  A:\n    Domain: D\n',
+    'a_hier.yaml':'BusinessObjects:\n  X:\n    Domain: D\n'});
+  await api.projektOeffnen();
+  t('eine falsche _hier.yaml: nichts geladen, mit Grund', S.yamlText === vorher
+    && /a_hier\.yaml nicht geladen: Das ist eine Geschäftsobjekt-Datei/.test(toastText()), toastText());
+  win.showDirectoryPicker = async ()=> ordnerAttrappe('eindeutig', {'a.yaml':'BusinessObjects:\n  A:\n    Domain: D\n',
+    'a_pos.json':'{}', 'b.yaml':'BusinessObjects:\n  B:\n    Domain: D\n'});
+  await api.projektOeffnen();
+  t('mehrere, aber nur eine mit Positionen: die wird geladen',
+    S.modellName === 'a' && !!S.model.objects.A, S.modellName);
+  win.showDirectoryPicker = async ()=> { const e = new Error('abbruch'); e.name = 'AbortError'; throw e; };
+  const a = S.yamlText;
+  await api.projektOeffnen();
+  t('ein abgebrochener Ordnerdialog ändert nichts', S.yamlText === a);
+
+  // Firefox/Safari: kein showDirectoryPicker — Ordner lesen über das Dateifeld, Speichern lädt herunter
+  delete win.showDirectoryPicker;
+  const projektFeld = document.getElementById('projektInput');
+  let feldGeklickt = 0;
+  projektFeld.onclick = ()=> feldGeklickt++;
+  akt('projektOeffnen').click();
+  t('ohne Ordnerzugriff öffnet „Projektordner öffnen" das Ordner-Dateifeld', feldGeklickt === 1, feldGeklickt + '');
+  t('das Feld wählt einen ganzen Ordner', 'webkitdirectory' in projektFeld.attrs);
+  projektFeld.files = Object.entries(gespeichert).map(([name, text]) =>
+    ({name, webkitRelativePath:'repo/' + name, text: ()=> Promise.resolve(text)}))
+    .concat([{name:'alt.yaml', webkitRelativePath:'repo/archiv/alt.yaml',
+      text: ()=> Promise.resolve('BusinessObjects:\n  Alt:\n    Domain: D\n')}]);
+  dispatch(projektFeld, 'change', {});
+  await warten();
+  t('der gelesene Ordner wird geladen, Unterordner zählen nicht',
+    S.modellName === 'obst' && !!S.model.objects.Apfel && /Projekt repo:/.test(toastText()), toastText());
+  t('auch hier bleiben die Lagen im Diagramm erhalten',
+    JSON.stringify(S.bereiche.hierarchie.hierSaved) === lageGespeichert);
+
+  const geladen = [];
+  const echtesElement = document.createElement;
+  document.createElement = tag=>{ const el = echtesElement(tag); if(tag === 'a') geladen.push(el); return el; };
+  S.graph.byId.get(n.id).x += 40;
+  api.persist();
+  strgS(); await warten();
+  document.createElement = echtesElement;
+  t('Strg+S lädt dann alle Projektdateien herunter',
+    geladen.map(x => x.download).sort().join(',') === Object.keys(gespeichert).sort().join(','),
+    geladen.map(x => x.download).join(','));
+  t('und sagt, wohin sie gehören', /Download-Ordner/.test(toastText()), toastText());
+  t('danach gilt der Stand als gesichert', !verlassen());
+  delete win.showSaveFilePicker;
+}
+
 finish();
 })();

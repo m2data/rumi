@@ -88,7 +88,14 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Objekt beschreibt: Name, Domain, Business Keys, Quellen, Attributnamen samt
   Verweisziel und Beziehungsnamen — „KundeID" zeigt also auch, wer darauf
   verweist. Datentypen bleiben außen vor, „int" träfe sonst fast jedes Objekt.
-- **Stand speichern** (Strg+S) schreibt den ganzen Stand — Modell, Hierarchie,
+- **Projektordner** für die Pflege im Git: „Projektordner öffnen …" lädt alle
+  Dateien eines Ordners auf einmal (`Name.yaml`, `_hier.yaml`, `_pos.json`,
+  `_quellen.yaml`, `_quellhier.yaml`), „Projekt speichern" (Strg+S) schreibt
+  sie alle zurück. Direkt in den Ordner geht das nur in Chrome und Edge über
+  `http(s)` (`showDirectoryPicker`). Firefox und Safari lesen den Ordner und
+  laden beim Speichern herunter. Näheres im
+  [Handbuch, Kapitel 14](HANDBUCH.md#14-laden-speichern-weitergeben).
+- **Stand speichern** (Strg+S ohne Projektordner) schreibt den ganzen Stand — Modell, Hierarchie,
   Anordnung, Kantenzüge, Einstellungen — in eine **bestehende** HTML-Datei
   zurück, statt jedes Mal eine neue anzulegen. Der Dialog fragt vor jedem
   Speichern, welche Datei es sein soll; beim nächsten Öffnen ist alles wieder

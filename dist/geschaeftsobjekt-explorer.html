@@ -89,6 +89,7 @@ header{
   display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;
   font-family:var(--ui);font-size:12px;color:var(--ink);cursor:pointer;border-radius:2px;
 }
+.menu button[hidden]{display:none}
 .menu button:hover{background:var(--obj-soft)}
 .menu button[disabled]{color:var(--muted);opacity:.5;cursor:default}
 .menu button[disabled]:hover{background:none}
@@ -584,6 +585,12 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
+        <div class="head">PROJEKTORDNER</div>
+        <button data-act="projektOeffnen" id="projektOeffnen"
+                title="Alle Dateien eines Ordners auf einmal laden: Geschäftsobjekte, Hierarchie, Positionen, Quelltabellen und ihre Diagramme">Projektordner öffnen …</button>
+        <button data-act="projektZuletzt" id="projektZuletzt" hidden></button>
+        <button class="withkey" data-act="projektSpeichern" id="projektSpeichern"
+                title="Alle Dateien des Projekts auf einmal speichern">Projekt speichern<span class="kbd">Strg+S</span></button>
         <div class="head">LADEN</div>
         <button data-act="open">Geschäftsobjekte (YAML) …</button>
         <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
@@ -594,7 +601,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <button class="nur-quellen" data-act="loadQuellDiagramme">Quelltabellen-Diagramme (YAML) …</button>
         <div class="head">SPEICHERN</div>
         <button class="withkey" data-act="saveHtml"
-                title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche.">Stand speichern (HTML) …<span class="kbd">Strg+S</span></button>
+                title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche. Strg+S tut das, solange kein Projektordner offen ist.">Stand speichern (HTML) …</button>
         <button data-act="saveGO">Geschäftsobjekte (YAML)</button>
         <button data-act="uebersicht">Hierarchiebeschreibung (YAML)</button>
         <button data-act="layout">Positionsinformationen (JSON)</button>
@@ -735,6 +742,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
 <input type="file" id="quellInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellDeltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellDiagInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="projektInput" webkitdirectory multiple hidden>
 <script id="bakedState" type="application/json">null</script>
 
 <script>
@@ -8613,8 +8621,9 @@ $('zOut').onclick = ()=> zoomBy(0.8);
 document.addEventListener('keydown', ev=>{
   // Strg+S sichert den Stand — auch aus einem Eingabefeld heraus, sonst öffnete
   // der Browser seinen eigenen „Seite speichern"-Dialog und legte eine Kopie an.
+  // Ist ein Projektordner offen, gehen die Dateien dorthin, sonst in die HTML.
   if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 's' || ev.key === 'S')){
-    ev.preventDefault(); speichernInDatei(); return;
+    ev.preventDefault(); (projekt ? projektSpeichern : speichernInDatei)(); return;
   }
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
@@ -8888,13 +8897,16 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'loadUebersicht') $('uebersichtInput').click();
   if(a === 'loadLayout') $('layoutInput').click();
   // Speichern
+  // Projektordner
+  if(a === 'projektOeffnen') projektOeffnen();
+  if(a === 'projektZuletzt') projektZuletzt();
+  if(a === 'projektSpeichern') projektSpeichern();
   if(a === 'saveGO'){
-    download(yamlEinheitlich(S.yamlText), dateiName('', '.yaml'), 'text/yaml');   // jede gespeicherte YAML einheitlich
+    download(goDateiText(), dateiName('', '.yaml'), 'text/yaml');
     toast('Geschäftsobjekte gespeichert');
   }
   if(a === 'uebersicht'){
-    if(!S.outline) parseOutline();
-    download(outlineToYaml(S.outline.roots), uebersichtName(), 'text/yaml');
+    download(hierDateiText(), uebersichtName(), 'text/yaml');
     toast('Hierarchiebeschreibung gespeichert');
   }
   if(a === 'layout') download(JSON.stringify(layoutFile(), null, 2), dateiName('_pos', '.json'), 'application/json');
@@ -8903,7 +8915,7 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'openQuellDelta') $('quellDeltaInput').click();
   if(a === 'loadQuellDiagramme') $('quellDiagInput').click();
   if(a === 'saveQuellen'){
-    download(yamlEinheitlich(quellTextAkt()), dateiName('_quellen', '.yaml'), 'text/yaml');
+    download(quellDateiText(), dateiName('_quellen', '.yaml'), 'text/yaml');
     toast('Quelltabellen gespeichert');
   }
   if(a === 'uebernehmen') uebernahmeAusfuehren();
@@ -8971,6 +8983,17 @@ modellNameFeld.addEventListener('change', ()=>{
   modellNameFeld.value = S.modellName;
 });
 modellNameFeld.addEventListener('keydown', ev=>{ if(ev.key === 'Enter') modellNameFeld.blur(); });
+/* Die Texte der gespeicherten Dateien — dieselben für die Einzelknöpfe und den
+   Projektordner, damit beide nicht auseinanderlaufen. Jede YAML einheitlich. */
+const goDateiText = ()=> yamlEinheitlich(S.yamlText);
+const quellDateiText = ()=> yamlEinheitlich(quellTextAkt());
+/* Die Hierarchiebeschreibung, aus jedem Modus heraus. */
+function hierDateiText(){
+  return imBereich('hierarchie', ()=>{
+    if(!S.outline) parseOutline();
+    return outlineToYaml(S.outline.roots);
+  });
+}
 /* Die Diagramm-YAML der Quelltabellen, aus jedem Modus heraus. */
 function quellDiagrammeYaml(){
   return imBereich('quellen', ()=>{
@@ -9610,6 +9633,196 @@ async function speichernInDatei(){
   }
 }
 
+/* ---------- Projektordner ----------
+   Die Dateien eines Modells liegen gemeinsam in einem Ordner, so wie sie im Git
+   gepflegt werden: <name>.yaml, <name>_hier.yaml, <name>_pos.json und — sobald
+   es Quelltabellen gibt — <name>_quellen.yaml und <name>_quellhier.yaml. Chrome
+   und Edge schreiben direkt in den Ordner zurück (showDirectoryPicker). Firefox
+   und Safari können einen Ordner nur lesen (webkitdirectory); dort wird beim
+   Speichern heruntergeladen. Die Einzelpunkte im Menü bleiben daneben stehen. */
+const PROJEKT_ZUSATZ = ['_hier', '_pos', '_quellen', '_quellhier'];
+let projekt = null;                      // {ordner: Handle (null beim Nur-Lesen), name}
+
+/* Name und Text jeder Projektdatei. Die Diagrammtexte stehen in _hier und
+   _quellhier — in der _pos.json nicht noch einmal, sonst zeigte Git jede
+   Änderung doppelt und beide Stellen könnten sich widersprechen. */
+function projektDateien(){
+  const pos = layoutFile();
+  delete pos.uebersichtText;
+  delete pos.quelltabellen.uebersichtText;
+  const d = [
+    [dateiName('', '.yaml'), goDateiText()],
+    [uebersichtName(), hierDateiText()],
+    [dateiName('_pos', '.json'), JSON.stringify(pos, null, 2)]
+  ];
+  if(S.quellenAn || S.quellText){
+    d.push([dateiName('_quellen', '.yaml'), quellDateiText()]);
+    d.push([dateiName('_quellhier', '.yaml'), quellDiagrammeYaml()]);
+  }
+  return d;
+}
+
+const ohneEndung = n => n.replace(/\.[^.]+$/, '');
+/* Geschäftsobjekt-Dateien sind die YAML ohne einen der Zusätze. */
+const goKandidaten = namen => namen.filter(n => /\.ya?ml$/i.test(n)
+  && !PROJEKT_ZUSATZ.some(z => ohneEndung(n).endsWith(z)));
+
+/* Die Dateien eines Ordners laden — [{name, text()}], gleich ob aus dem
+   Ordner-Handle oder aus dem Dateifeld. Geladen wird über denselben Weg wie
+   beim Öffnen einer gesicherten HTML: ein Stand aus der _pos.json, ergänzt um
+   die Texte der übrigen Dateien, geht an loadYaml. So bleiben die je Diagramm
+   gespeicherten Bearbeitungen erhalten, die loadUebersicht verwürfe. Ist eine
+   Datei falsch, wird nichts geladen und der bisherige Stand bleibt. */
+async function projektLaden(dateien, ordnerName){
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return false; }
+  const nachName = new Map(dateien.map(f => [f.name, f]));
+  let kand = goKandidaten([...nachName.keys()]);
+  if(kand.length > 1){
+    const mitPos = kand.filter(n => nachName.has(ohneEndung(n) + '_pos.json'));
+    if(mitPos.length) kand = mitPos;
+  }
+  if(!kand.length){ toast('Im Ordner liegt keine Geschäftsobjekt-Datei (Name.yaml) — nichts geladen', 6000); return false; }
+  if(kand.length > 1){
+    toast('Mehrere Geschäftsobjekt-Dateien im Ordner: ' + kand.join(', ') + ' — nichts geladen', 6000);
+    return false;
+  }
+  const goName = kand[0], b = ohneEndung(goName);
+  const lies = async n => nachName.has(n) ? nachName.get(n).text() : null;
+  const go = await lies(goName);
+  const hier = await lies(b + '_hier.yaml'), posText = await lies(b + '_pos.json');
+  const quell = await lies(b + '_quellen.yaml'), quellhier = await lies(b + '_quellhier.yaml');
+  let pos = {};
+  if(posText !== null){
+    try{ pos = JSON.parse(posText); }
+    catch(_){ toast(b + '_pos.json lässt sich nicht lesen — nichts geladen', 6000); return false; }
+  }
+  for(const [n, t] of [[b + '_hier.yaml', hier], [b + '_quellhier.yaml', quellhier]]){
+    const fehler = t !== null && t.trim() && diagrammDateiFehler(t);
+    if(fehler){ toast(n + ' nicht geladen: ' + fehler, 6000); return false; }
+  }
+  const q = Object.assign({}, pos.quelltabellen, {uebersichtText: quellhier || ''});
+  if(typeof q.an !== 'boolean') q.an = quell !== null;
+  const stand = Object.assign({}, pos, {modellName: b, uebersichtText: hier || '', quelltabellen: q,
+    quellYaml: quell || '', quellFileName: b + '_quellen.yaml'});
+  await loadYaml(go, goName, stand);
+  if(S.yamlText !== go || S.modellName !== b) return false;   // loadYaml hat den Grund schon gemeldet
+  const dabei = [[hier, '_hier'], [posText, '_pos'], [quell, '_quellen'], [quellhier, '_quellhier']]
+    .filter(([t]) => t !== null).map(([, z]) => z);
+  toast(`Projekt ${ordnerName || b}: ${Object.keys(S.model.objects).length} Objekte`
+    + (dabei.length ? ' · ' + dabei.join(', ') : ''), 4000);
+  return true;
+}
+
+async function projektOeffnen(){
+  if(!window.showDirectoryPicker){ $('projektInput').click(); return; }
+  let ordner;
+  try{ ordner = await window.showDirectoryPicker({id:'projekt', mode:'readwrite'}); }
+  catch(_){ return; }                    // Dialog abgebrochen
+  await projektAusOrdner(ordner);
+}
+async function projektAusOrdner(ordner){
+  const dateien = [];
+  for await (const h of ordner.values())
+    if(h.kind === 'file') dateien.push({name: h.name, text: async ()=> (await h.getFile()).text()});
+  if(await projektLaden(dateien, ordner.name)) projektSetzen(ordner, ordner.name);
+}
+/* Der zuletzt geöffnete Ordner: der Browser gibt die Erlaubnis nur auf einen
+   Klick hin zurück, darum ein eigener Menüpunkt statt Öffnen beim Start. */
+async function projektZuletzt(){
+  const ordner = await gemerkterOrdner();
+  if(!ordner) return;
+  try{ if(await ordner.requestPermission({mode:'readwrite'}) !== 'granted') return; }
+  catch(_){ toast('Der Ordner ist nicht mehr erreichbar — bitte über „Projektordner öffnen" neu wählen', 6000); return; }
+  await projektAusOrdner(ordner);
+}
+$('projektInput').addEventListener('change', async e=>{
+  const alle = [...(e.target.files || [])];
+  e.target.value = '';
+  // Nur die Dateien direkt im gewählten Ordner, nicht die aus Unterordnern
+  const pfad = f => (f.webkitRelativePath || '').split('/');
+  const oben = alle.filter(f => pfad(f).length <= 2);
+  const name = alle.length && pfad(alle[0]).length > 1 ? pfad(alle[0])[0] : '';
+  if(await projektLaden(oben, name)) projektSetzen(null, name);
+});
+
+async function projektSpeichern(){
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  const dateien = projektDateien();
+  let ziel = projekt && projekt.ordner;
+  // Chrome/Edge ohne offenen Ordner: jetzt einen wählen, das ist der Projektordner
+  if(!ziel && window.showDirectoryPicker){
+    try{ ziel = await window.showDirectoryPicker({id:'projekt', mode:'readwrite'}); }
+    catch(_){ return; }
+  }
+  if(!ziel){
+    dateien.forEach(([n, t]) => download(t, n, n.endsWith('.json') ? 'application/json' : 'text/yaml'));
+    gesichert = verlaufsStand();
+    toast(dateien.length + ' Dateien heruntergeladen — dieser Browser kann nicht in den Ordner schreiben;'
+      + ' sie liegen im Download-Ordner und gehören von dort ins Projektverzeichnis', 8000);
+    return;
+  }
+  try{
+    for(const [n, t] of dateien){
+      const schreiber = await (await ziel.getFileHandle(n, {create:true})).createWritable();
+      await schreiber.write(t);
+      await schreiber.close();
+    }
+  }catch(err){ toast('Speichern fehlgeschlagen: ' + err.message, 6000); return; }
+  gesichert = verlaufsStand();
+  if(!projekt || projekt.ordner !== ziel) projektSetzen(ziel, ziel.name);
+  // Nach einem neuen Modellnamen liegen die alten Dateien noch daneben — und
+  // machten das nächste Laden mehrdeutig
+  const namen = [];
+  for await (const h of ziel.values()) if(h.kind === 'file') namen.push(h.name);
+  const fremd = goKandidaten(namen).filter(n => ohneEndung(n) !== S.modellName);
+  toast(`${dateien.length} Dateien in ${ziel.name} gespeichert`
+    + (fremd.length ? ` · im Ordner liegen noch ${fremd.join(', ')} — bitte entfernen, sonst ist das Laden nicht eindeutig` : ''),
+    fremd.length ? 8000 : 2500);
+}
+
+function projektSetzen(ordner, name){
+  projekt = {ordner, name};
+  if(ordner) ordnerMerken(ordner);
+  $('projektSpeichern').title = ordner
+    ? `Alle Dateien des Projekts in den Ordner „${name}" speichern`
+    : 'Alle Dateien des Projekts herunterladen — dieser Browser kann nicht in den Ordner schreiben';
+  $('projektZuletzt').hidden = true;
+}
+
+/* Gemerkt wird nur der Ordner-Handle, nie ein Modellstand — den bringen die
+   Dateien selbst mit. */
+function projektDb(){
+  return new Promise((ok, nein)=>{
+    const r = window.indexedDB.open('geschaeftsobjekt-explorer', 1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore('ordner');
+    r.onsuccess = ()=> ok(r.result);
+    r.onerror = ()=> nein(r.error);
+  });
+}
+async function ordnerMerken(ordner){
+  try{ (await projektDb()).transaction('ordner', 'readwrite').objectStore('ordner').put(ordner, 'zuletzt'); }
+  catch(_){}
+}
+async function gemerkterOrdner(){
+  try{
+    const db = await projektDb();
+    return await new Promise(ok=>{
+      const r = db.transaction('ordner').objectStore('ordner').get('zuletzt');
+      r.onsuccess = ()=> ok(r.result || null);
+      r.onerror = ()=> ok(null);
+    });
+  }catch(_){ return null; }
+}
+async function zuletztAnbieten(){
+  if(!window.showDirectoryPicker) return;
+  const ordner = await gemerkterOrdner();
+  if(!ordner || projekt) return;
+  const k = $('projektZuletzt');
+  k.textContent = `Zuletzt: ${ordner.name} öffnen`;
+  k.title = `Den Projektordner „${ordner.name}" wieder öffnen — der Browser fragt nach der Erlaubnis`;
+  k.hidden = false;
+}
+
 /* ---------- Start ---------- */
 /* Frühere Fassungen legten die Sitzung im Browser ab. Die Reste werden
    gelöscht — nur unsere Schlüssel: den localStorage teilen sich alle lokalen
@@ -9648,6 +9861,7 @@ async function boot(){
   }
 }
 boot();
+zuletztAnbieten();
 window.addEventListener('resize', ()=> applyTransform());
 window.addEventListener('beforeunload', e=>{
   if(!ungesichert()) return;

@@ -96,6 +96,12 @@
     <div class="menu-wrap">
       <button class="btn" id="btnMenu" aria-haspopup="true" aria-expanded="false">Datei &amp; Export</button>
       <div class="menu" id="menu" role="menu">
+        <div class="head">PROJEKTORDNER</div>
+        <button data-act="projektOeffnen" id="projektOeffnen"
+                title="Alle Dateien eines Ordners auf einmal laden: Geschäftsobjekte, Hierarchie, Positionen, Quelltabellen und ihre Diagramme">Projektordner öffnen …</button>
+        <button data-act="projektZuletzt" id="projektZuletzt" hidden></button>
+        <button class="withkey" data-act="projektSpeichern" id="projektSpeichern"
+                title="Alle Dateien des Projekts auf einmal speichern">Projekt speichern<span class="kbd">Strg+S</span></button>
         <div class="head">LADEN</div>
         <button data-act="open">Geschäftsobjekte (YAML) …</button>
         <button data-act="openDelta" title="Geschäftsobjekte ergänzen; gleichnamige werden ersetzt">Delta Geschäftsobjekte (YAML) …</button>
@@ -106,7 +112,7 @@
         <button class="nur-quellen" data-act="loadQuellDiagramme">Quelltabellen-Diagramme (YAML) …</button>
         <div class="head">SPEICHERN</div>
         <button class="withkey" data-act="saveHtml"
-                title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche.">Stand speichern (HTML) …<span class="kbd">Strg+S</span></button>
+                title="Den ganzen Stand — Modell, Hierarchie, Anordnung — in eine bestehende HTML-Datei zurückschreiben. Der Dialog fragt, welche. Strg+S tut das, solange kein Projektordner offen ist.">Stand speichern (HTML) …</button>
         <button data-act="saveGO">Geschäftsobjekte (YAML)</button>
         <button data-act="uebersicht">Hierarchiebeschreibung (YAML)</button>
         <button data-act="layout">Positionsinformationen (JSON)</button>
@@ -247,6 +253,7 @@
 <input type="file" id="quellInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellDeltaInput" accept=".yaml,.yml,.txt" hidden>
 <input type="file" id="quellDiagInput" accept=".yaml,.yml,.txt" hidden>
+<input type="file" id="projektInput" webkitdirectory multiple hidden>
 <script id="bakedState" type="application/json">null</script>
 
 <script>
