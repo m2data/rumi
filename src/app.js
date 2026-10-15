@@ -11,7 +11,7 @@ const S = {
   saved:{1:{}},
   routes:{1:{}},
   content:{1:{}},
-  elemente:{quelle:false, tabquellen:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Quelltabelle/Domäne/GO als eigener Kasten
+  elementeKomplett:{},      // Einstellung der Komplettansicht: Quelle/Quelltabelle/Domäne als eigener Kasten (S.elemente)
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -47,6 +47,7 @@ function neuerBaum(){
     hierRoutes:{},          // je Diagramm: Kantenzüge
     hierShown:{},           // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
     hierText:{},            // je Diagramm: Beschreibung (Markdown), überschreibt die YAML-Vorlage
+    hierElemente:{},        // je Diagramm: Quelle/Quelltabelle/Domäne/GO als eigener Kasten (S.elemente)
     hierEditing:false       // Beschreibung gerade im Bearbeiten-Modus?
   };
 }
@@ -54,6 +55,17 @@ const aktBaum = ()=> S.mode === 'quellen' ? S.bereiche.quellen : S.bereiche.hier
 Object.keys(neuerBaum()).forEach(k => Object.defineProperty(S, k, {
   get(){ return aktBaum()[k]; }, set(v){ aktBaum()[k] = v; }, enumerable:true
 }));
+/* „Als eigenes Element" gilt je Diagramm: S.elemente ist der Satz des
+   aktuellen — der Komplettansicht oder des gewählten Diagramms im Baum.
+   Ohne gewähltes Diagramm ist alles aus und Schreiben wirkungslos. */
+Object.defineProperty(S, 'elemente', {
+  get(){ return S.mode === 'komplett' ? S.elementeKomplett : (S.hierSel && S.hierElemente[S.hierSel]) || {}; },
+  set(v){
+    if(S.mode === 'komplett') S.elementeKomplett = v;
+    else if(S.hierSel) S.hierElemente = Object.assign({}, S.hierElemente, {[S.hierSel]: v});
+  },
+  enumerable:true
+});
 const aktModell = ()=> S.mode === 'quellen' ? S.quellModell : S.model;
 
 /* Eine reine Rechnung im Baum eines anderen Bereichs ausführen, etwa die

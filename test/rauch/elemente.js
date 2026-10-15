@@ -167,8 +167,9 @@ console.log('== Strg+Z nimmt die Einstellung zurück ==');
 
 console.log('== Hierarchie: dieselben Elemente, nur für sichtbare Objekte ==');
 {
-  S.elemente = {quelle:true, domaene:true};
   api.setMode('hierarchie');
+  S.elemente = {quelle:true, domaene:true};       // gilt je Diagramm: im gewählten setzen
+  api.selectDiagram(S.hierSel);
   const vis = S.graph.nodes.filter(n => !n.hidden);
   const objekte = vis.filter(n => !n.eltern), anhaengsel = vis.filter(n => n.eltern);
   t('Diagramm zeigt Anhängsel', anhaengsel.length > 0);
@@ -189,6 +190,49 @@ console.log('== Hierarchie: dieselben Elemente, nur für sichtbare Objekte ==');
   const neu = S.graph.nodes.filter(n => !n.hidden && n.kind === 'source');
   t('und die Quellen stehen rechts daneben', neu.length > 0 && neu.every(rechtsDaneben),
     neu.filter(n => !rechtsDaneben(n)).map(n => n.id).join(', '));
+}
+
+console.log('== Jedes Diagramm hat seine eigenen Haken ==');
+{
+  const quellKaesten = ()=> S.graph.nodes.filter(n => n.kind === 'source' && !n.hidden).length;
+  const haken = ()=> document.getElementById('optQuelle').getAttribute('aria-checked');
+  api.setMode('komplett');
+  S.elemente = {};
+  api.setView();
+  api.setMode('hierarchie');
+  const [, A, B] = [...document.querySelectorAll('.dnode')].map(d => d.dataset.id);
+  api.selectDiagram(B);
+  S.elemente = {};
+  api.selectDiagram(A);
+  S.elemente = {};
+  api.selectDiagram(A);
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+  t('Diagramm A: Quellkästen da, Haken gesetzt', quellKaesten() > 0 && haken() === 'true', quellKaesten() + ' / ' + haken());
+  api.selectDiagram(B);
+  t('Diagramm B: keine Quellkästen, Haken aus', !quellKaesten() && haken() === 'false', quellKaesten() + ' / ' + haken());
+  api.setMode('komplett');
+  t('die Komplettansicht bleibt unberührt', !quellKaesten() && haken() === 'false', quellKaesten() + ' / ' + haken());
+  api.setMode('hierarchie');
+  api.selectDiagram(A);
+  t('zurück in A ist er wieder gesetzt', quellKaesten() > 0 && haken() === 'true');
+
+  const stand = api.layoutFile();
+  t('je Diagramm im Stand abgelegt', stand.hierarchie.elemente && stand.hierarchie.elemente[A].quelle === true
+    && !(stand.hierarchie.elemente[B] || {}).quelle && !stand.elemente.quelle, JSON.stringify(stand.hierarchie.elemente));
+  S.bereiche.hierarchie.hierElemente = {};
+  api.adoptLayoutFile(stand);
+  api.selectDiagram(A);
+  t('zurückgeladen gilt er wieder in A', quellKaesten() > 0);
+
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'z', ctrlKey:true});
+  t('Strg+Z nimmt den Haken in A zurück', !quellKaesten() && haken() === 'false', quellKaesten() + ' / ' + haken());
+  dispatch(document.getElementById('canvas'), 'keydown', {key:'y', ctrlKey:true});
+  t('Strg+Y setzt ihn wieder', quellKaesten() > 0);
+
+  global.prompt = ()=> 'Umbenannt';
+  api.selectDiagram(A);
+  api.hierAction('rename');
+  t('umbenannt: die Einstellung wandert mit', S.hierSel !== A && quellKaesten() > 0 && haken() === 'true', S.hierSel);
 }
 
 finish();

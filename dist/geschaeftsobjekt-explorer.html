@@ -4728,7 +4728,7 @@ const S = {
   saved:{1:{}},
   routes:{1:{}},
   content:{1:{}},
-  elemente:{quelle:false, tabquellen:false, domaene:false, geschaeftsobjekt:false},   // Einstellung: Quelle/Quelltabelle/Domäne/GO als eigener Kasten
+  elementeKomplett:{},      // Einstellung der Komplettansicht: Quelle/Quelltabelle/Domäne als eigener Kasten (S.elemente)
   hidden:new Set(),
   selEdge:null, exporting:false,
   sel:new Set(),
@@ -4764,6 +4764,7 @@ function neuerBaum(){
     hierRoutes:{},          // je Diagramm: Kantenzüge
     hierShown:{},           // je Diagramm: sichtbare Objekte [id,…] (überschreibt die YAML-Liste)
     hierText:{},            // je Diagramm: Beschreibung (Markdown), überschreibt die YAML-Vorlage
+    hierElemente:{},        // je Diagramm: Quelle/Quelltabelle/Domäne/GO als eigener Kasten (S.elemente)
     hierEditing:false       // Beschreibung gerade im Bearbeiten-Modus?
   };
 }
@@ -4771,6 +4772,17 @@ const aktBaum = ()=> S.mode === 'quellen' ? S.bereiche.quellen : S.bereiche.hier
 Object.keys(neuerBaum()).forEach(k => Object.defineProperty(S, k, {
   get(){ return aktBaum()[k]; }, set(v){ aktBaum()[k] = v; }, enumerable:true
 }));
+/* „Als eigenes Element" gilt je Diagramm: S.elemente ist der Satz des
+   aktuellen — der Komplettansicht oder des gewählten Diagramms im Baum.
+   Ohne gewähltes Diagramm ist alles aus und Schreiben wirkungslos. */
+Object.defineProperty(S, 'elemente', {
+  get(){ return S.mode === 'komplett' ? S.elementeKomplett : (S.hierSel && S.hierElemente[S.hierSel]) || {}; },
+  set(v){
+    if(S.mode === 'komplett') S.elementeKomplett = v;
+    else if(S.hierSel) S.hierElemente = Object.assign({}, S.hierElemente, {[S.hierSel]: v});
+  },
+  enumerable:true
+});
 const aktModell = ()=> S.mode === 'quellen' ? S.quellModell : S.model;
 
 /* Eine reine Rechnung im Baum eines anderen Bereichs ausführen, etwa die
@@ -6199,6 +6211,7 @@ function selectDiagram(id){
   S.hierEditing = false;   // beim Diagrammwechsel nicht im Bearbeiten-Modus bleiben
   renderOutlineTree();
   renderOutlineDesc();
+  syncEinstMenu();                       // die Haken „Als eigenes Element" gelten je Diagramm
   const node = id && S.outline ? outlineFind(S.outline.roots, id) : null;
   if(node) showDiagram(node);
   if(sauber) gesichert = verlaufsStand();
@@ -6278,6 +6291,7 @@ function setMode(mode){
     // die nur in der Hierarchie sinnvolle „Beschreibung“ nicht in der Komplettsicht stehen lassen
     const aktiv = (document.querySelector('.sidetab[aria-selected="true"]') || {}).dataset;
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
+    syncEinstMenu();                       // die Haken der Komplettansicht
     setView();
   }
   if(sauber) gesichert = verlaufsStand();
@@ -6316,10 +6330,10 @@ function reassignIds(){
   walk(S.outline.roots, []);
 }
 
-/* Gespeicherte Anordnungen/Kantenzüge auf geänderte Kennungen umschreiben
-   (newPrefix === null löscht sie). */
+/* Gespeicherte Anordnungen/Kantenzüge/Elemente auf geänderte Kennungen
+   umschreiben (newPrefix === null löscht sie). */
 function remapGeometry(oldPrefix, newPrefix){
-  [S.hierSaved, S.hierRoutes].forEach(store=>{
+  [S.hierSaved, S.hierRoutes, S.hierElemente].forEach(store=>{
     Object.keys(store).forEach(k=>{
       if(k === oldPrefix || k.startsWith(oldPrefix + '›')){
         const val = store[k]; delete store[k];
@@ -7834,20 +7848,26 @@ const layoutFile = ()=> ({
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
-  elemente: S.elemente,
+  elemente: S.elementeKomplett,              // die der Diagramme stehen bei ihrem Baum
   uebersichtText: S.bereiche.hierarchie.outlineText,
   hierarchie: baumAblage(S.bereiche.hierarchie),
   // Seit den Quelltabellen; fehlt der Schlüssel (ältere Datei), gelten die Vorgaben
   quelltabellen: Object.assign({an: S.quellenAn, pflegeAn: S.quellPflegeAn,
     uebersichtText: S.bereiche.quellen.outlineText}, baumAblage(S.bereiche.quellen))
 });
-const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText});
+const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText,
+  elemente: B.hierElemente});
 function baumUebernehmen(B, a){
   B.hierSaved = a.anordnung || {};
   B.hierRoutes = a.kantenzuege || {};
   B.hierShown = a.sichtbar || {};
   B.hierText = a.text || {};
+  // Ältere Dateien kennen nur den einen Satz der Komplettansicht: Diagramme ohne Elemente
+  B.hierElemente = Object.fromEntries(Object.entries(a.elemente && typeof a.elemente === 'object' ? a.elemente : {})
+    .map(([id, e]) => [id, elementeLesen(e)]));
 }
+const elementeLesen = e => ({quelle: !!e.quelle, tabquellen: !!e.tabquellen, domaene: !!e.domaene,
+  geschaeftsobjekt: !!e.geschaeftsobjekt});
 
 function adoptLayoutFile(obj){
   if(!obj || typeof obj !== 'object') return false;
@@ -7867,8 +7887,7 @@ function adoptLayoutFile(obj){
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
   if(obj.elemente && typeof obj.elemente === 'object')
-    S.elemente = {quelle: !!obj.elemente.quelle, tabquellen: !!obj.elemente.tabquellen, domaene: !!obj.elemente.domaene,
-                  geschaeftsobjekt: !!obj.elemente.geschaeftsobjekt};
+    S.elementeKomplett = elementeLesen(obj.elemente);
   if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
   if(obj.hierarchie) baumUebernehmen(S.bereiche.hierarchie, obj.hierarchie);
   const q = obj.quelltabellen;

@@ -64,20 +64,26 @@ const layoutFile = ()=> ({
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
-  elemente: S.elemente,
+  elemente: S.elementeKomplett,              // die der Diagramme stehen bei ihrem Baum
   uebersichtText: S.bereiche.hierarchie.outlineText,
   hierarchie: baumAblage(S.bereiche.hierarchie),
   // Seit den Quelltabellen; fehlt der Schlüssel (ältere Datei), gelten die Vorgaben
   quelltabellen: Object.assign({an: S.quellenAn, pflegeAn: S.quellPflegeAn,
     uebersichtText: S.bereiche.quellen.outlineText}, baumAblage(S.bereiche.quellen))
 });
-const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText});
+const baumAblage = B => ({anordnung: B.hierSaved, kantenzuege: B.hierRoutes, sichtbar: B.hierShown, text: B.hierText,
+  elemente: B.hierElemente});
 function baumUebernehmen(B, a){
   B.hierSaved = a.anordnung || {};
   B.hierRoutes = a.kantenzuege || {};
   B.hierShown = a.sichtbar || {};
   B.hierText = a.text || {};
+  // Ältere Dateien kennen nur den einen Satz der Komplettansicht: Diagramme ohne Elemente
+  B.hierElemente = Object.fromEntries(Object.entries(a.elemente && typeof a.elemente === 'object' ? a.elemente : {})
+    .map(([id, e]) => [id, elementeLesen(e)]));
 }
+const elementeLesen = e => ({quelle: !!e.quelle, tabquellen: !!e.tabquellen, domaene: !!e.domaene,
+  geschaeftsobjekt: !!e.geschaeftsobjekt});
 
 function adoptLayoutFile(obj){
   if(!obj || typeof obj !== 'object') return false;
@@ -97,8 +103,7 @@ function adoptLayoutFile(obj){
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
   if(obj.elemente && typeof obj.elemente === 'object')
-    S.elemente = {quelle: !!obj.elemente.quelle, tabquellen: !!obj.elemente.tabquellen, domaene: !!obj.elemente.domaene,
-                  geschaeftsobjekt: !!obj.elemente.geschaeftsobjekt};
+    S.elementeKomplett = elementeLesen(obj.elemente);
   if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
   if(obj.hierarchie) baumUebernehmen(S.bereiche.hierarchie, obj.hierarchie);
   const q = obj.quelltabellen;

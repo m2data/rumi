@@ -100,9 +100,10 @@ Kasten herausnehmen und als **eigener Kasten** daneben stellen:
   verbunden über eine Linie mit der Beschriftung „Domäne". Ohne führende
   Domäne (mehrere Domänen, keine festgelegt — Kapitel 13) gibt es keinen.
 
-Die Haken sind unabhängig und gelten in der Komplettansicht **und** in der
-Hierarchie; „Quellen" und „Quelltabellen" gibt es bei den Quelltabellen
-(Kapitel 17) nicht. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
+Die Haken sind unabhängig und gelten **je Diagramm**: die Komplettansicht und
+jedes Diagramm der Hierarchie haben ihre eigenen. Wer sie in einem Diagramm
+setzt, ändert kein anderes; das Menü zeigt immer den Stand des gewählten.
+„Quellen" und „Quelltabellen" gibt es bei den Quelltabellen (Kapitel 17) nicht. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
 Objekte dieselbe Quelle oder Domäne haben. So läuft keine Linie quer durchs
 Diagramm zu einem gemeinsamen Knoten. Die Linien tragen keine Kardinalität,
 denn eine Zuordnung ist keine fachliche Beziehung. Ist ein Element
@@ -610,7 +611,7 @@ Tabellen (gestrichelte Kante „Geschäftsobjekt"). So sieht man, welche Tabelle
 dasselbe Objekt beliefern. Der Kasten ist sichtbar, solange es eine seiner
 Tabellen ist; eingeschaltet in einem schon gelegten Diagramm kommt er rechts
 neben seine Tabellen, das Übrige bleibt liegen. Das Element gibt es nur bei den
-Quelltabellen.
+Quelltabellen; der Haken gilt wie alle unter „Als eigenes Element" je Diagramm.
 
 **Bearbeiten.** „Einstellungen → Quelltabellen bearbeiten" funktioniert wie
 „Geschäftsobjekte bearbeiten" (Kapitel 13), nur für die Tabellen: Formular im
@@ -937,12 +938,12 @@ Sie enthält:
 | `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
 | `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
 | `inhalt` | was in den Kästen steht |
-| `elemente` | ob Quelle, Quelltabelle, Domäne und (bei den Quelltabellen) das Geschäftsobjekt als eigene Elemente stehen |
+| `elemente` | ob in der Komplettansicht Quelle, Quelltabelle und Domäne als eigene Elemente stehen (die Diagramme tragen ihre unter `hierarchie` bzw. `quelltabellen`; ältere Dateien mit nur diesem Eintrag geben ihn an die Komplettansicht) |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
 | `uebersichtText` | die Hierarchiebeschreibung |
-| `hierarchie` | je Diagramm: Anordnung, Kantenzüge, sichtbare Objekte, Text |
-| `quelltabellen` | Schalter „Quelltabellen verwenden" (`an`) und „… bearbeiten" (`pflegeAn`), die Diagramm-YAML (`uebersichtText`) und je Diagramm Anordnung, Kantenzüge, sichtbare Tabellen, Text. Fehlt der Eintrag (ältere Datei), gelten die Vorgaben. |
+| `hierarchie` | je Diagramm: Anordnung, Kantenzüge, sichtbare Objekte, Text, eigene Elemente |
+| `quelltabellen` | Schalter „Quelltabellen verwenden" (`an`) und „… bearbeiten" (`pflegeAn`), die Diagramm-YAML (`uebersichtText`) und je Diagramm Anordnung, Kantenzüge, sichtbare Tabellen, Text, eigene Elemente. Fehlt der Eintrag (ältere Datei), gelten die Vorgaben. |
 
 Der HTML-Export („Stand als HTML sichern") trägt dieselben Angaben zusammen mit
 dem Modell in einer Datei — für die Weitergabe ist er der bequemere Weg. Er

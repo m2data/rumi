@@ -100,6 +100,8 @@ console.log('== Bei den Quelltabellen weder Quellen noch Quelltabellen ==');
   global.confirm = ()=> false;
   api.loadQuellen(TAB, 'tab.yaml');
   api.setMode('quellen');
+  S.elemente = {quelle:true, tabquellen:true};    // gilt je Diagramm: auch hier gesetzt
+  api.selectDiagram(S.hierSel);
   t('Tabellen sind da', S.graph.nodes.some(n => n.kind === 'object'));
   t('kein Quellkasten', !S.graph.nodes.some(n => n.kind === 'source'));
   t('kein Quelltabellen-Kasten', !tq().length);

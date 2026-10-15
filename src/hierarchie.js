@@ -376,6 +376,7 @@ function selectDiagram(id){
   S.hierEditing = false;   // beim Diagrammwechsel nicht im Bearbeiten-Modus bleiben
   renderOutlineTree();
   renderOutlineDesc();
+  syncEinstMenu();                       // die Haken „Als eigenes Element" gelten je Diagramm
   const node = id && S.outline ? outlineFind(S.outline.roots, id) : null;
   if(node) showDiagram(node);
   if(sauber) gesichert = verlaufsStand();
@@ -455,6 +456,7 @@ function setMode(mode){
     // die nur in der Hierarchie sinnvolle „Beschreibung“ nicht in der Komplettsicht stehen lassen
     const aktiv = (document.querySelector('.sidetab[aria-selected="true"]') || {}).dataset;
     if(aktiv && aktiv.pane === 'beschreibung') setSidePane('objects');
+    syncEinstMenu();                       // die Haken der Komplettansicht
     setView();
   }
   if(sauber) gesichert = verlaufsStand();
@@ -493,10 +495,10 @@ function reassignIds(){
   walk(S.outline.roots, []);
 }
 
-/* Gespeicherte Anordnungen/Kantenzüge auf geänderte Kennungen umschreiben
-   (newPrefix === null löscht sie). */
+/* Gespeicherte Anordnungen/Kantenzüge/Elemente auf geänderte Kennungen
+   umschreiben (newPrefix === null löscht sie). */
 function remapGeometry(oldPrefix, newPrefix){
-  [S.hierSaved, S.hierRoutes].forEach(store=>{
+  [S.hierSaved, S.hierRoutes, S.hierElemente].forEach(store=>{
     Object.keys(store).forEach(k=>{
       if(k === oldPrefix || k.startsWith(oldPrefix + '›')){
         const val = store[k]; delete store[k];

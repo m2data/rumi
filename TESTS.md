@@ -68,7 +68,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   (Gruppen, Sprung zum Objekt), Objektliste, Kastengeometrie.
 - **`elemente.js`** — Quelle und Domäne als eigene Elemente (Einstellungen):
   je Objekt eigene Kästen rechts daneben, gesperrter Inhalt-Eintrag, Ein- und
-  Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie.
+  Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie;
+  die Haken gelten je Diagramm (Komplettansicht und jedes Diagramm für sich,
+  gemerkt, Strg+Z, Umbenennen).
 - **`tabquellen.js`** — Table_Sources als eigenes Element und als Zeilen im
   Kasten, nur bei den Geschäftsobjekten: bei den Quelltabellen weder
   „Quellen" noch „Quelltabellen", gemerkte Einstellung.

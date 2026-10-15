@@ -134,6 +134,9 @@ console.log('== Geschäftsobjekt als eigenes Element ==');
   api.setSelection(['g:Bestellung']);
   t('die Details nennen seine Tabellen', /QUELLTABELLEN/.test(detail().innerHTML) && /Bestellung_VRS/.test(detail().innerHTML));
   api.selectDiagram('Quellsysteme');
+  t('der Haken gilt je Diagramm: im großen erst aus', !S.graph.nodes.some(n => n.kind === 'gobj')
+    && $('optGO').getAttribute('aria-checked') === 'false');
+  klick('optGO');
   t('im großen Diagramm je Geschäftsobjekt ein Kasten',
     S.graph.nodes.filter(n => n.kind === 'gobj' && !n.hidden).length === new Set(Object.values(S.quellModell.objects).map(o => o.bo)).size);
   api.selectDiagram('Bestellung Webshop/Roadshow');
@@ -455,7 +458,7 @@ console.log('== Ältere Positionsinformationen ==');
   S.quellenAn = false;
   api.adoptLayoutFile(alt);
   t('ohne den Schlüssel bleibt der Schalter, wie er ist', S.quellenAn === false);
-  t('das Geschäftsobjekt-Element ist aus', S.elemente.geschaeftsobjekt === false);
+  t('der alte Satz gilt der Komplettansicht, das Geschäftsobjekt-Element ist aus', S.elementeKomplett.geschaeftsobjekt === false);
   S.quellenAn = true;
 }
 
