@@ -639,6 +639,7 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 | | Objekt fehlt → **anlegen** | Objekt vorhanden → **aktualisieren** |
 | --- | --- | --- |
 | Domain | die der Tabelle | fehlende Domänen kommen in die Liste; hatte das Objekt genau eine, wird sie `leading_domain`, damit die Anzeige bleibt |
+| Quellen | das Quellsystem der Tabelle (`Webshop`) | fehlendes Quellsystem wird hinten angehängt; vorhandene Quellen, Reihenfolge und Gruppen bleiben, entfernt wird nichts |
 | Beschreibung | die der Tabelle, darunter `--->aus Webshop.Bestellung kopiert` | ihr Block (Text mit dieser Herkunftszeile) wird erneuert; gibt es ihn noch nicht, wird angehängt — **nicht**, wenn derselbe Text schon dasteht |
 | Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
 | Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle; gleichnamige werden eins, Eigenschaften aus übereinstimmenden Quellen (s. u.) |

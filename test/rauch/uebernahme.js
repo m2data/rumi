@@ -42,6 +42,8 @@ const GO = [
   '  Produkt:',
   '    Domain: Willibald',
   '    schema.org:',
+  '    sources:',
+  '    - Altsystem',
   ''
 ].join('\n');
 
@@ -164,6 +166,8 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('die Beziehung zum Ziel ohne Zuordnung wird übernommen',
     A.rels.some(r => r.to === 'Lager' && quellen(r.quellen) === 'Webshop.Auftrag→Webshop.Lager'));
   t('Table_Sources nennt beide Tabellen', A.tabQuellen.join(',') === 'Webshop.Auftrag,Roadshow.Auftrag_RS');
+  t('die Quellen nennen beide Quellsysteme', A.sources.join(',') === 'Webshop,Roadshow', A.sources.join(','));
+  t('… und stehen in der YAML', /\n    (sources|source_systems):\n    - Webshop\n    - Roadshow\n/.test(block('Auftrag')), block('Auftrag'));
   t('eingeschaltetes Zusatzfeld übernommen, die erste Tabelle zählt', A.extra['schema.org'] === 'https://schema.org/Order', A.extra['schema.org']);
 
   const K = S.model.objects.Kunde;
@@ -189,6 +193,8 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('die Kette weiter: Regal ebenso', R && R.keys.join(',') === 'RegalID' && L.rels.some(r => r.to === 'Regal'));
   t('ein Ziel, das es als Geschäftsobjekt schon gibt, wird ergänzt',
     P.tabQuellen.join(',') === 'Webshop.Produkt' && P.keys.join(',') === 'ProduktID', JSON.stringify(P));
+  t('eine vorhandene Quelle bleibt vorn, das Quellsystem kommt dazu', P.sources.join(',') === 'Altsystem,Webshop', P.sources.join(','));
+  t('Lager: Quellsystem auch beim aus dem Ziel angelegten', L.sources.join(',') === 'Webshop', L.sources.join(','));
 
   const neu = S.quellText.split('\n'), alt = TAB.split('\n');
   t('in der Tabellen-YAML sind nur die Zuordnungen dazugekommen',

@@ -127,6 +127,8 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
     const bisher = e.domains.length === 1 && !e.leading ? e.domains[0] : null;
     t.domains.forEach(d=>{ if(!e.domains.includes(d)) e.domains.push(d); });
     if(bisher && e.domains.length > 1) e.leading = bisher;
+    // Das Quellsystem wird Quelle — hinten angehängt, Gepflegtes bleibt wie es ist
+    if(t.system && !e.sources.includes(t.system)) e.sources.push(t.system);
     e.desc = descErneuern(e.desc, t.name, String(t.desc || '').trim());
     const kopie = a => ({name:a.name, type:a.type||'', nullable:!!a.nullable, pk:!!a.pk, ak:!!a.ak, fk:!!a.fk,
       ref: verweis(a.ref), quellen:[t.name + '.' + a.name], extra:Object.assign({}, a.extra), _alt:null});
