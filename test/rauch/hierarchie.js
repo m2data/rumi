@@ -461,5 +461,34 @@ console.log('== Export: Link und Zeilenumbruch in der Beschreibung ==');
   api.setMode('komplett'); api.setView();
 }
 
+console.log('== Falsche Datei als Hierarchiebeschreibung: Meldung, nichts ersetzt ==');
+{
+  const feld = document.getElementById('uebersichtInput');
+  const einspielen = async text=>{
+    feld.files = [{name:'falsch.yaml', text: ()=> Promise.resolve(text)}];
+    dispatch(feld, 'change', {});
+    for(let k = 0; k < 60; k++) await Promise.resolve();
+    return document.getElementById('toast').textContent;
+  };
+  api.setMode('hierarchie');
+  const vorher = S.bereiche.hierarchie.outlineText, baum = document.getElementById('hierTree').innerHTML;
+  const unveraendert = ()=> S.bereiche.hierarchie.outlineText === vorher && document.getElementById('hierTree').innerHTML === baum;
+
+  let m = await einspielen('meta:\n  titel: X\n\nBusinessObjects:\n  Kunde:\n    Domain: D\n');
+  t('Geschäftsobjekt-Datei: Meldung', /nicht geladen/.test(m) && /Geschäftsobjekt-Datei/.test(m), m);
+  t('… und die Hierarchie bleibt', unveraendert());
+  m = await einspielen('SourceTables:\n  Webshop:\n    Kunde:\n      desc: x\n');
+  t('Quelltabellen-Datei: Meldung', /nicht geladen/.test(m) && /Quelltabellen-Datei/.test(m), m);
+  t('… und die Hierarchie bleibt', unveraendert());
+  m = await einspielen('');
+  t('leere Datei: Meldung', /nicht geladen/.test(m) && /keine Diagramme/.test(m), m);
+  m = await einspielen('titel: X\nÜbersicht:\n  objekte:\n    - Kunde\n');
+  t('ein Wert statt eines Diagramms: Meldung mit Namen', /nicht geladen/.test(m) && /titel/.test(m), m);
+  t('… und die Hierarchie bleibt', unveraendert());
+  m = await einspielen('Leer:\nThema:\n  objekte:\n    - Kunde\n');
+  t('eine richtige Datei mit leerem Diagramm lädt weiter', /Hierarchiebeschreibung geladen/.test(m)
+    && S.bereiche.hierarchie.outline.roots.map(r => r.name).join(',') === 'Leer,Thema', m);
+}
+
 finish();
 })();

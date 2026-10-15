@@ -1166,9 +1166,9 @@ function quellDiagrammeYaml(){
   });
 }
 
-function toast(msg){
+function toast(msg, ms = 1800){            // eine Ablehnung mit Begründung braucht länger zum Lesen
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), 1800);
+  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), ms);
 }
 
 /* ---------- Export ---------- */
@@ -1516,6 +1516,8 @@ $('layoutInput').addEventListener('change', e=>{
    Diagramm gespeicherten Bearbeitungen (die auf die alten Kennungen zeigen)
    werden dabei verworfen. */
 function loadUebersicht(text){
+  const fehler = diagrammDateiFehler(text);
+  if(fehler){ toast('Hierarchiebeschreibung nicht geladen: ' + fehler, 6000); return; }
   const H = S.bereiche.hierarchie = Object.assign(neuerBaum(), {outlineText: text});
   imBereich('hierarchie', parseOutline);
   writeStore();
@@ -1640,6 +1642,8 @@ function loadQuellDelta(text){
 /* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
    Diagramm gespeicherten Bearbeitungen, wie bei der Hierarchiebeschreibung. */
 function loadQuellDiagramme(text){
+  const fehler = diagrammDateiFehler(text);
+  if(fehler){ toast('Quelltabellen-Diagramme nicht geladen: ' + fehler, 6000); return; }
   S.bereiche.quellen = Object.assign(neuerBaum(), {outlineText: text});
   writeStore();
   if(S.mode === 'quellen') setMode('quellen');

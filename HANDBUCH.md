@@ -553,6 +553,11 @@ von Hand an (Kapitel 9) — dann bleibt er.
 behält beim Neuladen sein eigenes Modell. Ein neuer Tab startet mit dem zuletzt
 gespeicherten Stand.
 
+**„Hierarchiebeschreibung nicht geladen: …"** (ebenso „Quelltabellen-Diagramme
+nicht geladen") — die Datei ist keine Diagrammdatei, meist eine verwechselte
+Geschäftsobjekt- oder Quelltabellen-Datei. Die Meldung nennt den richtigen
+Ladeweg; die bisherigen Diagramme bleiben unverändert.
+
 **Der Knopf „Quelltabellen" fehlt.** Er erscheint erst mit „Einstellungen →
 Quelltabellen verwenden" (Kapitel 17).
 

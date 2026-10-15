@@ -5885,6 +5885,23 @@ function buildOutline(text, model){
   return {roots, messages};
 }
 
+/* Taugt der Text als Diagrammdatei (Hierarchiebeschreibung oder Diagramme der
+   Quelltabellen)? buildOutline nimmt jeden obersten Schlüssel als Diagramm —
+   eine Geschäftsobjekt-Datei ergäbe still die Diagramme „meta" und
+   „BusinessObjects". Liefert den Grund der Ablehnung oder null. */
+function diagrammDateiFehler(text){
+  const {doc} = readYaml(text);
+  const schluessel = doc && typeof doc === 'object' && !Array.isArray(doc) ? Object.keys(doc) : [];
+  if(schluessel.some(k => MODELL_ARTEN.go.roots.includes(k)))
+    return 'Das ist eine Geschäftsobjekt-Datei (BusinessObjects) — sie gehört unter Laden → Geschäftsobjekte.';
+  if(schluessel.some(k => MODELL_ARTEN.quelle.roots.includes(k)))
+    return 'Das ist eine Quelltabellen-Datei (SourceTables) — sie gehört unter Laden → Quelltabellen.';
+  if(!schluessel.length) return 'Die Datei enthält keine Diagramme.';
+  const keine = schluessel.filter(k => doc[k] !== null && (typeof doc[k] !== 'object' || Array.isArray(doc[k])));
+  if(keine.length) return `Kein Diagramm: ${keine.map(k => '„' + k + '"').join(', ')} — ein Diagramm ist ein Abschnitt mit objekte, beschreibung oder Details.`;
+  return null;
+}
+
 /* Knoten im Baum anhand seiner Kennung finden. */
 function outlineFind(roots, id){
   const stack = [...roots];
@@ -8952,9 +8969,9 @@ function quellDiagrammeYaml(){
   });
 }
 
-function toast(msg){
+function toast(msg, ms = 1800){            // eine Ablehnung mit Begründung braucht länger zum Lesen
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), 1800);
+  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), ms);
 }
 
 /* ---------- Export ---------- */
@@ -9302,6 +9319,8 @@ $('layoutInput').addEventListener('change', e=>{
    Diagramm gespeicherten Bearbeitungen (die auf die alten Kennungen zeigen)
    werden dabei verworfen. */
 function loadUebersicht(text){
+  const fehler = diagrammDateiFehler(text);
+  if(fehler){ toast('Hierarchiebeschreibung nicht geladen: ' + fehler, 6000); return; }
   const H = S.bereiche.hierarchie = Object.assign(neuerBaum(), {outlineText: text});
   imBereich('hierarchie', parseOutline);
   writeStore();
@@ -9426,6 +9445,8 @@ function loadQuellDelta(text){
 /* Die Diagramme der Quelltabellen aus einer Datei: ersetzt sie samt den je
    Diagramm gespeicherten Bearbeitungen, wie bei der Hierarchiebeschreibung. */
 function loadQuellDiagramme(text){
+  const fehler = diagrammDateiFehler(text);
+  if(fehler){ toast('Quelltabellen-Diagramme nicht geladen: ' + fehler, 6000); return; }
   S.bereiche.quellen = Object.assign(neuerBaum(), {outlineText: text});
   writeStore();
   if(S.mode === 'quellen') setMode('quellen');

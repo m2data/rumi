@@ -424,6 +424,13 @@ console.log('== Laden und Speichern ==');
   t('die Diagramme werden ersetzt', S.outline.roots.map(r => r.name).join(',') === 'Quellsysteme,Vergleich',
     S.outline.roots.map(r => r.name).join(','));
   t('die Hierarchie bleibt', /Übersicht/.test(S.bereiche.hierarchie.outlineText));
+  const diagVorher = S.bereiche.quellen.outlineText;
+  await fuettern('quellDiagInput', 'go.yaml', 'BusinessObjects:\n  Kunde:\n    Domain: D\n');
+  t('eine Geschäftsobjekt-Datei als Diagramme: Meldung',
+    /Quelltabellen-Diagramme nicht geladen/.test($('toast').textContent) && /Geschäftsobjekt-Datei/.test($('toast').textContent),
+    $('toast').textContent);
+  t('… und die Diagramme bleiben', S.bereiche.quellen.outlineText === diagVorher
+    && S.outline.roots.map(r => r.name).join(',') === 'Quellsysteme,Vergleich');
 }
 
 console.log('== Sitzung und Stand ==');

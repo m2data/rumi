@@ -48,6 +48,23 @@ function buildOutline(text, model){
   return {roots, messages};
 }
 
+/* Taugt der Text als Diagrammdatei (Hierarchiebeschreibung oder Diagramme der
+   Quelltabellen)? buildOutline nimmt jeden obersten Schlüssel als Diagramm —
+   eine Geschäftsobjekt-Datei ergäbe still die Diagramme „meta" und
+   „BusinessObjects". Liefert den Grund der Ablehnung oder null. */
+function diagrammDateiFehler(text){
+  const {doc} = readYaml(text);
+  const schluessel = doc && typeof doc === 'object' && !Array.isArray(doc) ? Object.keys(doc) : [];
+  if(schluessel.some(k => MODELL_ARTEN.go.roots.includes(k)))
+    return 'Das ist eine Geschäftsobjekt-Datei (BusinessObjects) — sie gehört unter Laden → Geschäftsobjekte.';
+  if(schluessel.some(k => MODELL_ARTEN.quelle.roots.includes(k)))
+    return 'Das ist eine Quelltabellen-Datei (SourceTables) — sie gehört unter Laden → Quelltabellen.';
+  if(!schluessel.length) return 'Die Datei enthält keine Diagramme.';
+  const keine = schluessel.filter(k => doc[k] !== null && (typeof doc[k] !== 'object' || Array.isArray(doc[k])));
+  if(keine.length) return `Kein Diagramm: ${keine.map(k => '„' + k + '"').join(', ')} — ein Diagramm ist ein Abschnitt mit objekte, beschreibung oder Details.`;
+  return null;
+}
+
 /* Knoten im Baum anhand seiner Kennung finden. */
 function outlineFind(roots, id){
   const stack = [...roots];
