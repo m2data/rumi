@@ -122,7 +122,7 @@ function kreisMitAnhaengseln(nodes, edges){
 function platziereAnhaengsel(g, neu){
   const eltern = new Set(neu.filter(n => n.eltern).map(n => n.eltern));
   for(const pid of eltern)
-    setzeRechts(g.byId.get(pid), g.nodes.filter(n => n.eltern === pid), g.edges);
+    setzeRechts(g.byId.get(pid), g.nodes.filter(n => n.eltern === pid && !n.hidden), g.edges);
 }
 
 function adjacency(nodes, edges){

@@ -441,6 +441,9 @@ function attrText(a, showType){
 // Eine Quelltabelle hat genau ein Quellsystem, ein Geschäftsobjekt eine Liste
 const quellenVon = o => o.system !== undefined ? (o.system ? [o.system] : []) : o.sources;
 
+// Bis zu so vielen sichtbaren Quelltabellen teilen sie sich ein Geschäftsobjekt-Element
+const GO_GETEILT_MAX = 20;
+
 function makeGraph(model){
   const nodes = [], edges = [];
   const byId = new Map();
@@ -523,6 +526,7 @@ function makeGraph(model){
     nodes.push(n); byId.set(id, n);
     // Zuordnung ist keine fachliche Beziehung, daher ohne Kardinalität
     edges.push({from:eltern.id, to:id, kind:ekind, label, fromCard:null, toCard:null});
+    return n;
   };
   for(const o of Object.values(model.objects)){
     if(E.domaene && o.fuehrend) anhaengsel(o, 'd:'+o.name, 'domain', o.fuehrend, 'domaene', 'Domäne');   // nur die führende
@@ -535,8 +539,15 @@ function makeGraph(model){
      Tabellen hängen — er zeigt, welche Tabellen dasselbe Objekt beliefern.
      Angeordnet wird er wie Quelle und Domäne als Anhängsel, und zwar der
      ersten sichtbaren seiner Tabellen; die Kanten der übrigen laufen quer zu
-     ihm. Sichtbar ist er, solange es eine seiner Tabellen ist. */
+     ihm. Sichtbar ist er, solange es eine seiner Tabellen ist.
+     Sind mehr als GO_GETEILT_MAX Tabellen im Bild, werden diese Querkanten
+     unübersichtlich: dann bekommt jede Tabelle ihr eigenes Element wie Quelle
+     und Domäne. Beide Formen werden angelegt, weil die Sichtbarkeit erst nach
+     dem Aufbau feststeht und sich über die Objektliste ändert; die Zahl der
+     sichtbaren Tabellen entscheidet, welche zu sehen ist. */
   if(E.geschaeftsobjekt){
+    const alleTabellen = nodes.filter(n => n.kind === 'object');
+    const viele = ()=> alleTabellen.filter(t => !t.hidden).length > GO_GETEILT_MAX;
     const tabellen = new Map();
     for(const o of Object.values(model.objects)){
       if(!o.bo || !(S.model && S.model.objects[o.bo])) continue;
@@ -549,9 +560,14 @@ function makeGraph(model){
                  w: Math.max(126, Math.round(measure(bo, F_TITLE) + PAD_X*2 + 8)),
                  h: HEAD_ONLY_H, x:0, y:0, ref:{name:bo},
                  get eltern(){ return (liste.find(t => !t.hidden) || liste[0]).id; },
-                 get hidden(){ return liste.every(t => t.hidden); }, set hidden(_){}};
+                 get hidden(){ return viele() || liste.every(t => t.hidden); }, set hidden(_){}};
       nodes.push(n); byId.set(id, n);
       liste.forEach(t => edges.push({from:t.id, to:id, kind:'go', label:'Geschäftsobjekt', fromCard:null, toCard:null}));
+      liste.forEach(t=>{
+        const je = anhaengsel(t.ref, id+'|'+t.ref.name, 'gobj', bo, 'go', 'Geschäftsobjekt');
+        je.abgeleitet = true;
+        Object.defineProperty(je, 'hidden', {get(){ return t.hidden || !viele(); }, set(_){}});
+      });
     }
   }
 

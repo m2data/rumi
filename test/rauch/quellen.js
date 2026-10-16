@@ -340,9 +340,36 @@ global.confirm = ()=> false;
   t('das Geschäftsobjekt-Element einmal, mit beiden verbunden', (()=>{
     api.selectDiagram('Quellsysteme');
     return S.graph.nodes.filter(n => n.kind === 'gobj' && !n.hidden).length === 1
-      && S.graph.edges.filter(e => e.kind === 'go').length === 2;
+      && S.graph.edges.filter(e => e.kind === 'go' && !S.graph.byId.get(e.from).hidden && !S.graph.byId.get(e.to).hidden).length === 2;
   })());
   api.loadQuellen(vorher || require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'willibald-quelltabellen.yaml'), 'utf8'), name);
+}
+
+console.log('== Mehr als 20 Tabellen: je Tabelle ein Geschäftsobjekt-Element ==');
+{
+  const vorher = S.quellText, name = S.quellFileName;
+  const zeilen = ['SourceTables:', '  Webshop:'];
+  for(let i = 1; i <= 21; i++) zeilen.push('    Bestellung' + i + ':', '      business_object: Bestellung');
+  api.loadQuellen(zeilen.concat('').join('\n'), 'viele.yaml');
+  api.selectDiagram('Quellsysteme');
+  const go = ()=> S.graph.nodes.filter(n => n.kind === 'gobj' && !n.hidden);
+  t('21 Tabellen im Bild', sichtbar().filter(n => n.kind === 'object').length === 21);
+  t('je Tabelle ein eigenes Element', go().length === 21
+    && new Set(go().map(n => n.eltern)).size === 21, go().length);
+  t('der gemeinsame Kasten ist verborgen', S.graph.byId.get('g:Bestellung').hidden);
+  t('jedes steht rechts neben seiner Tabelle', go().every(n=>{
+    const p = S.graph.byId.get(n.eltern);
+    return n.x === p.x + p.w + 24 && n.y < p.y + p.h && p.y < n.y + n.h;
+  }));
+  t('je Element genau eine sichtbare Kante', go().every(n =>
+    S.graph.edges.filter(e => e.to === n.id && !S.graph.byId.get(e.from).hidden).length === 1));
+  const c = $('objectList').querySelector('.ochk[data-id="o:Webshop.Bestellung21"]');
+  c.checked = false; dispatch(c, 'change', {});
+  t('bei 20 Tabellen wieder ein gemeinsamer Kasten', go().length === 1 && go()[0].id === 'g:Bestellung',
+    go().map(n => n.id).slice(0, 3).join(','));
+  api.undo();
+  t('Strg+Z: wieder je Tabelle eines', go().length === 21, go().length);
+  api.loadQuellen(vorher, name);
 }
 
 console.log('== Flache Datei vom 2026-10-07 pflegen ==');
