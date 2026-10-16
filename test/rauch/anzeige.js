@@ -213,6 +213,105 @@ console.log('== Suche greift über den Objektnamen hinaus ==');
   t('ohne Suchbegriff bleibt die Zahl leer', hits() === '', hits());
 }
 
+console.log('== Suche: weitere Felder, ehrliche Zahl, Sprung, Ausgeblendete ==');
+{
+  api.setMode('komplett');
+  api.setView();
+  api.setSelection([]);
+  const feld = document.getElementById('search');
+  const suche = q =>{ feld.value = q; dispatch(feld, 'input', {}); };
+  const hell = () => [...document.getElementById('nodes').querySelectorAll('.node')]
+    .filter(g => !(g.getAttribute('class') || '').includes('faded'))
+    .map(g => S.graph.byId.get(g.dataset.id));
+  const namen = () => hell().filter(n => !n.eltern).map(n => n.name).sort().join(',');
+  const hits = () => document.getElementById('searchHits').textContent;
+  const objekte = () => S.graph.nodes.filter(n => !n.hidden && !n.eltern).length;
+
+  // Was nicht im Kasten steht, wird trotzdem gefunden
+  const O = S.model.objects;
+  const attr = O.Produkt.attrs[0];
+  const alt = {desc:O.Kunde.desc, extra:O.Kategorie.extra, aextra:attr.extra};
+  O.Kunde.desc = 'Stammkunde mit Treuekarte';
+  O.Kategorie.extra = Object.assign({}, alt.extra, {steward:'Frau Rabe'});
+  attr.extra = Object.assign({}, alt.aextra, {klasse:['vertraulich']});
+  suche('treuekarte');
+  t('Beschreibung trifft ihr Objekt', namen() === 'Kunde', namen());
+  suche('rabe');
+  t('Zusatzfeld am Objekt trifft', namen() === 'Kategorie', namen());
+  suche('vertraulich');
+  t('Zusatzfeld am Attribut trifft (Liste)', namen() === 'Produkt', namen());
+  O.Kunde.desc = alt.desc; O.Kategorie.extra = alt.extra; attr.extra = alt.aextra;
+
+  // Quellenkästen werden hell, zählen aber nicht als eigene Treffer
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+  suche('pflanzabstand');
+  t('Quellenkasten bleibt hell', hell().some(n => n.eltern === 'o:Produkt'));
+  t('zählt aber nicht mit', hits() === '1/' + objekte(), hits());
+  suche('');
+  dispatch(document.getElementById('optQuelle'), 'click', {});
+
+  // Eine Auswahl blendet keine Treffer aus
+  suche('kunde');
+  const treffer = hell().map(n => n.id);
+  const nachbarn = id => new Set(S.graph.edges.flatMap(e => e.from === id ? [e.to] : e.to === id ? [e.from] : []));
+  const fern = S.graph.nodes.filter(n => !n.hidden && !n.eltern)
+    .map(n => ({n, aus: treffer.filter(h => h !== n.id && !nachbarn(n.id).has(h)).length}))
+    .sort((a,b) => b.aus - a.aus)[0];
+  t('Prüffall: ein Treffer liegt außerhalb der Nachbarschaft', fern.aus > 0);
+  api.setSelection([fern.n.id]);
+  suche('kunde');
+  const nachher = hell().map(n => n.id);
+  t('mit Auswahl bleiben alle Treffer hell', treffer.every(h => nachher.includes(h)),
+    treffer.filter(h => !nachher.includes(h)).join(','));
+  api.setSelection([]);
+
+  // Springen: Enter vor, Umschalt+Enter zurück, im Kreis
+  suche('kunde');
+  const reihe = S.graph.nodes.filter(n => !n.hidden && !n.eltern && treffer.includes(n.id))
+    .sort((a,b) => a.y - b.y || a.x - b.x);
+  const N = reihe.length;
+  dispatch(feld, 'keydown', {key:'Enter'});
+  t('Enter wählt den ersten Treffer', S.selected === reihe[0].id, S.selected + ' statt ' + reihe[0].id);
+  t('Anzeige nennt die Stelle', hits() === '1 von ' + N, hits());
+  const r = svg.getBoundingClientRect(), n0 = reihe[0];
+  const mx = (n0.x + n0.w/2) * S.t.k + S.t.x, my = (n0.y + n0.h/2) * S.t.k + S.t.y;
+  t('und holt ihn in die Mitte', Math.abs(mx - r.width/2) < 1 && Math.abs(my - r.height/2) < 1, mx + ',' + my);
+  t('der Suchbegriff bleibt stehen', S.filter === 'kunde' && feld.value === 'kunde');
+  dispatch(feld, 'keydown', {key:'Enter', shiftKey:true});
+  t('Umschalt+Enter springt im Kreis zum letzten', S.selected === reihe[N-1].id && hits() === N + ' von ' + N, hits());
+  dispatch(document.getElementById('searchNext'), 'click', {});
+  t('▶ springt im Kreis zum ersten', S.selected === reihe[0].id, S.selected);
+  dispatch(document.getElementById('searchPrev'), 'click', {});
+  t('◀ springt zurück', S.selected === reihe[N-1].id, S.selected);
+  if(N === 1) t('Prüffall: mehr als ein Treffer', false);
+  api.setSelection([]);
+  t('ohne Auswahl wieder Zahl statt Stelle', hits() === N + '/' + objekte(), hits());
+
+  // Einpassen: alle Treffer im Ausschnitt
+  S.t.k = 4; S.t.x = -5000; S.t.y = -5000;
+  dispatch(document.getElementById('searchFit'), 'click', {});
+  const drin = reihe.every(n => n.x * S.t.k + S.t.x >= 0 && (n.x + n.w) * S.t.k + S.t.x <= r.width
+                             && n.y * S.t.k + S.t.y >= 0 && (n.y + n.h) * S.t.k + S.t.y <= r.height);
+  t('⤢ bringt alle Treffer in den Ausschnitt', drin, JSON.stringify(S.t));
+
+  // Ausgeblendete Treffer: in der Objektliste und als Zahl
+  suche('');
+  const chk = id => [...document.getElementById('objectList').querySelectorAll('.ochk')].find(c => c.dataset.id === id);
+  const aus = chk('o:Produkt');
+  aus.checked = false; dispatch(aus, 'change', {});
+  suche('pflanzabstand');
+  t('ausgeblendeter Treffer wird gemeldet', hits() === '0/' + objekte() + ' +1 ausgeblendet', hits());
+  const zeilen = [...document.getElementById('objectList').querySelectorAll('button[data-id]')].map(b => b.dataset.id);
+  t('die Objektliste zeigt nur die Treffer', zeilen.join(',') === 'o:Produkt', zeilen.join(','));
+  const ein = chk('o:Produkt');
+  ein.checked = true; dispatch(ein, 'change', {});
+  t('das Häkchen holt ihn ins Bild', !S.graph.byId.get('o:Produkt').hidden && hits() === '1/' + objekte(), hits());
+  suche('');
+  const alleZeilen = document.getElementById('objectList').querySelectorAll('button[data-id]').length;
+  t('ohne Suchbegriff wieder die ganze Liste', alleZeilen === S.graph.nodes.filter(n => !n.eltern && !n.abgeleitet).length,
+    alleZeilen + '');
+}
+
 console.log('== Kein Text klebt am Kastenrand ==');
 {
   // Misst den untersten gezeichneten Inhalt gegen die Kastenhöhe, in jeder

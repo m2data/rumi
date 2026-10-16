@@ -240,7 +240,8 @@ function renderObjectList(){
   const groups = new Map();
   // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach ihrer führenden Domäne
   const quellen = S.mode === 'quellen';
-  listedNodes().forEach(n=>{
+  // Während der Suche nur die Treffer, auch ausgeblendete — ein Häkchen holt sie ins Bild
+  listedNodes().filter(n => matchesFilter(n, S.filter)).forEach(n=>{
     const g = quellen ? (n.ref.system || 'Ohne Quellsystem') : (n.ref.fuehrend || 'Ohne Domain');
     if(!groups.has(g)) groups.set(g, []);
     groups.get(g).push(n);
@@ -907,7 +908,7 @@ function moveSelection(dx, dy){
    10 — Kopfzeile und Menü
    ===================================================================== */
 document.querySelectorAll('.sidetab').forEach(t=> t.onclick = ()=> setSidePane(t.dataset.pane));
-$('btnFit').onclick = fit;
+$('btnFit').onclick = ()=> fit();
 
 // Modus Komplettansicht ↔ Hierarchie
 document.querySelectorAll('.mode-btn').forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
@@ -1052,7 +1053,20 @@ $('dirGrid').querySelectorAll('button').forEach(b => b.onclick = ()=>{
   applyLayoutChoice();
 });
 
-$('search').addEventListener('input', e=>{ S.filter = e.target.value.trim().toLowerCase(); draw(); });
+$('search').addEventListener('input', e=>{ S.filter = e.target.value.trim().toLowerCase(); draw(); renderObjectList(); });
+/* Von Treffer zu Treffer: ab dem gewählten, sonst vom Anfang bzw. Ende, im Kreis */
+function zumTreffer(schritt){
+  const tr = suchTreffer();
+  if(!tr.length) return;
+  const i = tr.findIndex(n => n.id === S.selected);
+  const ziel = tr[i < 0 ? (schritt > 0 ? 0 : tr.length - 1) : (i + schritt + tr.length) % tr.length];
+  S.sel = new Set();                 // select() hebt eine Einzelauswahl desselben Objekts sonst auf
+  select(ziel.id, true);
+}
+$('search').addEventListener('keydown', e=>{ if(e.key === 'Enter') zumTreffer(e.shiftKey ? -1 : 1); });
+$('searchNext').onclick = ()=> zumTreffer(1);
+$('searchPrev').onclick = ()=> zumTreffer(-1);
+$('searchFit').onclick = ()=>{ const tr = suchTreffer(); if(tr.length) fit(tr); };
 $('showAll').onclick = ()=> setAllVisible(true);
 $('showNone').onclick = ()=> setAllVisible(false);
 

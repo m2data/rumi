@@ -86,8 +86,14 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Reiter erreichbar — hebt passende Objekte im Diagramm hervor und blendet den
   Rest ab; rechts daneben steht die Trefferzahl. Gesucht wird in allem, was ein
   Objekt beschreibt: Name, Domain, Business Keys, Quellen, Attributnamen samt
-  Verweisziel und Beziehungsnamen — „KundeID" zeigt also auch, wer darauf
+  Verweisziel, Beziehungsnamen, Beschreibung und Zusatzfeldern — auch was
+  gerade nicht im Kasten steht. „KundeID" zeigt also auch, wer darauf
   verweist. Datentypen bleiben außen vor, „int" träfe sonst fast jedes Objekt.
+  Gezählt werden Objekte, nicht ihre Quellen- und Domänenkästen; „+3
+  ausgeblendet" nennt Treffer, die nicht im Diagramm stehen, und die
+  Objektliste zeigt während der Suche nur die Treffer (ein Häkchen holt sie
+  ins Bild). Enter bzw. ▶ springt zum nächsten Treffer, Umschalt+Enter bzw. ◀
+  zum vorigen, die Anzeige lautet dann „3 von 12"; ⤢ passt alle Treffer ein.
 - **Projektordner** für die Pflege im Git: „Projektordner öffnen …" lädt alle
   Dateien eines Ordners auf einmal (`Name.yaml`, `_hier.yaml`, `_pos.json`,
   `_quellen.yaml`, `_quellhier.yaml`), „Projekt speichern" (Strg+S) schreibt

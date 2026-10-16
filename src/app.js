@@ -126,22 +126,35 @@ const samtAnhaengseln = ids => {
 
 /* Suchtreffer. Gesucht wird nicht nur im Objektnamen, sondern in allem, was
    das Objekt beschreibt: Domain, Business Keys, Quellen, Attributnamen samt
-   Verweisziel (references) und Beziehungsnamen. Fragen wie „wo ist KundeID
-   referenziert?" oder „welche Objekte hängen an Position_VRS?" beantwortet die
-   Suche sonst nicht. Bewusst NICHT durchsucht: Datentypen — „int" oder „uuid"
-   träfe fast jedes Objekt und machte die Suche wertlos. Ein Quellen- oder
-   Domänenkasten trifft zusätzlich über sein Objekt. */
+   Verweisziel (references), Beziehungsnamen, Beschreibung und alle
+   Zusatzfelder an Objekt und Attribut — auch was gerade nicht im Kasten
+   steht. Fragen wie „wo ist KundeID referenziert?" oder „welche Objekte hängen
+   an Position_VRS?" beantwortet die Suche sonst nicht. Bewusst NICHT
+   durchsucht: Datentypen — „int" oder „uuid" träfe fast jedes Objekt und
+   machte die Suche wertlos. Ein Quellen- oder Domänenkasten trifft zusätzlich
+   über sein Objekt. */
 function matchesFilter(n, q){
   if(!q) return true;
   const hat = v => !!v && String(v).toLowerCase().includes(q);
+  const extraHat = x => Object.values(x || {}).some(v => alsListe(v).some(hat));
   if(hat(n.name)) return true;
   if(n.eltern) return matchesFilter(S.graph.byId.get(n.eltern), q);
   const r = n.ref || {};
   if((r.domains || []).some(hat)) return true;
   if((r.keys || []).some(hat) || (r.sources || []).some(hat) || (r.tabQuellen || []).some(hat)) return true;
-  if(hat(r.system) || hat(r.bo)) return true;
-  if((r.attrs || []).some(a => hat(a.name) || hat(a.ref))) return true;
+  if(hat(r.system) || hat(r.bo) || hat(r.desc) || extraHat(r.extra)) return true;
+  if((r.attrs || []).some(a => hat(a.name) || hat(a.ref) || extraHat(a.extra))) return true;
   return (r.rels || []).some(x => hat(x.name));
+}
+
+/* Was als Treffer zählt: Objekte und Tabellen, nicht ihre Quellen-, Domänen-
+   und GO-Element-Kästen — die leuchten mit ihrem Objekt, wären als eigene
+   Treffer aber doppelt gezählt. Sichtbare in Lesereihenfolge, dem Weg der
+   Sprungtasten. */
+const zaehltAlsTreffer = n => !n.eltern && !n.abgeleitet;
+function suchTreffer(){
+  return visNodes().filter(n => zaehltAlsTreffer(n) && matchesFilter(n, S.filter))
+    .sort((a,b) => a.y - b.y || a.x - b.x);
 }
 
 function neighbourhood(){
@@ -165,21 +178,30 @@ function neighbourhood(){
 function draw(){
   const nb = neighbourhood();
   const list = visNodes();
-  let treffer = 0;
   gNodes.innerHTML = list.map(n=>{
-    const passt = matchesFilter(n, S.filter);
-    if(passt) treffer++;
     let c = '';
     if(S.sel.has(n.id)) c = 'selected';
+    // Während der Suche bestimmt der Treffer, nicht die Nachbarschaft der
+    // Auswahl — sonst verblassten beim Springen alle übrigen Treffer
+    else if(S.filter) c = matchesFilter(n, S.filter) ? '' : 'faded';
     else if(nb && !nb.keep.has(n.id)) c = 'faded';
-    else if(!passt) c = 'faded';
     return nodeMarkup(n, c);
   }).join('');
-  // Trefferzahl an der Suchleiste: aus demselben Durchgang, also immer stimmig
+  // Trefferzahl an der Suchleiste: „3 von 12", solange ein Treffer gewählt
+  // ist, sonst „12/40"; ausgeblendete Treffer kommen dazu
   const hits = $('searchHits');
   if(hits){
-    hits.textContent = S.filter ? treffer + '/' + list.length : '';
-    hits.classList.toggle('none', !!S.filter && treffer === 0);
+    let text = '';
+    if(S.filter){
+      const tr = suchTreffer();
+      const stelle = tr.findIndex(n => n.id === S.selected);
+      const aus = S.graph.nodes.filter(n => n.hidden && zaehltAlsTreffer(n) && matchesFilter(n, S.filter)).length;
+      text = (stelle >= 0 ? (stelle + 1) + ' von ' + tr.length : tr.length + '/' + list.filter(zaehltAlsTreffer).length)
+           + (aus ? ' +' + aus + ' ausgeblendet' : '');
+      hits.classList.toggle('none', !tr.length && !aus);
+    } else hits.classList.remove('none');
+    hits.textContent = text;
+    hits.closest('.searchbar').classList.toggle('aktiv', !!S.filter);
   }
   drawEdges();
   applyTransform();

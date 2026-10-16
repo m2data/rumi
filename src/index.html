@@ -154,9 +154,12 @@
         <path d="M10.4 10.4L14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
       <input class="search" id="search" type="search" placeholder="Objekt, Attribut, Quelle suchen …"
-             title="Hebt passende Objekte im Diagramm hervor. Gesucht wird in Objektname, Domain, Business Keys, Quellen, Attributnamen samt Verweis und Beziehungsnamen."
+             title="Hebt passende Objekte im Diagramm hervor. Gesucht wird in Objektname, Domain, Business Keys, Quellen, Attributnamen samt Verweis, Beziehungsnamen, Beschreibung und Zusatzfeldern — auch was gerade nicht angezeigt wird. Enter springt zum nächsten Treffer, Umschalt+Enter zum vorigen."
              aria-label="Objekt, Attribut, Quelle oder Beziehung suchen">
       <span class="shits" id="searchHits" aria-live="polite"></span>
+      <button class="snav" id="searchPrev" title="Voriger Treffer (Umschalt+Enter)" aria-label="Voriger Treffer">◀</button>
+      <button class="snav" id="searchNext" title="Nächster Treffer (Enter)" aria-label="Nächster Treffer">▶</button>
+      <button class="snav" id="searchFit" title="Alle Treffer einpassen" aria-label="Alle Treffer einpassen">⤢</button>
     </div>
 
     <div class="sidetabs" role="tablist" aria-label="Seitenleiste">

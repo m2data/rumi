@@ -241,16 +241,15 @@ function applyTransform(){
   $('zoomVal').textContent = Math.round(S.t.k*100) + '%';
 }
 
-function bbox(pad = 44){
-  const ns = visNodes();
+function bbox(pad = 44, ns = visNodes()){
   if(!ns.length) return {x:-160, y:-120, w:320, h:240};
   const x0 = Math.min(...ns.map(n=>n.x)) - pad, y0 = Math.min(...ns.map(n=>n.y)) - pad;
   const x1 = Math.max(...ns.map(n=>n.x+n.w)) + pad, y1 = Math.max(...ns.map(n=>n.y+n.h)) + pad;
   return {x:x0, y:y0, w:x1-x0, h:y1-y0};
 }
 
-function fit(){
-  const b = bbox();
+function fit(ns){
+  const b = bbox(44, ns);
   const r = svg.getBoundingClientRect();
   const k = Math.min(r.width/b.w, r.height/b.h, 1.6);
   S.t.k = k;

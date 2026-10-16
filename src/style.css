@@ -214,6 +214,11 @@ body.modus-quellen .nur-go{display:none !important}
 .search::-webkit-search-cancel-button{cursor:pointer}
 .shits{flex:0 0 auto;font-family:var(--mono);font-size:10px;color:var(--muted)}
 .shits.none{color:var(--warn)}
+/* Sprungknöpfe erst, wenn gesucht wird: ohne Suchbegriff gibt es nichts anzuspringen */
+.snav{flex:0 0 auto;display:none;border:0;background:none;padding:2px 3px;margin:0 -3px;
+  font-size:10px;line-height:1;color:var(--muted);cursor:pointer}
+.snav:hover{color:var(--obj)}
+.searchbar.aktiv .snav{display:block}
 
 .listtools{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--muted)}
 .listtools button{

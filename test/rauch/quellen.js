@@ -73,7 +73,8 @@ console.log('== Bereich öffnen: je Quellsystem ein Diagramm ==');
     && d.includes('<dt>Tabelle</dt><dd>Bestellung_VRS</dd>') && d.includes('<dt>Quellsystem</dt><dd>Roadshow</dd>')
     && d.includes('<dt>Geschäftsobjekt</dt><dd>Bestellung</dd>'));
   S.filter = 'referenz'; api.draw();
-  t('die Suche trifft das Quellsystem', $('searchHits').textContent === '0/3', $('searchHits').textContent);
+  // Im Roadshow-Diagramm passt nichts; die Tabelle aus dem anderen System ist ausgeblendet und wird gemeldet
+  t('die Suche trifft das Quellsystem', $('searchHits').textContent === '0/3 +1 ausgeblendet', $('searchHits').textContent);
   S.filter = ''; api.draw();
 }
 
