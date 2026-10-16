@@ -457,7 +457,7 @@ function renderDetails(){
        <dl class="kv"><dt>Domain</dt><dd>${o.domains.length
          ? o.domains.map(d => esc(d) + (o.domains.length > 1 && d === o.leading ? ' (führend)' : '')).join(', ') : '—'}</dd></dl>
        ${o.leading && !o.domains.includes(o.leading) ? `<dl class="kv"><dt>Führende Domäne</dt><dd>${esc(o.leading)}</dd></dl>` : ''}
-       ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${o.extra[k] ? esc(o.extra[k]) : '—'}</dd></dl>`).join('')}
+       ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${esc(alsListe(o.extra[k]).join(', ')) || '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
@@ -474,8 +474,8 @@ function renderDetails(){
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
           + (a.quellen.length ? `<tr><td class="aref" colspan="3">aus ${a.quellen.map(esc).join(', ')}</td></tr>` : '')
-          + S.zusatzAn.attribut.filter(k => a.extra[k]).map(k=>
-            `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(a.extra[k])}</td></tr>`).join('')).join('') + `</table>`
+          + S.zusatzAn.attribut.filter(k => alsListe(a.extra[k]).length).map(k=>
+            `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(alsListe(a.extra[k]).join(', '))}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
        ${o.rels.length ? o.rels.map((r,ri)=>`<div class="rel"><span class="arrow">→</span>

@@ -42,6 +42,10 @@ const disjunkteEinheiten = (sources, gruppe)=>
 
 // Ein Feld, das als Einzelwert oder als Liste stehen darf
 const alsListe = v => (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])).filter(x => x != null && x !== '').map(String);
+/* Ein Zusatzwert ist ein Einzelwert (String) oder eine Liste. Aus Werten wird
+   erst ab zweien eine Liste. */
+const zwAus = werte => werte.length > 1 ? werte : (werte[0] || '');
+const zwGleich = (a, b)=> Array.isArray(a) === Array.isArray(b) && alsListe(a).join('\u0000') === alsListe(b).join('\u0000');
 
 function readRel(entry, keyName){
   if(!entry || typeof entry !== 'object') return null;
@@ -183,8 +187,10 @@ function buildModel(text, art = 'go'){
     Object.keys(def).forEach(k=>{
       if(bekannt.has(k)) return;
       const v = def[k];
-      if(v !== null && typeof v === 'object') return;      // Listen und Abbildungen bleiben unangetastet
-      extra[k] = v == null ? '' : String(v);
+      // Eine Liste von Einzelwerten wird gelesen; Abbildungen und Listen mit
+      // Abbildungen darin bleiben unangetastet
+      if(Array.isArray(v) ? v.some(x => x !== null && typeof x === 'object') : v !== null && typeof v === 'object') return;
+      extra[k] = Array.isArray(v) ? alsListe(v) : v == null ? '' : String(v);
       zaehler.set(k, (zaehler.get(k) || 0) + 1);
     });
     return extra;

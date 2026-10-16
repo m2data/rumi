@@ -168,7 +168,9 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Table_Sources nennt beide Tabellen', A.tabQuellen.join(',') === 'Webshop.Auftrag,Roadshow.Auftrag_RS');
   t('die Quellen nennen beide Quellsysteme', A.sources.join(',') === 'Webshop,Roadshow', A.sources.join(','));
   t('… und stehen in der YAML', /\n    (sources|source_systems):\n    - Webshop\n    - Roadshow\n/.test(block('Auftrag')), block('Auftrag'));
-  t('eingeschaltetes Zusatzfeld übernommen, die erste Tabelle zählt', A.extra['schema.org'] === 'https://schema.org/Order', A.extra['schema.org']);
+  t('eingeschaltetes Zusatzfeld übernommen, beide Tabellen als Liste',
+    JSON.stringify(A.extra['schema.org']) === '["https://schema.org/Order","https://example.org/rs"]', JSON.stringify(A.extra['schema.org']));
+  t('… als Blockliste in der YAML', /\n    schema\.org:\n    - https:\/\/schema\.org\/Order\n    - https:\/\/example\.org\/rs\n/.test(block('Auftrag')), block('Auftrag'));
 
   const K = S.model.objects.Kunde;
   t('Kunde: die Domäne ist in der Liste ergänzt', K.domains.join(',') === 'Willibald,CRM', K.domains.join(','));
@@ -183,7 +185,10 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
     !$('msgList').innerHTML.includes('Kunde.KundeID: Quellen mit abweichendem Typ'), $('msgList').textContent.slice(0, 300));
   t('Kunde: PK schon Business Key → nur die Quelle am Attribut', quellen(K.attrs[0].quellen) === 'Roadshow.Kunde_RS.KundeID'
     && K.keys.filter(k => k === 'KundeID').length === 1, quellen(K.attrs[0].quellen));
-  t('Kunde: ein vorhandener Zusatzwert bleibt', K.extra['schema.org'] === 'https://schema.org/Person');
+  t('Kunde: an einen vorhandenen Zusatzwert wird angehängt, er wird zur Liste',
+    JSON.stringify(K.extra['schema.org']) === '["https://schema.org/Person","https://example.org/anders"]', JSON.stringify(K.extra['schema.org']));
+  t('Produkt: ohne Wert in der Tabelle bleibt das leere Feld', S.model.objects.Produkt.extra['schema.org'] === '',
+    JSON.stringify(S.model.objects.Produkt.extra));
   t('Kunde: Table_Sources', K.tabQuellen.join(',') === 'Webshop.Kunde,Roadshow.Kunde_RS');
 
   const L = S.model.objects.Lager, R = S.model.objects.Regal, P = S.model.objects.Produkt;
@@ -472,6 +477,74 @@ console.log('== Aktualisieren aus den Quellen ==');
   t('Schutzregel: Tabellen aus einer anderen Datei bleiben am Objekt',
     S.model.objects.Lager.tabQuellen.includes('Webshop.Artikel') && S.model.objects.Lager.attrs.some(a => a.quellen.length));
   t('und es kommt nur das Neue dazu', !!S.model.objects.Kunde2 && S.yamlText.startsWith(vorher.replace(/\n$/, '')), S.yamlText.slice(-200));
+}
+
+console.log('== Zusatzattribute werden angehängt, auch an Attributen ==');
+{
+  await api.loadYaml(['BusinessObjects:',
+    '  Ware:',
+    '    Domain: Handel',
+    '    schema.org: https://schema.org/Product',
+    '    attributes:',
+    '    - name: ArtNr',
+    '      schema.org: https://schema.org/sku',
+    ''].join('\n'), 'ware.yaml');
+  api.setMode('komplett');
+  if(!S.quellenAn) klick('optQuellen');
+  S.zusatzAn = {objekt:['schema.org'], attribut:['schema.org']};
+  S.quellText = ['SourceTables:',
+    '  Webshop:',
+    '    Artikel:',
+    '      business_object: Ware',
+    '      schema.org: https://schema.org/Product',
+    '      attributes:',
+    '      - name: ArtNr',
+    '        primary_key: true',
+    '        schema.org: https://example.org/artnr',
+    '  Lager:',
+    '    Teil:',
+    '      business_object: Ware',
+    '      schema.org: https://example.org/teil',
+    '      attributes:',
+    '      - name: ArtNr',
+    '        schema.org: https://example.org/artnr',
+    '      - name: Farbe',
+    '        schema.org: https://example.org/farbe',
+    ''].join('\n');
+  S.quellModell = api.buildModel(S.quellText, 'quelle');
+  klick(akt('uebernehmen'));
+  const W = S.model.objects.Ware, nr = W.attrs.find(a => a.name === 'ArtNr'), farbe = W.attrs.find(a => a.name === 'Farbe');
+  t('am Objekt: neuer Wert angehängt, ein gleicher nicht doppelt',
+    JSON.stringify(W.extra['schema.org']) === '["https://schema.org/Product","https://example.org/teil"]', JSON.stringify(W.extra));
+  t('am vorhandenen Attribut ebenso', JSON.stringify(nr.extra['schema.org']) === '["https://schema.org/sku","https://example.org/artnr"]',
+    JSON.stringify(nr.extra));
+  t('… als Blockliste unter dem Attribut',
+    /\n      schema\.org:\n      - https:\/\/schema\.org\/sku\n      - https:\/\/example\.org\/artnr\n/.test(S.yamlText), S.yamlText);
+  t('ein neues Attribut bekommt den Einzelwert', farbe && farbe.extra['schema.org'] === 'https://example.org/farbe', JSON.stringify(farbe));
+  const nachEins = S.yamlText;
+  klick(akt('uebernehmen'));
+  t('ein zweiter Lauf ändert nichts', S.yamlText === nachEins && /0 aktualisiert, 1 unverändert/.test($('toast').textContent), $('toast').textContent);
+
+  S.pflegeAn = true;
+  api.setSelection(['o:Ware']);
+  t('die Details nennen die Liste', $('detailBody').innerHTML.includes('<dd>https://schema.org/Product, https://example.org/teil</dd>'),
+    $('detailBody').innerHTML.slice(0, 800));
+  klick($('detailBody').querySelector('[data-edit]'));
+  const feldO = document.querySelector('.pfo-extra[data-i="0"]');
+  const feldA = i => document.querySelectorAll('.pfa-extra[data-i="' + i + '"]')[0];
+  const iFarbe = W.attrs.indexOf(farbe);
+  t('im Formular ein Wert je Zeile', feldO.value === 'https://schema.org/Product\nhttps://example.org/teil'
+    && feldA(0).value === 'https://schema.org/sku\nhttps://example.org/artnr', JSON.stringify([feldO.value, feldA(0).value]));
+  feldO.value = 'https://schema.org/Product';
+  feldA(iFarbe).value = 'https://example.org/farbe\nhttps://example.org/color';
+  klick('pfSave');
+  const W2 = S.model.objects.Ware;
+  t('eine Zeile: wieder ein Einzelwert', W2.extra['schema.org'] === 'https://schema.org/Product'
+    && /\n    schema\.org: https:\/\/schema\.org\/Product\n/.test(S.yamlText), S.yamlText);
+  t('zwei Zeilen: eine Liste', JSON.stringify(W2.attrs[iFarbe].extra['schema.org']) === '["https://example.org/farbe","https://example.org/color"]',
+    JSON.stringify(W2.attrs[iFarbe].extra));
+  S.pflegeAn = false;
+  S.zusatzAn = {objekt:[], attribut:[]};
 }
 
 console.log('== Willibald: zweimal laden ==');

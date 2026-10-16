@@ -64,11 +64,21 @@ function descErneuern(desc, tabelle, text){
   return desc ? desc + '\n\n' + text + '\n' + marke : text + '\n' + marke;
 }
 
+/* Einen Zusatzwert aus der Quelle anhängen: was noch fehlt, kommt hinten
+   dazu, aus einem Einzelwert wird so eine Liste. Bringt die Quelle nichts
+   Neues, kommt der Wert unverändert zurück. Entfernt wird nichts — ein
+   Zusatzwert trägt keine Herkunft. */
+function zwAnhaengen(alt, neu){
+  const bisher = alsListe(alt);
+  const dazu = alsListe(neu).filter((w, i, l) => !bisher.includes(w) && l.indexOf(w) === i);
+  return dazu.length ? zwAus(bisher.concat(dazu)) : alt;
+}
+
 /* Die Rechnung ohne Seiteneffekt: welche Objekte sich wie ändern. Jede
    zugeordnete Tabelle wird bei jedem Lauf abgeglichen — Fehlendes kommt dazu,
    schon Übernommenes wird aus der Quelle erneuert. Jeder Schritt trägt
    nichts doppelt ein; ändert sich nichts, bleibt der Text gleich. */
-function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
+function uebernahmeRechnen(goModell, quellModell, zusatzAn, weg = new Set()){
   const tabellen = quellModell.objects;
   const {zu, neu} = zuordnungFortschreiben(tabellen);
   const ziel = name => { const b = zu.get(name); return b && !PF_VERBOTEN.test(b) ? b : null; };
@@ -146,6 +156,7 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
       }
       // Ein Primärschlüssel wird Business Key — unter dem Namen am Objekt
       if(a.pk && !e.keys.includes(da.name)) e.keys.push(da.name);
+      zusatzAn.attribut.forEach(k=>{ if(alsListe(a.extra[k]).length) da.extra[k] = zwAnhaengen(da.extra[k], a.extra[k]); });
     });
     t.rels.forEach(b=>{
       const zielGo = ziel(b.to);
@@ -155,8 +166,9 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
       if(da){ if(!da.quellen.includes(herkunft)) da.quellen = da.quellen.concat(herkunft); }
       else e.rels.push({to:zielGo, name:b.name||'', from:b.from||'', toCard:b.toCard||'', quellen:[herkunft], _alt:null});
     });
-    // Zusatzfelder nur, wenn sie unter „Zusatzattribute …" eingeschaltet sind
-    zusatzKeys.forEach(k=>{ if(t.extra[k] && !e.extra[k]) e.extra[k] = t.extra[k]; });
+    // Zusatzfelder nur, wenn sie unter „Zusatzattribute …" eingeschaltet sind;
+    // neue Werte werden angehängt
+    zusatzAn.objekt.forEach(k=>{ if(alsListe(t.extra[k]).length) e.extra[k] = zwAnhaengen(e.extra[k], t.extra[k]); });
     if(!e.tabQuellen.includes(t.name)) e.tabQuellen.push(t.name);
   }
 
@@ -184,7 +196,7 @@ function uebernahmeRechnen(goModell, quellModell, zusatzKeys, weg = new Set()){
    beide Modelle neu gebaut. Ansicht, Ablage und Verlauf sind Sache des
    Aufrufers. */
 function goAusQuellenUebernehmen(weg){
-  const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn.objekt, weg);
+  const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn, weg);
   Object.assign(r, {angelegt:0, aktualisiert:0, unveraendert:0});
   let text = S.yamlText;
   for(const [name, ent] of r.entwuerfe){

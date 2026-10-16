@@ -483,7 +483,8 @@ console.log('== Zusatzattribute: unbekannte Schlüssel werden mitgeführt ==');
     M.objects.A.extra['schema.org'] === 'https://schema.org/Thing' && M.objects.A.extra['dq-regel'] === '',
     JSON.stringify(M.objects.A.extra));
   t('bekannte Schlüssel sind keine Zusatzattribute', !('Domain' in M.objects.A.extra) && !('attributes' in M.objects.A.extra));
-  t('eine Liste wird nicht angeboten', !('tags' in M.objects.A.extra) && !M.zusatz.objekt.has('tags'));
+  t('eine Liste wird gelesen und angeboten', JSON.stringify(M.objects.A.extra.tags) === '["x"]' && M.zusatz.objekt.get('tags') === 1,
+    JSON.stringify(M.objects.A.extra.tags));
   t('gezählt wird je Objekt', M.zusatz.objekt.get('schema.org') === 2 && M.zusatz.objekt.get('dq-regel') === 1,
     JSON.stringify([...M.zusatz.objekt]));
   t('am Attribut ebenso', M.objects.A.attrs[0].extra['schema.org'] === 'https://schema.org/identifier'

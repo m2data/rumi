@@ -58,9 +58,11 @@ function pfAttrZeilen(a, col, altEintrag){
   // Zusatzattribute gehören zum Eintrag, auch die ausgeschalteten: sonst
   // verschwänden sie, sobald das Attribut neu geschrieben wird. Ein leerer
   // Wert bleibt als Platzhalter stehen, wenn er schon in der Datei stand.
+  // Eine Liste steht als Blockliste darunter, eingerückt wie attribut_sources.
   const vorher = (a._alt && a._alt.extra) || {};
   Object.entries(a.extra || {}).forEach(([k, v])=>{
-    if(v !== '') z.push(i + k + ': ' + yWert(v));
+    if(Array.isArray(v) && v.length){ z.push(i + k + ':'); v.forEach(w => z.push(i + '- ' + yWert(w))); }
+    else if(v !== '' && !Array.isArray(v)) z.push(i + k + ': ' + yWert(v));
     else if(k in vorher) z.push(i + k + ':');
   });
   // Was als Liste oder Abbildung am Attribut hängt, kennt das Modell nicht als
@@ -76,12 +78,17 @@ function pfAttrZeilen(a, col, altEintrag){
   }
   return z;
 }
-/* Ein Zusatzattribut am Objekt: Einzelwert wie Domain. Unverändert bleibt die
-   Zeile stehen; geleert bleibt der Schlüssel als Platzhalter, wenn es ihn gab. */
+/* Ein Zusatzattribut am Objekt: Einzelwert oder Liste wie Domain. Unverändert
+   bleibt das Feld stehen; geleert bleibt der Schlüssel als Platzhalter, wenn es
+   ihn gab. */
 function pfZusatzZeilen(k, f, col, e, alt){
   const neu = e.extra[k], vor = alt.extra && alt.extra[k];
+  if(f && (vor === undefined || zwGleich(neu, vor))) return f.lines;   // Abbildung oder unverändert
+  if(Array.isArray(neu) && neu.length){
+    const alte = alsListe(vor);
+    return pfListe(f, col, f ? f.key : k, neu, w => alte.includes(w) ? 'wert:' + w : null, (w, ic)=> [' '.repeat(ic) + '- ' + yWert(w)]);
+  }
   if(f){
-    if(vor === undefined || neu === vor) return f.lines;   // Liste/Abbildung oder unverändert
     const nachspann = pfNachspann(f.lines.slice());
     return [' '.repeat(col) + f.key + ':' + (neu === '' ? '' : ' ' + yWert(neu)), ...nachspann];
   }
@@ -104,7 +111,7 @@ function pfRelZeilen(r, col){
 }
 
 const pfExtraGleich = (x = {}, y = {}) =>
-  [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => x[k] === y[k]);
+  [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => k in x && k in y && zwGleich(x[k], y[k]));
 const pfAttrGleich = (a, b) => a.name === b.name && (a.type||'') === (b.type||'')
   && !!a.nullable === !!b.nullable && !!a.pk === !!b.pk && !!a.ak === !!b.ak && !!a.fk === !!b.fk && (a.ref||'') === (b.ref||'')
   && (a.quellen||[]).join('\u0000') === (b.quellen||[]).join('\u0000') && pfExtraGleich(a.extra, b.extra);
@@ -549,7 +556,13 @@ function pfLesen(){
   e.quellListe.forEach((q, i)=>{ const f = box.querySelector('.pfq-name[data-i="' + i + '"]'); if(f) q.name = f.value.trim(); });
   if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
-  S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = feld('.pfo-extra', z).value.trim(); });
+  // Zusatzattribute: ein Wert je Zeile, mehrere werden eine Liste. Unverändert
+  // bleibt der Wert, wie er war — auch eine Liste mit nur einem Eintrag.
+  const zusatz = (f, vor)=>{
+    const w = f.value.split('\n').map(x => x.trim()).filter(Boolean);
+    return w.join('\u0000') === alsListe(vor).join('\u0000') && vor !== undefined ? vor : zwAus(w);
+  };
+  S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = zusatz(feld('.pfo-extra', z), e.extra[k]); });
   e.attrs.forEach((a, i)=>{
     a.name = feld('.pfa-name', i).value.trim();
     a.type = feld('.pfa-type', i).value.trim();
@@ -560,7 +573,7 @@ function pfLesen(){
     a.nullable = feld('.pfa-null', i).checked;
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
     S.zusatzAn.attribut.forEach((k, z)=>{
-      const v = zf[z].value.trim();
+      const v = zusatz(zf[z], a.extra[k]);
       // Leer und vorher nicht da: kein Platzhalter anlegen.
       if(v === '' && !(a._alt && k in a._alt.extra)) delete a.extra[k];
       else a.extra[k] = v;
@@ -581,6 +594,7 @@ function pflegeFormular(box){
     `<select class="${klasse}" data-i="${i}" aria-label="${titel}">`
     + werte.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
   const karten = [['', '—'], ...Object.keys(CARD_LABEL).map(k=>[k, CARD_LABEL[k]])];
+  const zeilen = v => Math.max(1, alsListe(v).length);   // Zusatzattribut: so hoch wie es Werte hat
   // Quelltabellen: genau ein Quellsystem und die Zuordnung zu einem Geschäftsobjekt
   const quellen = S.mode === 'quellen';
   const gos = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
@@ -606,7 +620,7 @@ function pflegeFormular(box){
          ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
             <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
          : pfQuellenMarkup(e)}
-       ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><input class="pfo-extra" data-i="${z}"></label>`).join('')}
+       ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><textarea class="pfo-extra" data-i="${z}" rows="${zeilen(e.extra[k])}" title="ein Wert je Zeile"></textarea></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
        ${e.attrs.map((a,i)=>`<div class="pfa">
@@ -621,7 +635,7 @@ function pflegeFormular(box){
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
           </div>
           ${S.zusatzAn.attribut.map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
-            <input class="pfa-extra" data-i="${i}" placeholder="${esc(k)}" aria-label="${esc(k)}"></div>`).join('')}</div>`).join('')}
+            <textarea class="pfa-extra" data-i="${i}" rows="${zeilen(a.extra[k])}" placeholder="${esc(k)}" aria-label="${esc(k)}" title="ein Wert je Zeile"></textarea></div>`).join('')}</div>`).join('')}
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
@@ -647,10 +661,10 @@ function pflegeFormular(box){
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
   else e.quellListe.forEach((q, i)=>{ feld('.pfq-name', i).value = q.name; });
-  S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = e.extra[k]; });
+  S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = alsListe(e.extra[k]).join('\n'); });
   e.attrs.forEach((a,i)=>{
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
-    S.zusatzAn.attribut.forEach((k, z)=>{ zf[z].value = k in a.extra ? a.extra[k] : ''; });
+    S.zusatzAn.attribut.forEach((k, z)=>{ zf[z].value = alsListe(a.extra[k]).join('\n'); });
     feld('.pfa-name', i).value = a.name;
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;

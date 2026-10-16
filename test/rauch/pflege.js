@@ -790,8 +790,9 @@ console.log('== Zusatzattribute: Sonderzeichen in Feldnamen ==');
     [...M.zusatz.objekt.keys()].join(','));
   t('die Werte sind gelesen', o.extra['quelle/system'] === 'SAP' && o.extra['schema.org'] === 'https://schema.org/Thing',
     JSON.stringify(o.extra));
-  t('am Attribut ebenso, eine Liste wird nicht angeboten',
-    [...M.zusatz.attribut.keys()].join(',') === 'schema.org', [...M.zusatz.attribut.keys()].join(','));
+  t('am Attribut ebenso, auch eine Liste',
+    [...M.zusatz.attribut.keys()].join(',') === 'schema.org,herkunft' && JSON.stringify(o.attrs[0].extra.herkunft) === '["Q1"]',
+    [...M.zusatz.attribut.keys()].join(','));
 
   const extra = {'dq-regel':'nie leer', 'quelle/system':'SAP ERP', fach_owner:'Meier', 'schema.org':'https://schema.org/Thing'};
   const text = api.goObjektAendern(sonder, 'A', entwurfAus(o, {extra}), o);
