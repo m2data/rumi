@@ -369,21 +369,6 @@ function hierPlaceFresh(){
   const neu = visNodes().filter(n => !saved[n.id]);
   platziereNeue(neu.filter(n => !n.eltern && !n.abgeleitet), visNodes().filter(n => saved[n.id]));
   platziereAnhaengsel(S.graph, neu);
-  platziereGO(S.graph, neu);
-}
-
-/* Ein neu hinzugekommenes Geschäftsobjekt-Element (Quelltabellen) rechts
-   neben seine sichtbaren Tabellen samt deren Anhängseln, auf deren mittlere
-   Höhe. So bleibt eine gelegte Anordnung liegen, wenn man es einschaltet. */
-function platziereGO(g, neu){
-  neu.filter(n => n.kind === 'gobj').forEach(n=>{
-    const tab = new Set(g.edges.filter(e => e.to === n.id).map(e => e.from));
-    const t = g.nodes.filter(x => !x.hidden && (tab.has(x.id) || tab.has(x.eltern)));
-    if(!t.length) return;
-    const mitte = t.filter(x => tab.has(x.id));
-    n.x = Math.round(Math.max(...t.map(x => x.x + x.w)) + 60);
-    n.y = Math.round(mitte.reduce((s,x)=> s + x.y + x.h/2, 0) / mitte.length - n.h/2);
-  });
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -424,7 +409,6 @@ function showDiagram(node){
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
     platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
-    platziereGO(S.graph, vis.filter(n => !saved[n.id]));
     hierPersist();
   } else {
     applyAutoLayout(S.graph);

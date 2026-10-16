@@ -6,7 +6,7 @@
 const {bootApp, makeT} = require('./start');
 
 (async ()=>{
-const {S, api, document, dispatch} = await bootApp();
+const {S, api, document, dispatch, html} = await bootApp();
 const {t, finish} = makeT();
 
 const $ = id => document.getElementById(id);
@@ -126,7 +126,12 @@ console.log('== Geschäftsobjekt als eigenes Element ==');
   t('verbunden mit beiden Tabellen', k.map(e => e.from).sort().join(',') === 'o:Roadshow.Bestellung_VRS,o:Webshop.Bestellung',
     k.map(e => e.from).join(','));
   const tab = ['o:Webshop.Bestellung', 'o:Roadshow.Bestellung_VRS'].map(id => S.graph.byId.get(id));
-  t('es steht rechts neben den Tabellen', g[0].x >= Math.max(...tab.map(n => n.x + n.w)), g[0].x);
+  const wirt = S.graph.byId.get(g[0].eltern);
+  t('es ist Trabant einer seiner Tabellen', !!wirt && tab.includes(wirt), g[0].eltern);
+  t('es steht rechts neben ihr, auf ihrer Mitte', wirt && g[0].x === wirt.x + wirt.w + 24
+    && Math.abs(g[0].y + g[0].h/2 - (wirt.y + wirt.h/2)) <= 1, wirt && [g[0].x, g[0].y, wirt.x, wirt.y]);
+  t('Farbe Petrol wie die anderen Elemente eigen', /\.node\.gobj \.n-head\{fill:#0E6A78\}/.test(html));
+  t('wer die Tabelle bewegt, bewegt das Element mit', api.samtAnhaengseln([wirt.id]).has(g[0].id));
   t('die gelegten Tabellen bleiben liegen',
     tab.every(n => n.x === S.hierSaved[S.hierSel][n.id].x && n.y === S.hierSaved[S.hierSel][n.id].y));
   t('nicht in der Objektliste', !$('objectList').querySelector('.ochk[data-id="g:Bestellung"]'));
@@ -139,6 +144,18 @@ console.log('== Geschäftsobjekt als eigenes Element ==');
   klick('optGO');
   t('im großen Diagramm je Geschäftsobjekt ein Kasten',
     S.graph.nodes.filter(n => n.kind === 'gobj' && !n.hidden).length === new Set(Object.values(S.quellModell.objects).map(o => o.bo)).size);
+  {
+    const algo = S.layout.algo;
+    const neben = ()=> S.graph.nodes.filter(n => n.kind === 'gobj' && !n.hidden).filter(n=>{
+      const p = S.graph.byId.get(n.eltern);
+      return !(p && n.x === p.x + p.w + 24 && n.y < p.y + p.h && p.y < n.y + n.h);
+    }).map(n => n.name);
+    $('layoutMenu').querySelector('.opt[data-algo="hier"]').onclick();
+    t('Hierarchisch: jedes Element steht als Trabant rechts neben seiner Tabelle', !neben().length, neben().join(','));
+    $('layoutMenu').querySelector('.opt[data-algo="org"]').onclick();
+    t('Organisch ebenso', !neben().length, neben().join(','));
+    $('layoutMenu').querySelector('.opt[data-algo="' + algo + '"]').onclick();
+  }
   api.selectDiagram('Bestellung Webshop/Roadshow');
   ['o:Webshop.Bestellung', 'o:Roadshow.Bestellung_VRS'].forEach(id=>{
     const c = $('objectList').querySelector(`.ochk[data-id="${id}"]`);

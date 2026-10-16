@@ -533,9 +533,9 @@ function makeGraph(model){
   /* Das Geschäftsobjekt als eigenes Element (nur bei den Quelltabellen): anders
      als Quelle und Domäne genau EIN Kasten je Diagramm, an dem alle seine
      Tabellen hängen — er zeigt, welche Tabellen dasselbe Objekt beliefern.
-     Kein Anhängsel, denn er hat keinen einzelnen Eltern-Kasten; er wird mit
-     angeordnet wie ein Objekt und ist sichtbar, solange es eine seiner
-     Tabellen ist. */
+     Angeordnet wird er wie Quelle und Domäne als Anhängsel, und zwar der
+     ersten sichtbaren seiner Tabellen; die Kanten der übrigen laufen quer zu
+     ihm. Sichtbar ist er, solange es eine seiner Tabellen ist. */
   if(E.geschaeftsobjekt){
     const tabellen = new Map();
     for(const o of Object.values(model.objects)){
@@ -548,6 +548,7 @@ function makeGraph(model){
       const n = {id, kind:'gobj', name:bo, sub:null, rows:[], abgeleitet:true,
                  w: Math.max(126, Math.round(measure(bo, F_TITLE) + PAD_X*2 + 8)),
                  h: HEAD_ONLY_H, x:0, y:0, ref:{name:bo},
+                 get eltern(){ return (liste.find(t => !t.hidden) || liste[0]).id; },
                  get hidden(){ return liste.every(t => t.hidden); }, set hidden(_){}};
       nodes.push(n); byId.set(id, n);
       liste.forEach(t => edges.push({from:t.id, to:id, kind:'go', label:'Geschäftsobjekt', fromCard:null, toCard:null}));

@@ -1815,9 +1815,9 @@ function makeGraph(model){
   /* Das Geschäftsobjekt als eigenes Element (nur bei den Quelltabellen): anders
      als Quelle und Domäne genau EIN Kasten je Diagramm, an dem alle seine
      Tabellen hängen — er zeigt, welche Tabellen dasselbe Objekt beliefern.
-     Kein Anhängsel, denn er hat keinen einzelnen Eltern-Kasten; er wird mit
-     angeordnet wie ein Objekt und ist sichtbar, solange es eine seiner
-     Tabellen ist. */
+     Angeordnet wird er wie Quelle und Domäne als Anhängsel, und zwar der
+     ersten sichtbaren seiner Tabellen; die Kanten der übrigen laufen quer zu
+     ihm. Sichtbar ist er, solange es eine seiner Tabellen ist. */
   if(E.geschaeftsobjekt){
     const tabellen = new Map();
     for(const o of Object.values(model.objects)){
@@ -1830,6 +1830,7 @@ function makeGraph(model){
       const n = {id, kind:'gobj', name:bo, sub:null, rows:[], abgeleitet:true,
                  w: Math.max(126, Math.round(measure(bo, F_TITLE) + PAD_X*2 + 8)),
                  h: HEAD_ONLY_H, x:0, y:0, ref:{name:bo},
+                 get eltern(){ return (liste.find(t => !t.hidden) || liste[0]).id; },
                  get hidden(){ return liste.every(t => t.hidden); }, set hidden(_){}};
       nodes.push(n); byId.set(id, n);
       liste.forEach(t => edges.push({from:t.id, to:id, kind:'go', label:'Geschäftsobjekt', fromCard:null, toCard:null}));
@@ -3431,8 +3432,8 @@ const SVG_CSS = `
 .node.domain .n-head{fill:#2E6B4A}
 .node.tabsource .n-box{fill:#F3EEF9;stroke:#6B3FA0;stroke-width:1.2;stroke-dasharray:5 3}
 .node.tabsource .n-head{fill:#6B3FA0}
-.node.gobj .n-box{fill:#E9EFF8;stroke:#1D3F72;stroke-width:1.4;stroke-dasharray:5 3}
-.node.gobj .n-head{fill:#1D3F72}
+.node.gobj .n-box{fill:#E6F2F3;stroke:#0E6A78;stroke-width:1.2;stroke-dasharray:5 3}
+.node.gobj .n-head{fill:#0E6A78}
 .node.selected .n-box{stroke:#B4145F;stroke-width:2.6}
 .node.selected .n-head{fill:#B4145F}
 .node.faded{opacity:.16}
@@ -3450,9 +3451,9 @@ const SVG_CSS = `
 .eg.tabquelle .e-path{stroke:#6B3FA0;stroke-dasharray:6 4}
 .eg.tabquelle .e-mk{stroke:#6B3FA0}
 .eg.tabquelle .e-dot{stroke:#6B3FA0}
-.eg.go .e-path{stroke:#1D3F72;stroke-dasharray:6 4}
-.eg.go .e-mk{stroke:#1D3F72}
-.eg.go .e-dot{stroke:#1D3F72}
+.eg.go .e-path{stroke:#0E6A78;stroke-dasharray:6 4}
+.eg.go .e-mk{stroke:#0E6A78}
+.eg.go .e-dot{stroke:#0E6A78}
 .eg .e-hit{fill:none;stroke:transparent;stroke-width:15;cursor:pointer;pointer-events:stroke}
 .eg.picked .e-path{stroke:#B4145F;stroke-width:2.2}
 .eg.picked .e-mk{stroke:#B4145F}
@@ -3473,7 +3474,7 @@ const SVG_CSS = `
 .elbl .e-lbl{font:500 10px "IBM Plex Mono",monospace;fill:#122029;letter-spacing:.04em;pointer-events:none}
 .elbl.quelle .e-lbl{fill:#8A5B00;letter-spacing:.06em}
 .elbl.domaene .e-lbl{fill:#2E6B4A;letter-spacing:.06em}
-.elbl.go .e-lbl{fill:#1D3F72;letter-spacing:.06em}
+.elbl.go .e-lbl{fill:#0E6A78;letter-spacing:.06em}
 .elbl .e-lbl-bg{fill:#E7ECF1;pointer-events:none}
 .elbl .e-lbl-hit{fill:transparent;cursor:move;pointer-events:all}
 .eg.faded,.elbl.faded{opacity:.1}
@@ -6218,21 +6219,6 @@ function hierPlaceFresh(){
   const neu = visNodes().filter(n => !saved[n.id]);
   platziereNeue(neu.filter(n => !n.eltern && !n.abgeleitet), visNodes().filter(n => saved[n.id]));
   platziereAnhaengsel(S.graph, neu);
-  platziereGO(S.graph, neu);
-}
-
-/* Ein neu hinzugekommenes Geschäftsobjekt-Element (Quelltabellen) rechts
-   neben seine sichtbaren Tabellen samt deren Anhängseln, auf deren mittlere
-   Höhe. So bleibt eine gelegte Anordnung liegen, wenn man es einschaltet. */
-function platziereGO(g, neu){
-  neu.filter(n => n.kind === 'gobj').forEach(n=>{
-    const tab = new Set(g.edges.filter(e => e.to === n.id).map(e => e.from));
-    const t = g.nodes.filter(x => !x.hidden && (tab.has(x.id) || tab.has(x.eltern)));
-    if(!t.length) return;
-    const mitte = t.filter(x => tab.has(x.id));
-    n.x = Math.round(Math.max(...t.map(x => x.x + x.w)) + 60);
-    n.y = Math.round(mitte.reduce((s,x)=> s + x.y + x.h/2, 0) / mitte.length - n.h/2);
-  });
 }
 
 /* ---------- Diagramm wählen: Ausschnitt zeichnen ---------- */
@@ -6273,7 +6259,6 @@ function showDiagram(node){
     known.forEach(n=>{ n.x = saved[n.id].x; n.y = saved[n.id].y; });
     applyRoutesFrom(S.hierRoutes[node.id] || {});
     platziereAnhaengsel(S.graph, vis.filter(n => !saved[n.id]));
-    platziereGO(S.graph, vis.filter(n => !saved[n.id]));
     hierPersist();
   } else {
     applyAutoLayout(S.graph);
