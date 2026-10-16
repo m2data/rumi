@@ -89,7 +89,6 @@ header{
   display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;
   font-family:var(--ui);font-size:12px;color:var(--ink);cursor:pointer;border-radius:2px;
 }
-.menu button[hidden]{display:none}
 .menu button:hover{background:var(--obj-soft)}
 .menu button[disabled]{color:var(--muted);opacity:.5;cursor:default}
 .menu button[disabled]:hover{background:none}
@@ -593,7 +592,6 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <div class="head">PROJEKTORDNER</div>
         <button data-act="projektOeffnen" id="projektOeffnen"
                 title="Alle Dateien eines Ordners auf einmal laden: Geschäftsobjekte, Hierarchie, Positionen, Quelltabellen und ihre Diagramme">Projektordner öffnen …</button>
-        <button data-act="projektZuletzt" id="projektZuletzt" hidden></button>
         <button class="withkey" data-act="projektSpeichern" id="projektSpeichern"
                 title="Alle Dateien des Projekts auf einmal speichern">Projekt speichern<span class="kbd">Strg+S</span></button>
         <div class="head">LADEN</div>
@@ -8684,7 +8682,7 @@ $('zOut').onclick = ()=> zoomBy(0.8);
 document.addEventListener('keydown', ev=>{
   // Strg+S sichert den Stand — auch aus einem Eingabefeld heraus, sonst öffnete
   // der Browser seinen eigenen „Seite speichern"-Dialog und legte eine Kopie an.
-  // Ist ein Projektordner offen, gehen die Dateien dorthin, sonst in die HTML.
+  // Ist ein Projektordner offen, gehen die Dateien ins Projekt, sonst in die HTML.
   if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 's' || ev.key === 'S')){
     ev.preventDefault(); (projekt ? projektSpeichern : speichernInDatei)(); return;
   }
@@ -8975,7 +8973,6 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   // Speichern
   // Projektordner
   if(a === 'projektOeffnen') projektOeffnen();
-  if(a === 'projektZuletzt') projektZuletzt();
   if(a === 'projektSpeichern') projektSpeichern();
   if(a === 'saveGO'){
     download(goDateiText(), dateiName('', '.yaml'), 'text/yaml');
@@ -9789,27 +9786,34 @@ async function projektLaden(dateien, ordnerName){
   return true;
 }
 
+/* Der Ordnerdialog — beim Öffnen wie beim Speichern, damit sich der
+   Projektordner jederzeit wechseln lässt. Vorgeschlagen wird der offene,
+   sonst der zuletzt gewählte Ordner. Lässt sich ein gemerkter Ordner nicht
+   mehr als Startpunkt nutzen (verschoben, gelöscht), geht der Dialog ohne ihn
+   auf. Abgebrochen gibt es null. */
+async function ordnerWaehlen(){
+  const vorschlag = (projekt && projekt.ordner) || await gemerkterOrdner();
+  const opt = {id:'projekt', mode:'readwrite'};
+  if(vorschlag) opt.startIn = vorschlag;
+  try{ return await window.showDirectoryPicker(opt); }
+  catch(err){
+    if(!vorschlag || err.name === 'AbortError') return null;
+  }
+  delete opt.startIn;
+  try{ return await window.showDirectoryPicker(opt); }
+  catch(_){ return null; }
+}
+
 async function projektOeffnen(){
   if(!window.showDirectoryPicker){ $('projektInput').click(); return; }
-  let ordner;
-  try{ ordner = await window.showDirectoryPicker({id:'projekt', mode:'readwrite'}); }
-  catch(_){ return; }                    // Dialog abgebrochen
-  await projektAusOrdner(ordner);
+  const ordner = await ordnerWaehlen();
+  if(ordner) await projektAusOrdner(ordner);
 }
 async function projektAusOrdner(ordner){
   const dateien = [];
   for await (const h of ordner.values())
     if(h.kind === 'file') dateien.push({name: h.name, text: async ()=> (await h.getFile()).text()});
   if(await projektLaden(dateien, ordner.name)) projektSetzen(ordner, ordner.name);
-}
-/* Der zuletzt geöffnete Ordner: der Browser gibt die Erlaubnis nur auf einen
-   Klick hin zurück, darum ein eigener Menüpunkt statt Öffnen beim Start. */
-async function projektZuletzt(){
-  const ordner = await gemerkterOrdner();
-  if(!ordner) return;
-  try{ if(await ordner.requestPermission({mode:'readwrite'}) !== 'granted') return; }
-  catch(_){ toast('Der Ordner ist nicht mehr erreichbar — bitte über „Projektordner öffnen" neu wählen', 6000); return; }
-  await projektAusOrdner(ordner);
 }
 $('projektInput').addEventListener('change', async e=>{
   const alle = [...(e.target.files || [])];
@@ -9824,11 +9828,11 @@ $('projektInput').addEventListener('change', async e=>{
 async function projektSpeichern(){
   if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
   const dateien = projektDateien();
-  let ziel = projekt && projekt.ordner;
-  // Chrome/Edge ohne offenen Ordner: jetzt einen wählen, das ist der Projektordner
-  if(!ziel && window.showDirectoryPicker){
-    try{ ziel = await window.showDirectoryPicker({id:'projekt', mode:'readwrite'}); }
-    catch(_){ return; }
+  let ziel = null;
+  // Chrome/Edge: der Dialog fragt jedes Mal, mit dem bisherigen Ordner als Vorschlag
+  if(window.showDirectoryPicker){
+    ziel = await ordnerWaehlen();
+    if(!ziel) return;
   }
   if(!ziel){
     dateien.forEach(([n, t]) => download(t, n, n.endsWith('.json') ? 'application/json' : 'text/yaml'));
@@ -9860,9 +9864,8 @@ function projektSetzen(ordner, name){
   projekt = {ordner, name};
   if(ordner) ordnerMerken(ordner);
   $('projektSpeichern').title = ordner
-    ? `Alle Dateien des Projekts in den Ordner „${name}" speichern`
+    ? `Alle Dateien des Projekts speichern — der Dialog schlägt „${name}" vor`
     : 'Alle Dateien des Projekts herunterladen — dieser Browser kann nicht in den Ordner schreiben';
-  $('projektZuletzt').hidden = true;
 }
 
 /* Gemerkt wird nur der Ordner-Handle, nie ein Modellstand — den bringen die
@@ -9889,16 +9892,6 @@ async function gemerkterOrdner(){
     });
   }catch(_){ return null; }
 }
-async function zuletztAnbieten(){
-  if(!window.showDirectoryPicker) return;
-  const ordner = await gemerkterOrdner();
-  if(!ordner || projekt) return;
-  const k = $('projektZuletzt');
-  k.textContent = `Zuletzt: ${ordner.name} öffnen`;
-  k.title = `Den Projektordner „${ordner.name}" wieder öffnen — der Browser fragt nach der Erlaubnis`;
-  k.hidden = false;
-}
-
 /* ---------- Start ---------- */
 /* Frühere Fassungen legten die Sitzung im Browser ab. Die Reste werden
    gelöscht — nur unsere Schlüssel: den localStorage teilen sich alle lokalen
@@ -9937,7 +9930,6 @@ async function boot(){
   }
 }
 boot();
-zuletztAnbieten();
 window.addEventListener('resize', ()=> applyTransform());
 window.addEventListener('beforeunload', e=>{
   if(!ungesichert()) return;

@@ -497,7 +497,8 @@ einen Ordner. Sie heißen nach dem **Modellnamen oben links**:
   Liegen mehrere Geschäftsobjekt-Dateien im Ordner, zählt die mit passender
   `_pos.json`. Bleibt es mehrdeutig, wird nichts geladen, und die Meldung nennt
   die Dateien. Unterordner werden nicht durchsucht.
-- **Projekt speichern** (Strg+S) schreibt alle Dateien auf einmal. Ihr Inhalt
+- **Projekt speichern** (Strg+S) schreibt alle Dateien auf einmal in den Ordner,
+  der im Dialog gewählt wird. Ihr Inhalt
   ist derselbe wie bei den Einzelpunkten unter „Speichern". Einzige Ausnahme:
   Die `_pos.json` enthält im Projekt die Texte der Hierarchie und der
   Quelltabellen-Diagramme **nicht**, denn sie stehen schon in `_hier.yaml` und
@@ -509,10 +510,12 @@ einen Ordner. Sie heißen nach dem **Modellnamen oben links**:
   sie sollten entfernt werden, sonst ist das nächste Öffnen nicht eindeutig.
 
 > **Welcher Browser?** Nur **Chrome und Edge** schreiben direkt in den Ordner
-> zurück. Beim ersten Speichern fragt der Browser einmal nach dem Ordner und
-> nach der Erlaubnis, dort zu schreiben. Er merkt sich den Ordner. Nach dem
-> Neuladen steht im Menü **„Zuletzt: Ordner öffnen"**: Ein Klick holt die
-> Erlaubnis zurück und lädt.
+> zurück. Beim Öffnen und beim Speichern geht jedes Mal der Ordnerdialog auf.
+> Vorgeschlagen ist der offene Projektordner, sonst der zuletzt gewählte, auch
+> nach dem Neuladen. Bestätigen genügt. Wer einen anderen Ordner wählt, wechselt
+> damit den Projektordner: Gespeichert wird dorthin, und ab dann wird er
+> vorgeschlagen. Der Browser fragt dabei nach der Erlaubnis, im Ordner zu
+> schreiben.
 >
 > **Firefox und Safari** können einen Ordner nur **lesen**. „Projektordner
 > öffnen …" lädt dort genauso alle Dateien. Der Browser fragt vorher, ob er die

@@ -601,11 +601,12 @@ console.log('== Projektordner: alle Dateien auf einmal laden und speichern ==');
 
   // Chrome/Edge: das erste Speichern fragt nach dem Ordner
   const ordner = ordnerAttrappe('repo');
-  let gefragt = 0;
-  win.showDirectoryPicker = async ()=>{ gefragt++; return ordner; };
+  let gefragt = 0, vorschlag = 'keiner';
+  win.showDirectoryPicker = async opt=>{ gefragt++; vorschlag = opt.startIn; return ordner; };
   await api.projektSpeichern();
   const namen = Object.keys(ordner.inhalt).sort().join(',');
   t('ohne offenen Ordner wird einmal nach ihm gefragt', gefragt === 1, gefragt + '');
+  t('ohne bisherigen Ordner gibt es keinen Vorschlag', vorschlag === undefined, String(vorschlag));
   t('alle fünf Dateien heißen nach dem Modellnamen',
     namen === 'obst.yaml,obst_hier.yaml,obst_pos.json,obst_quellen.yaml,obst_quellhier.yaml', namen);
   const pos = JSON.parse(ordner.inhalt['obst_pos.json']);
@@ -619,20 +620,24 @@ console.log('== Projektordner: alle Dateien auf einmal laden und speichern ==');
   t('danach gilt der Stand als gesichert', !verlassen());
   t('die Meldung nennt den Ordner', /5 Dateien in repo gespeichert/.test(toastText()), toastText());
 
-  // Weiter im selben Ordner: kein Dialog mehr, auch nicht über Strg+S
+  // Weiter im selben Ordner: Strg+S fragt wieder, mit dem offenen Ordner als Vorschlag
   S.graph.byId.get(n.id).x += 40;
   api.persist();
   t('eine Änderung warnt beim Verlassen', verlassen());
+  vorschlag = 'keiner';
   strgS(); await warten();
-  t('Strg+S speichert ins offene Projekt, ohne zu fragen', gefragt === 1 && htmlGefragt === 1,
+  t('Strg+S speichert ins Projekt, nicht in die HTML', gefragt === 2 && htmlGefragt === 1,
     `Ordner ${gefragt}, HTML ${htmlGefragt}`);
+  t('der Dialog schlägt den offenen Ordner vor', vorschlag === ordner, String(vorschlag && vorschlag.name));
   t('und gilt danach als gesichert', !verlassen());
   const gespeichert = Object.assign({}, ordner.inhalt);
 
   // Rundreise: ein anderes Modell, dann den Ordner wieder öffnen
   await api.loadYaml('BusinessObjects:\n  Fremd:\n    Domain: X\n', 'fremd.yaml');
+  vorschlag = 'keiner';
   await api.projektOeffnen();
-  t('das Öffnen fragt nach dem Ordner', gefragt === 2, gefragt + '');
+  t('das Öffnen fragt nach dem Ordner', gefragt === 3, gefragt + '');
+  t('und schlägt den bisherigen vor', vorschlag === ordner, String(vorschlag && vorschlag.name));
   t('das Modell kommt aus dem Ordner', Object.keys(S.model.objects).includes('Apfel') && S.modellName === 'obst',
     Object.keys(S.model.objects).join(',') + ' / ' + S.modellName);
   t('die Hierarchie ebenso', S.bereiche.hierarchie.outlineText.includes('Korb'));
@@ -647,6 +652,29 @@ console.log('== Projektordner: alle Dateien auf einmal laden und speichern ==');
   const geaendert = Object.keys(gespeichert).filter(k => gespeichert[k] !== ordner.inhalt[k]);
   t('erneutes Speichern ändert keine Datei', geaendert.length === 0
     && Object.keys(ordner.inhalt).length === Object.keys(gespeichert).length, geaendert.join(','));
+
+  // Der Projektordner lässt sich beim Speichern wechseln
+  const anderer = ordnerAttrappe('kopie');
+  win.showDirectoryPicker = async opt=>{ vorschlag = opt.startIn; return anderer; };
+  await api.projektSpeichern();
+  t('beim Speichern lässt sich ein anderer Ordner wählen',
+    Object.keys(anderer.inhalt).sort().join(',') === Object.keys(gespeichert).sort().join(',')
+    && /in kopie gespeichert/.test(toastText()), Object.keys(anderer.inhalt).join(',') + ' / ' + toastText());
+  await api.projektSpeichern();
+  t('danach ist er der Vorschlag', vorschlag === anderer, String(vorschlag && vorschlag.name));
+
+  // Taugt der Vorschlag nicht mehr als Startpunkt, geht der Dialog ohne ihn auf
+  const versuche = [];
+  win.showDirectoryPicker = async opt=>{
+    versuche.push(opt.startIn);
+    if(opt.startIn) throw new TypeError('startIn nicht erreichbar');
+    return ordner;
+  };
+  await api.projektSpeichern();
+  t('ein unbrauchbarer Vorschlag: zweiter Versuch ohne ihn',
+    versuche.length === 2 && versuche[0] === anderer && versuche[1] === undefined
+    && /in repo gespeichert/.test(toastText()), versuche.length + ' / ' + toastText());
+  win.showDirectoryPicker = async opt=>{ vorschlag = opt.startIn; return ordner; };
 
   // Ein neuer Modellname: neue Dateien, und der Hinweis auf die alten
   const feld = document.getElementById('modellName');
