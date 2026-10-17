@@ -556,6 +556,27 @@ console.log('== Alternativschlüssel (AK) ==');
     pkak.map(m => m.title).join(' | '));
   t('AK und FK zugleich sind erlaubt', !has(M.messages, 'err', 'A.Ref'));
 
+  // An Quelltabellen gilt dasselbe: Spalten tragen die Marken wie Attribute
+  const Q = buildModel([
+    'SourceTables:',
+    '  Webshop:',
+    '    Bestellung:',
+    '      business_object: Bestellung',
+    '      Domain: D',
+    '      attributes:',
+    '      - name: ID',
+    '        primary_key: true',
+    '        alternate_key: true',
+    '      - name: Nr',
+    '        alternate_key: true',
+    ''
+  ].join('\n'), 'quelle');
+  const qt = n => Q.objects['Webshop.Bestellung'].attrs.find(a => a.name === n);
+  t('alternate_key an einer Quelltabelle wird als AK gelesen', qt('Nr').ak === true && !qt('Nr').pk
+    && !('alternate_key' in qt('Nr').extra), JSON.stringify(qt('Nr')));
+  t('PK und AK zugleich ist auch an einer Quelltabelle ein Fehler',
+    has(Q.messages, 'err', 'Webshop.Bestellung.ID: PK und AK zugleich'), Q.messages.map(m => m.title).join(' | '));
+
   const {api: g, S: gs} = load(['yaml.js', 'model.js'], ['buildModel', 'attrText', 'makeGraph']);
   const tag = (pk, ak, fk)=> g.attrText({name:'x', pk, ak, fk}, false).tags;
   t('Kürzel im Kasten in der Reihenfolge PK AK FK',

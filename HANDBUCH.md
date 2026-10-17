@@ -1048,6 +1048,8 @@ SourceTables:                       # auch: Quelltabellen, source_tables
       attributes:
       - name: BestellungID
         primary_key: true           # wird Business Key des Geschäftsobjekts
+      - name: Auftragsnummer
+        alternate_key: true         # AK, kommt als AK ans Attribut des Geschäftsobjekts
       - name: KundeID
         foreign_key: true
         references: Webshop.Kunde.KundeID   # System.Tabelle.Spalte
@@ -1067,6 +1069,10 @@ SourceTables:                       # auch: Quelltabellen, source_tables
 - Quelltabellen haben **keine Business Keys**: die des Geschäftsobjekts kommen
   aus den Attributen mit `primary_key`. Ein `business_keys` aus älteren Dateien
   wird nicht gelesen und bleibt beim Bearbeiten unverändert stehen.
+- Spalten tragen dieselben Schlüsselmarken wie Attribute: `primary_key`,
+  `alternate_key`, `foreign_key` zeigen im Kasten `PK`, `AK` bzw. `FK`; PK und
+  AK zugleich ist auch hier ein Fehler. Ein Alternativschlüssel wird kein
+  Business Key — die Übernahme setzt ihn als `alternate_key` am Attribut.
 - Eindeutig ist `System.Tabelle`. Ein Punkt im System- oder Tabellennamen ist
   ein Fehler.
 - Verweise werden **voll qualifiziert** geschrieben: `to: System.Tabelle`,

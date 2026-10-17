@@ -81,6 +81,7 @@ const TAB = [
   '      - name: KundeNr',
   '        primary_key: true',
   '      - name: Name',
+  '        alternate_key: true',
   '    Lager:',
   '      Domain: Logistik',
   '      desc: Ein Lager.',
@@ -180,6 +181,8 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Kunde: auch in ein Objekt mit Attributen kommen alle dazu, mit Quelle',
     K.attrs.map(a => a.name).join(',') === 'KundeID,KundeNr,Name' && quellen(K.attrs[1].quellen) === 'Webshop.Kunde.KundeNr'
     && quellen(K.attrs[2].quellen) === 'Webshop.Kunde.Name', K.attrs.map(a => a.name + '=' + quellen(a.quellen)).join(' '));
+  t('Kunde: ein AK der Tabelle wird AK am Attribut, aber kein Business Key',
+    K.attrs[2].ak && !K.attrs[2].pk && !K.keys.includes('Name'), JSON.stringify(K.attrs[2]));
   t('Kunde: stimmen alle Quellen überein (hier die eine), gilt ihr Typ', K.attrs[0].type === 'int', K.attrs[0].type);
   t('Kunde: dann gibt es keine Meldung „abweichender Typ"',
     !$('msgList').innerHTML.includes('Kunde.KundeID: Quellen mit abweichendem Typ'), $('msgList').textContent.slice(0, 300));
