@@ -318,6 +318,27 @@ console.log('== Löschen nimmt die eingehenden Beziehungen mit ==');
     !/relationships/.test(leer), leer);
 }
 
+console.log('== Umbenennen und Löschen erreichen relationships als Abbildung ==');
+{
+  // Form D: der Name ist der Schlüssel, das Ziel steht darunter
+  const kennt = '      kennt:\n        to: X\n';
+  const text = ['BusinessObjects:', '  many:', '    Domain: D', '  X:', '    Domain: D',
+    '  C:', '    Domain: D', '    relationships:',
+    '      hat:', '        to: many', '        cardinality:', '          to: many',
+    '      kennt:', '        to: X', ''].join('\n');
+  const umb = api.goUmbenennen(text, 'many', 'Menge');
+  t('Form D: das Ziel wandert mit, die Kardinalität nicht',
+    umb.includes('      hat:\n        to: Menge\n        cardinality:\n          to: many\n'), umb);
+  t('Form D: die andere Beziehung bleibt wörtlich', umb.includes(kennt), umb);
+  t('Form D: das Modell liest das neue Ziel',
+    (api.buildModel(umb).objects.C.rels.find(r => r.name === 'hat') || {}).to === 'Menge', umb);
+
+  const weg = api.goObjektLoeschen(text, 'many');
+  t('Form D: die Beziehung auf das gelöschte Objekt ist weg', !/hat:/.test(weg) && weg.includes(kennt), weg);
+  const leer = api.goObjektLoeschen(weg, 'X');
+  t('Form D: fällt die letzte weg, verschwindet das Feld', !/relationships/.test(leer), leer);
+}
+
 console.log('== Anlegen hängt einen leeren Block in derselben Einrückung an ==');
 {
   const neu = api.goObjektAnlegen('BusinessObjects:\n  A:\n    Domain: D\n', 'Neuling');

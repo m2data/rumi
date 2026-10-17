@@ -6830,26 +6830,41 @@ function pfVerweise(lines, von, nach, system){
   F.fields.forEach(f=>{
     const rolle = pfRolle(f.key);
     if(rolle === 'rels'){
-      const {items} = splitListItems(f);
-      if(!items.length){ out.push(...f.lines); return; }
       const behalten = [];
-      items.forEach(it=>{
-        const k = listItemKey(it);
-        const ziel = k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null;
-        if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...it.lines); return; }
+      // Ein Eintrag: behalten, weglassen oder sein Ziel umschreiben. Das Ziel
+      // steht auf der Spalte des Rumpfes; tiefer (unter cardinality:) nicht.
+      const eintrag = (zeilen, ziel, rumpf)=>{
+        if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...zeilen); return; }
         if(nach === null) return;
-        // Das Ziel steht auf der Ebene des Rumpfes: bei „- hat:" ohne Wert
-        // (Form B) eine Ebene tiefer als sonst
-        const ic = yCol(it.lines[0]);
-        const zweite = it.lines.slice(1).find(l => !yBlank(l));
-        const rumpf = /^\s*-\s*[^:#\s][^:#]*:\s*(#.*)?$/.test(it.lines[0]) && zweite ? yCol(zweite) : ic + 2;
-        behalten.push(...it.lines.map(l=>{
+        behalten.push(...zeilen.map(l=>{
           if(yCol(l) > rumpf) return l;
           const m = l.match(/^(\s*-?\s*to\s*:\s*)"?[^"#]*"?\s*$/);
           return m ? m[1] + yWert(nach) : l;
         }));
+      };
+      const zweite = zeilen => zeilen.slice(1).find(l => !yBlank(l));
+      const {items} = splitListItems(f);
+      if(items.length){
+        items.forEach(it=>{
+          const k = listItemKey(it);
+          // bei „- hat:" ohne Wert (Form B) eine Ebene tiefer als sonst
+          const ic = yCol(it.lines[0]), z = zweite(it.lines);
+          const rumpf = /^\s*-\s*[^:#\s][^:#]*:\s*(#.*)?$/.test(it.lines[0]) && z ? yCol(z) : ic + 2;
+          eintrag(it.lines, k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null, rumpf);
+        });
+        if(behalten.length) out.push(f.lines[0], ...behalten);
+        return;
+      }
+      // Abbildung (Form D): je Name ein Eintrag, das Ziel darunter
+      const A = splitObjectFields(f.lines);
+      if(A.fieldCol == null){ out.push(...f.lines); return; }
+      A.fields.forEach(sub=>{
+        const z = zweite(sub.lines), rumpf = z ? yCol(z) : -1;
+        const to = sub.lines.find(l => yCol(l) === rumpf && /^\s*to\s*:/.test(l));
+        const m = to && to.match(/^\s*to\s*:\s*"?([^"#]*?)"?\s*(#.*)?$/);
+        eintrag(sub.lines, m ? m[1].trim() : null, rumpf);
       });
-      if(behalten.length) out.push(f.lines[0], ...behalten);
+      if(behalten.length) out.push(f.lines[0], ...A.vorspann, ...behalten);
       return;
     }
     if(rolle === 'attrs' && nach !== null){
