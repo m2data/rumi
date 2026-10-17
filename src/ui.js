@@ -2056,6 +2056,40 @@ async function boot(){
 }
 boot();
 window.addEventListener('resize', ()=> applyTransform());
+
+/* ---------- Breite der Seitenleiste ----------
+   Reine Ansichtseinstellung: sie hängt am Bildschirm des Betrachters, nicht am
+   Modell, und wird darum weder im Browser noch in den Positionsinformationen
+   gemerkt — nach dem Neuladen gilt wieder die Standardbreite. Die Breite steht
+   in einer Variablen, damit sie nicht aus dem Layout zurückgelesen werden muss. */
+const SEITE_STANDARD = 268, SEITE_MIN = 220;
+const seiteMax = ()=> Math.min(640, Math.round(window.innerWidth * 0.6));
+let seitenBreite = SEITE_STANDARD, seitenZug = null;
+function seiteBreiteSetzen(w){
+  const neu = Math.round(Math.max(SEITE_MIN, Math.min(seiteMax(), w)));
+  // Die Zeichenfläche rückt mit der Kante — das Diagramm bleibt am Bildschirm stehen
+  S.t.x -= neu - seitenBreite;
+  seitenBreite = neu;
+  $('sidebar').style.flexBasis = neu + 'px';
+  $('seitenGriff').setAttribute('aria-valuenow', neu);
+  applyTransform();
+}
+{
+  const griff = $('seitenGriff');
+  griff.addEventListener('pointerdown', ev=>{
+    ev.preventDefault();
+    seitenZug = {x: ev.clientX, w: seitenBreite};
+    griff.setPointerCapture(ev.pointerId);
+    griff.classList.add('zieht');
+  });
+  griff.addEventListener('pointermove', ev=>{
+    if(seitenZug) seiteBreiteSetzen(seitenZug.w + ev.clientX - seitenZug.x);
+  });
+  const ende = ()=>{ seitenZug = null; griff.classList.remove('zieht'); };
+  griff.addEventListener('pointerup', ende);
+  griff.addEventListener('pointercancel', ende);
+  griff.addEventListener('dblclick', ()=> seiteBreiteSetzen(SEITE_STANDARD));
+}
 window.addEventListener('beforeunload', e=>{
   if(!ungesichert()) return;
   e.preventDefault();

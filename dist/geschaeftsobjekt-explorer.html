@@ -130,6 +130,10 @@ aside{
   flex:0 0 268px;background:var(--panel);border-right:1px solid var(--hair);
   display:flex;flex-direction:column;min-height:0;
 }
+/* Ziehgriff an der Kante zur Zeichenfläche; ragt 3px in die Leiste hinein,
+   damit er trotz schmaler Fläche gut zu treffen ist */
+.seitengriff{flex:0 0 5px;margin-left:-3px;cursor:col-resize;position:relative;z-index:5;touch-action:none}
+.seitengriff:hover,.seitengriff.zieht{background:var(--obj);opacity:.35}
 .sidetabs{display:flex;border-bottom:1px solid var(--hair-soft);flex:0 0 auto}
 .sidetab{
   flex:1;appearance:none;background:none;border:0;border-bottom:2px solid transparent;
@@ -506,6 +510,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
 @media (max-width:820px){
   aside{position:absolute;z-index:70;height:calc(100% - 52px);top:52px;box-shadow:0 0 30px rgba(18,32,41,.2)}
   aside.hidden{display:none}
+  .seitengriff{display:none}
   .brand h1{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -686,6 +691,8 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
 
     <div class="pane" id="pane-messages"><div id="msgList"></div></div>
   </aside>
+  <div class="seitengriff" id="seitenGriff" role="separator" aria-orientation="vertical"
+       aria-label="Breite der Seitenleiste" title="Ziehen ändert die Breite, Doppelklick stellt sie zurück"></div>
 
   <div class="canvas-wrap" id="canvasWrap">
     <svg id="canvas" role="img" aria-label="Diagramm der Geschäftsobjekte"></svg>
@@ -9931,6 +9938,40 @@ async function boot(){
 }
 boot();
 window.addEventListener('resize', ()=> applyTransform());
+
+/* ---------- Breite der Seitenleiste ----------
+   Reine Ansichtseinstellung: sie hängt am Bildschirm des Betrachters, nicht am
+   Modell, und wird darum weder im Browser noch in den Positionsinformationen
+   gemerkt — nach dem Neuladen gilt wieder die Standardbreite. Die Breite steht
+   in einer Variablen, damit sie nicht aus dem Layout zurückgelesen werden muss. */
+const SEITE_STANDARD = 268, SEITE_MIN = 220;
+const seiteMax = ()=> Math.min(640, Math.round(window.innerWidth * 0.6));
+let seitenBreite = SEITE_STANDARD, seitenZug = null;
+function seiteBreiteSetzen(w){
+  const neu = Math.round(Math.max(SEITE_MIN, Math.min(seiteMax(), w)));
+  // Die Zeichenfläche rückt mit der Kante — das Diagramm bleibt am Bildschirm stehen
+  S.t.x -= neu - seitenBreite;
+  seitenBreite = neu;
+  $('sidebar').style.flexBasis = neu + 'px';
+  $('seitenGriff').setAttribute('aria-valuenow', neu);
+  applyTransform();
+}
+{
+  const griff = $('seitenGriff');
+  griff.addEventListener('pointerdown', ev=>{
+    ev.preventDefault();
+    seitenZug = {x: ev.clientX, w: seitenBreite};
+    griff.setPointerCapture(ev.pointerId);
+    griff.classList.add('zieht');
+  });
+  griff.addEventListener('pointermove', ev=>{
+    if(seitenZug) seiteBreiteSetzen(seitenZug.w + ev.clientX - seitenZug.x);
+  });
+  const ende = ()=>{ seitenZug = null; griff.classList.remove('zieht'); };
+  griff.addEventListener('pointerup', ende);
+  griff.addEventListener('pointercancel', ende);
+  griff.addEventListener('dblclick', ()=> seiteBreiteSetzen(SEITE_STANDARD));
+}
 window.addEventListener('beforeunload', e=>{
   if(!ungesichert()) return;
   e.preventDefault();

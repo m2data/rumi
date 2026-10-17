@@ -20,7 +20,7 @@ async function bootApp(file){
   const win = {
     // Hörer werden gemerkt, damit ein Test z. B. „beforeunload" auslösen kann
     _hoerer:{}, addEventListener(typ, f){ (this._hoerer[typ] = this._hoerer[typ] || []).push(f); },
-    requestAnimationFrame(f){ f(0); },
+    requestAnimationFrame(f){ f(0); }, innerWidth:1600,
     setTimeout:(f)=>0, clearTimeout(){}, storage:undefined,
     localStorage:{ _d:{}, getItem(k){ return this._d[k] ?? null; }, setItem(k,v){ this._d[k]=v; }, removeItem(k){ delete this._d[k]; },
                    get length(){ return Object.keys(this._d).length; }, key(i){ return Object.keys(this._d)[i] ?? null; } },
@@ -33,7 +33,7 @@ async function bootApp(file){
 
   let S, api = {};
   const runner = new Function('document','window','localStorage','sessionStorage','CSS','URL','Blob','Image','FileReader',
-    'setTimeout','clearTimeout','__expose', script + '\n__expose({S, samtAnhaengseln, buildModel, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, loadYaml, spreadLabels, polyPoint, measure, boot, loopGeom, loopPoint, exportPNG, pflegeStart, pflegeSpeichern, pflegeEnde, pflegeObjektNeu, pflegeObjektWeg, goObjektAendern, goUmbenennen, goObjektLoeschen, goObjektAnlegen, uebersichtObjekt, renderDetails, speichernInDatei, standAlsHtml, projektLaden, projektSpeichern, projektOeffnen, projektDateien, htmlDateiname, nachSchriftMessen, loadQuellen, loadQuellDelta, loadQuellDiagramme, quellDiagrammeYaml, adoptLayoutFile, layoutFile, hierAction, quellBoUmbenennen, goAusQuellenUebernehmen, uebernahmeAusfuehren, attributDialogAuf, goAttrVerweise});');
+    'setTimeout','clearTimeout','__expose', script + '\n__expose({S, samtAnhaengseln, buildModel, draw, drawEdges, setView, persist, routePoints, edgeKey, ALGOS, rerouteEdges, applyContent, nearestPort, nodeMarkup, contentOf, materializeOrtho, setMode, selectDiagram, exportSVG, outlineAdd, outlineRename, outlineDelete, outlineMove, addRelated, loadUebersicht, setSelection, arrangeSelection, uebersichtName, undo, redo, renderMessages, mergeGoText, loadDelta, loadYaml, spreadLabels, polyPoint, measure, boot, loopGeom, loopPoint, exportPNG, pflegeStart, pflegeSpeichern, pflegeEnde, pflegeObjektNeu, pflegeObjektWeg, goObjektAendern, goUmbenennen, goObjektLoeschen, goObjektAnlegen, uebersichtObjekt, renderDetails, speichernInDatei, standAlsHtml, projektLaden, projektSpeichern, projektOeffnen, projektDateien, htmlDateiname, nachSchriftMessen, loadQuellen, loadQuellDelta, loadQuellDiagramme, quellDiagrammeYaml, adoptLayoutFile, layoutFile, hierAction, quellBoUmbenennen, goAusQuellenUebernehmen, uebernahmeAusfuehren, attributDialogAuf, goAttrVerweise, ungesichert});');
   runner(document, win, win.localStorage, win.sessionStorage, win.CSS, win.URL, win.Blob, win.Image, win.FileReader,
          win.setTimeout, win.clearTimeout, o => { api = o; S = o.S; });
 

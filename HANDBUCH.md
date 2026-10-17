@@ -76,6 +76,12 @@ Darunter die Reiter:
 - **Prüfung** — Auffälligkeiten im Modell, mit Zähler am Reiter (nur in der
   Komplettansicht).
 
+Die **Breite der Seitenleiste** lässt sich an ihrer Kante zur Zeichenfläche
+mit der Maus ziehen — von 220 Pixeln bis 60 % der Fensterbreite, höchstens
+640 Pixel. Das Diagramm bleibt dabei an seiner Stelle stehen. Ein Doppelklick
+auf die Kante stellt die Standardbreite wieder her. Die Breite ist eine reine
+Ansichtssache: sie wird nirgends gespeichert und gilt bis zum Neuladen.
+
 **Zeichenfläche** rechts: das Diagramm auf einem Raster. Unten rechts die
 Zoomanzeige mit `−` und `+`, unten mittig die **Ausrichten-Leiste** (erscheint,
 sobald mindestens zwei Objekte markiert sind) und darunter eine Zeile mit den
