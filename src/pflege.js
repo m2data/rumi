@@ -244,6 +244,15 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     return pfListe(f, col, key, e.attrs,
       a => (a._alt && pfAttrGleich(a, a._alt)) ? 'attr:' + a._alt.name : null,
       (a, ic, vorhanden)=> pfAttrZeilen(a, ic, a._alt ? vorhanden.get('attr:' + a._alt.name) : null));
+  // Unverändert bleibt das Feld, wie es steht — auch als Abbildung (Form D),
+  // die pfListe als Liste neu schriebe. Als Liste nur, wenn jeder Eintrag
+  // seinem gelesenen gleicht (listItemKey markiert etwa einen leeren Namen).
+  const alteRels = alt.rels || [];
+  const relKey = r => 'bez:' + r.to + '\u0000' + (r.name || '');
+  const items = f ? splitListItems(f).items : [];
+  if(f && e.rels.length === alteRels.length && e.rels.every((r, i) => r._alt === alteRels[i] && pfRelGleich(r, r._alt))
+     && (!items.length || (items.length === alteRels.length && items.every((it, i) => listItemKey(it) === relKey(alteRels[i])))))
+    return f.lines;
   return pfListe(f, col, key, e.rels,
     r => (r._alt && pfRelGleich(r, r._alt)) ? 'bez:' + r._alt.to + '\u0000' + (r._alt.name || '') : null, pfRelZeilen);
 }
@@ -313,9 +322,13 @@ function pfVerweise(lines, von, nach, system){
         const ziel = k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null;
         if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...it.lines); return; }
         if(nach === null) return;
+        // Das Ziel steht auf der Ebene des Rumpfes: bei „- hat:" ohne Wert
+        // (Form B) eine Ebene tiefer als sonst
         const ic = yCol(it.lines[0]);
+        const zweite = it.lines.slice(1).find(l => !yBlank(l));
+        const rumpf = /^\s*-\s*[^:#\s][^:#]*:\s*(#.*)?$/.test(it.lines[0]) && zweite ? yCol(zweite) : ic + 2;
         behalten.push(...it.lines.map(l=>{
-          if(yCol(l) > ic + 2) return l;
+          if(yCol(l) > rumpf) return l;
           const m = l.match(/^(\s*-?\s*to\s*:\s*)"?[^"#]*"?\s*$/);
           return m ? m[1] + yWert(nach) : l;
         }));

@@ -130,6 +130,34 @@ console.log('== Delta-Geschäftsobjekte: ergänzen und zum Superset verschmelzen
     (gleich.text.match(/to: B\b/g) || []).length === 1, gleich.text);
   t('Superset: dort gewinnt die Fassung des Deltas',
     /zero_or_many/.test(gleich.text) && !/to: many/.test(gleich.text), gleich.text);
+  // Der Name einer Beziehung steht auch unter label, bezeichnung oder rolle —
+  // das Delta muss sie unterscheiden wie der Leser
+  const benannt = api.mergeGoText(
+    'BusinessObjects:\n  A:\n    relationships:\n    - to: B\n      label: kauft\n    - to: B\n      rolle: liefert\n  B:\n    Domain: D\n',
+    'BusinessObjects:\n  A:\n    relationships:\n    - to: B\n      bezeichnung: storniert\n');
+  t('Superset: label-, rolle- und bezeichnung-benannte Beziehungen bleiben alle',
+    ['kauft', 'liefert', 'storniert'].every(n => benannt.text.includes(n))
+    && api.buildModel(benannt.text).objects.A.rels.length === 3, benannt.text);
+  // relationships als Abbildung (Form D): die Einträge werden vereinigt, nicht ersetzt
+  const formD = api.mergeGoText(
+    'BusinessObjects:\n  A:\n    relationships:\n      kauft:\n        to: B\n      liefert:\n        to: B\n  B:\n    Domain: D\n',
+    'BusinessObjects:\n  A:\n    relationships:\n      storniert:\n        to: B\n      kauft:\n        to: B\n        cardinality:\n          to: exactly_one\n');
+  const dRels = api.buildModel(formD.text).objects.A.rels;
+  t('Superset: relationships als Abbildung behält alle Einträge',
+    dRels.map(r => r.name).sort().join(',') === 'kauft,liefert,storniert', formD.text);
+  t('Superset: dort nimmt ein gleichnamiger Eintrag die Fassung des Deltas',
+    dRels.find(r => r.name === 'kauft').toCard === 'exactly_one', formD.text);
+  // Ein Feld in anderer Schreibweise (domain statt Domain) geht ins Feld der
+  // Basis, unter deren Namen — sonst stünden beide da, und gelesen würde das alte
+  const schreib = api.mergeGoText(
+    'BusinessObjects:\n  A:\n    Domain: X\n    desc: alt\n',
+    'BusinessObjects:\n  A:\n    domain: Z\n    beschreibung: neu\n');
+  t('Delta: domain ersetzt Domain unter dem Namen der Basis',
+    /\n {4}Domain: Z/.test(schreib.text) && !/domain:|Domain: X/.test(schreib.text), schreib.text);
+  t('Delta: beschreibung ersetzt desc ebenso',
+    /\n {4}desc: neu/.test(schreib.text) && !/beschreibung|alt/.test(schreib.text), schreib.text);
+  t('und das Modell liest die neuen Werte',
+    api.buildModel(schreib.text).objects.A.domain === 'Z', schreib.text);
   // end-to-end auf dem geladenen Modell (zuletzt, da es S.model verändert)
   const before = Object.keys(S.model.objects).length;
   const first = Object.keys(S.model.objects)[0];

@@ -1448,6 +1448,20 @@ function splitListItems(field){
    „cardinality:" ist die Kardinalität, nicht das Ziel. */
 function listItemKey(item){
   const itemCol = yCol(item.lines[0]);
+  // Eine Beziehung erkennt derselbe Leser, der die Datei liest: Name auch
+  // unter label/bezeichnung/rolle, Formen B und C. Wer hier nur „name:" sähe,
+  // hielte „kauft" und „liefert" zum selben Ziel für eine Beziehung.
+  if(item.lines.some(l => /^\s*(-\s*)?to\s*:/.test(l))){
+    let roh = null;
+    // (der Leser nimmt keine Liste auf oberster Ebene: darum unter einen Schlüssel)
+    try { roh = readYaml('x:\n' + item.lines.map(l => l.slice(Math.min(itemCol, yCol(l)))).join('\n')).doc.x; } catch(e){}
+    const r = Array.isArray(roh) ? readRel(roh[0]) : null;
+    // Ein Name aus Leerzeichen zählt als unbenannt und soll beim Speichern
+    // wegfallen: so ein Eintrag gleicht keinem gelesenen und wird neu geschrieben
+    const leer = o => o && typeof o === 'object' && ['name','label','bezeichnung','rolle'].some(k => typeof o[k] === 'string' && !o[k].trim());
+    if(r) return 'bez:' + r.to + '\u0000' + (r.name || '')
+      + (leer(roh[0]) || Object.values(roh[0]).some(leer) ? '\u0000leer' : '');
+  }
   const direkt = item.lines
     .filter(l => !yBlank(l) && yCol(l) <= itemCol + 2)
     .map(l => l.replace(/^\s*-\s*/, '').trim());
@@ -1466,19 +1480,35 @@ function listItemKey(item){
 /* Zwei gleichnamige Objektblöcke zu einem Superset verschmelzen: Listenfelder
    werden vereinigt (Einträge des Deltas ersetzen gleiche der Basis, neue kommen
    dazu), Einzelwerte nimmt das Delta, Felder nur einer Seite bleiben erhalten. */
+/* Felder, die der Leser unter mehreren Namen kennt. Schreibt das Delta
+   „domain", die Basis „Domain", ist es dasselbe Feld — sonst stünden beide da,
+   und gelesen würde das alte. */
+const FELD_SCHREIBWEISEN = [['Domain','domain'], ['desc','beschreibung','description'],
+  ['business_keys','BusinessKeys'], ['source_systems','sources'], LEADING_KEYS, QT_SYSTEM, QT_GO];
+const feldGruppe = k => (FELD_SCHREIBWEISEN.find(g => g.includes(k)) || [k])[0];
+
 function mergeObjectBlocks(baseLines, deltaLines){
   const B = splitObjectFields(baseLines), D = splitObjectFields(deltaLines);
   if(B.fieldCol == null) return deltaLines.slice();
   if(D.fieldCol == null) return baseLines.slice();
   const dByKey = new Map();
-  D.fields.forEach(f=>{ if(!dByKey.has(f.key)) dByKey.set(f.key, f); });
+  D.fields.forEach(f=>{ const g = feldGruppe(f.key); if(!dByKey.has(g)) dByKey.set(g, f); });
   const out = [B.head], benutzt = new Set();
 
   B.fields.forEach(bf=>{
-    benutzt.add(bf.key);
-    const df = dByKey.get(bf.key);
+    const g = feldGruppe(bf.key);
+    benutzt.add(g);
+    let df = dByKey.get(g);
     if(!df){ out.push(...bf.lines); return; }
+    // geschrieben wird unter dem Namen der Basis
+    if(df.key !== bf.key) df = {key: bf.key, lines: [df.lines[0].replace(df.key, bf.key), ...df.lines.slice(1)]};
     const bl = splitListItems(bf), dl = splitListItems(df);
+    // Abbildung gegen Abbildung (relationships in Form D): Einträge vereinigen
+    // wie die Felder eines Objekts, statt die Abbildung der Basis zu verwerfen
+    // (nur bei leerer Kopfzeile — „desc: |" mit „Hinweis: …" darunter ist Text)
+    const ohneWert = f => /:\s*(#.*)?$/.test(f.lines[0]);
+    if(!bl.items.length && !dl.items.length && ohneWert(bf) && ohneWert(df) && splitObjectFields(bf.lines).fieldCol != null
+       && splitObjectFields(df.lines).fieldCol != null){ out.push(...mergeObjectBlocks(bf.lines, df.lines)); return; }
     if(!bl.items.length || !dl.items.length){ out.push(...df.lines); return; }  // Einzelwert: Delta gewinnt
     const dShift = bl.itemCol - dl.itemCol;                                     // Einrückung angleichen
     const dRest = new Map();
@@ -1493,7 +1523,7 @@ function mergeObjectBlocks(baseLines, deltaLines){
     dRest.forEach(di => out.push(...shiftLines(di.lines, dShift)));             // was das Delta zusätzlich hat
   });
   D.fields.forEach(df=>{                                                        // Felder, die nur das Delta hat
-    if(!benutzt.has(df.key)) out.push(...shiftLines(df.lines, B.fieldCol - D.fieldCol));
+    if(!benutzt.has(feldGruppe(df.key))) out.push(...shiftLines(df.lines, B.fieldCol - D.fieldCol));
   });
   return out;
 }

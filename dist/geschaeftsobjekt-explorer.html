@@ -1610,7 +1610,7 @@ function buildModel(text, art = 'go'){
         if(wert && !CARD_LABEL[wert]) messages.push({level:'warn', group:'Kardinalität unbekannt', obj:o.name,
           title:`${o.name} → ${r.to}: Kardinalität "${wert}" unbekannt`,
           body:`Unter "cardinality: ${seite}" steht ein unbekannter Wert. Erlaubt sind ${Object.keys(CARD_LABEL).join(', ')}. `
-             + 'Die Seite wird wie „genau eins" gezeichnet und auch beim Anordnen so behandelt.'});
+             + 'Die Seite wird mit einem schlichten Strich gezeichnet und beim Anordnen nicht als „viele" gewertet.'});
       });
       // Zwei Beziehungen zwischen denselben Objekten sind nur dann dieselbe,
       // wenn sie auch gleich heissen. Verschiedene Namen — und ebenso benannt
@@ -6760,6 +6760,15 @@ function pfFeldZeilen(rolle, f, col, e, alt){
     return pfListe(f, col, key, e.attrs,
       a => (a._alt && pfAttrGleich(a, a._alt)) ? 'attr:' + a._alt.name : null,
       (a, ic, vorhanden)=> pfAttrZeilen(a, ic, a._alt ? vorhanden.get('attr:' + a._alt.name) : null));
+  // Unverändert bleibt das Feld, wie es steht — auch als Abbildung (Form D),
+  // die pfListe als Liste neu schriebe. Als Liste nur, wenn jeder Eintrag
+  // seinem gelesenen gleicht (listItemKey markiert etwa einen leeren Namen).
+  const alteRels = alt.rels || [];
+  const relKey = r => 'bez:' + r.to + '\u0000' + (r.name || '');
+  const items = f ? splitListItems(f).items : [];
+  if(f && e.rels.length === alteRels.length && e.rels.every((r, i) => r._alt === alteRels[i] && pfRelGleich(r, r._alt))
+     && (!items.length || (items.length === alteRels.length && items.every((it, i) => listItemKey(it) === relKey(alteRels[i])))))
+    return f.lines;
   return pfListe(f, col, key, e.rels,
     r => (r._alt && pfRelGleich(r, r._alt)) ? 'bez:' + r._alt.to + '\u0000' + (r._alt.name || '') : null, pfRelZeilen);
 }
@@ -6829,9 +6838,13 @@ function pfVerweise(lines, von, nach, system){
         const ziel = k.startsWith('bez:') ? k.slice(4).split('\u0000')[0] : null;
         if(ziel === null || voll(ziel, 1) !== von){ behalten.push(...it.lines); return; }
         if(nach === null) return;
+        // Das Ziel steht auf der Ebene des Rumpfes: bei „- hat:" ohne Wert
+        // (Form B) eine Ebene tiefer als sonst
         const ic = yCol(it.lines[0]);
+        const zweite = it.lines.slice(1).find(l => !yBlank(l));
+        const rumpf = /^\s*-\s*[^:#\s][^:#]*:\s*(#.*)?$/.test(it.lines[0]) && zweite ? yCol(zweite) : ic + 2;
         behalten.push(...it.lines.map(l=>{
-          if(yCol(l) > ic + 2) return l;
+          if(yCol(l) > rumpf) return l;
           const m = l.match(/^(\s*-?\s*to\s*:\s*)"?[^"#]*"?\s*$/);
           return m ? m[1] + yWert(nach) : l;
         }));
@@ -9330,6 +9343,20 @@ function splitListItems(field){
    „cardinality:" ist die Kardinalität, nicht das Ziel. */
 function listItemKey(item){
   const itemCol = yCol(item.lines[0]);
+  // Eine Beziehung erkennt derselbe Leser, der die Datei liest: Name auch
+  // unter label/bezeichnung/rolle, Formen B und C. Wer hier nur „name:" sähe,
+  // hielte „kauft" und „liefert" zum selben Ziel für eine Beziehung.
+  if(item.lines.some(l => /^\s*(-\s*)?to\s*:/.test(l))){
+    let roh = null;
+    // (der Leser nimmt keine Liste auf oberster Ebene: darum unter einen Schlüssel)
+    try { roh = readYaml('x:\n' + item.lines.map(l => l.slice(Math.min(itemCol, yCol(l)))).join('\n')).doc.x; } catch(e){}
+    const r = Array.isArray(roh) ? readRel(roh[0]) : null;
+    // Ein Name aus Leerzeichen zählt als unbenannt und soll beim Speichern
+    // wegfallen: so ein Eintrag gleicht keinem gelesenen und wird neu geschrieben
+    const leer = o => o && typeof o === 'object' && ['name','label','bezeichnung','rolle'].some(k => typeof o[k] === 'string' && !o[k].trim());
+    if(r) return 'bez:' + r.to + '\u0000' + (r.name || '')
+      + (leer(roh[0]) || Object.values(roh[0]).some(leer) ? '\u0000leer' : '');
+  }
   const direkt = item.lines
     .filter(l => !yBlank(l) && yCol(l) <= itemCol + 2)
     .map(l => l.replace(/^\s*-\s*/, '').trim());
@@ -9348,19 +9375,35 @@ function listItemKey(item){
 /* Zwei gleichnamige Objektblöcke zu einem Superset verschmelzen: Listenfelder
    werden vereinigt (Einträge des Deltas ersetzen gleiche der Basis, neue kommen
    dazu), Einzelwerte nimmt das Delta, Felder nur einer Seite bleiben erhalten. */
+/* Felder, die der Leser unter mehreren Namen kennt. Schreibt das Delta
+   „domain", die Basis „Domain", ist es dasselbe Feld — sonst stünden beide da,
+   und gelesen würde das alte. */
+const FELD_SCHREIBWEISEN = [['Domain','domain'], ['desc','beschreibung','description'],
+  ['business_keys','BusinessKeys'], ['source_systems','sources'], LEADING_KEYS, QT_SYSTEM, QT_GO];
+const feldGruppe = k => (FELD_SCHREIBWEISEN.find(g => g.includes(k)) || [k])[0];
+
 function mergeObjectBlocks(baseLines, deltaLines){
   const B = splitObjectFields(baseLines), D = splitObjectFields(deltaLines);
   if(B.fieldCol == null) return deltaLines.slice();
   if(D.fieldCol == null) return baseLines.slice();
   const dByKey = new Map();
-  D.fields.forEach(f=>{ if(!dByKey.has(f.key)) dByKey.set(f.key, f); });
+  D.fields.forEach(f=>{ const g = feldGruppe(f.key); if(!dByKey.has(g)) dByKey.set(g, f); });
   const out = [B.head], benutzt = new Set();
 
   B.fields.forEach(bf=>{
-    benutzt.add(bf.key);
-    const df = dByKey.get(bf.key);
+    const g = feldGruppe(bf.key);
+    benutzt.add(g);
+    let df = dByKey.get(g);
     if(!df){ out.push(...bf.lines); return; }
+    // geschrieben wird unter dem Namen der Basis
+    if(df.key !== bf.key) df = {key: bf.key, lines: [df.lines[0].replace(df.key, bf.key), ...df.lines.slice(1)]};
     const bl = splitListItems(bf), dl = splitListItems(df);
+    // Abbildung gegen Abbildung (relationships in Form D): Einträge vereinigen
+    // wie die Felder eines Objekts, statt die Abbildung der Basis zu verwerfen
+    // (nur bei leerer Kopfzeile — „desc: |" mit „Hinweis: …" darunter ist Text)
+    const ohneWert = f => /:\s*(#.*)?$/.test(f.lines[0]);
+    if(!bl.items.length && !dl.items.length && ohneWert(bf) && ohneWert(df) && splitObjectFields(bf.lines).fieldCol != null
+       && splitObjectFields(df.lines).fieldCol != null){ out.push(...mergeObjectBlocks(bf.lines, df.lines)); return; }
     if(!bl.items.length || !dl.items.length){ out.push(...df.lines); return; }  // Einzelwert: Delta gewinnt
     const dShift = bl.itemCol - dl.itemCol;                                     // Einrückung angleichen
     const dRest = new Map();
@@ -9375,7 +9418,7 @@ function mergeObjectBlocks(baseLines, deltaLines){
     dRest.forEach(di => out.push(...shiftLines(di.lines, dShift)));             // was das Delta zusätzlich hat
   });
   D.fields.forEach(df=>{                                                        // Felder, die nur das Delta hat
-    if(!benutzt.has(df.key)) out.push(...shiftLines(df.lines, B.fieldCol - D.fieldCol));
+    if(!benutzt.has(feldGruppe(df.key))) out.push(...shiftLines(df.lines, B.fieldCol - D.fieldCol));
   });
   return out;
 }

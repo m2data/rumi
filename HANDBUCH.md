@@ -872,8 +872,9 @@ BusinessObjects:            # Pflichtabschnitt
 | `zero_or_many` | null bis viele | Krähenfuß und Kreis |
 | `one_or_many` | eins bis viele | Krähenfuß und Querstrich |
 
-Ein unbekannter Wert wird gemeldet, wie „genau eins" gezeichnet und beim
-Anordnen auch so behandelt. Fehlt die Kardinalität ganz, bleibt das Kantenende
+Ein unbekannter Wert wird gemeldet und mit einem schlichten Querstrich
+gezeichnet, damit er sich von „genau eins" abhebt; beim Anordnen zählt die
+Seite nicht als „viele". Fehlt die Kardinalität ganz, bleibt das Kantenende
 blank.
 
 ### Was der Leser verzeiht
@@ -889,7 +890,11 @@ und ist absichtlich nachsichtig:
   Beziehungsname auch `label`, `bezeichnung`, `rolle`; statt `cardinality` auch
   `kardinalitaet`; statt `business_keys` auch `BusinessKeys`; statt
   `source_systems` auch das ältere `sources`. Stehen beide Schreibweisen da,
-  gilt die erstgenannte; beim Bearbeiten wird die vorhandene weitergeschrieben.
+  gilt die erstgenannte; beim Bearbeiten wird die vorhandene weitergeschrieben,
+  und ein Delta schreibt in das Feld der Basis, unter deren Namen. Eine
+  Beziehung, die man nicht anfasst, bleibt in ihrer Schreibweise stehen (auch
+  in den Formen ohne `to:` auf erster Ebene); eine geänderte wird als
+  `to:`/`name:`/`cardinality:` neu geschrieben.
 - **Mehrzeilige Texte** als Blockskalar (`desc: |`, `|-`, `|+`, `>`, `>-`),
   als eingerückte Fortsetzungszeilen (eine Leerzeile wird ein Zeilenumbruch)
   oder in `'…'`/`"…"` über mehrere Zeilen, wie YAML-Werkzeuge lange Texte

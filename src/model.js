@@ -315,7 +315,7 @@ function buildModel(text, art = 'go'){
         if(wert && !CARD_LABEL[wert]) messages.push({level:'warn', group:'Kardinalität unbekannt', obj:o.name,
           title:`${o.name} → ${r.to}: Kardinalität "${wert}" unbekannt`,
           body:`Unter "cardinality: ${seite}" steht ein unbekannter Wert. Erlaubt sind ${Object.keys(CARD_LABEL).join(', ')}. `
-             + 'Die Seite wird wie „genau eins" gezeichnet und auch beim Anordnen so behandelt.'});
+             + 'Die Seite wird mit einem schlichten Strich gezeichnet und beim Anordnen nicht als „viele" gewertet.'});
       });
       // Zwei Beziehungen zwischen denselben Objekten sind nur dann dieselbe,
       // wenn sie auch gleich heissen. Verschiedene Namen — und ebenso benannt

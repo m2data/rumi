@@ -251,6 +251,46 @@ console.log('== Umbenennen zieht jeden Verweis mit ==');
   t('das Ziel der fremden Beziehung wandert mit', /- to: Menge/.test(neu));
   t('der Verweis im Attribut wandert mit', /references: Menge\.X/.test(neu));
   t('die Kardinalität bleibt unangetastet', /\n {8}to: many/.test(neu), neu);
+
+  // Form B: das Ziel steht unter dem Namen, eine Ebene tiefer
+  const formB = api.goUmbenennen([
+    'BusinessObjects:', '  many:', '    Domain: D', '  C:', '    relationships:',
+    '    - hat:', '        to: many', '        cardinality:', '          to: many', ''].join('\n'), 'many', 'Menge');
+  t('Form B: das Ziel wandert mit, die Kardinalität nicht',
+    /- hat:\n {8}to: Menge\n {8}cardinality:\n {10}to: many/.test(formB), formB);
+}
+
+console.log('== Beziehungen behalten ihre Schreibweise ==');
+{
+  // Der Leser versteht label/bezeichnung/rolle, kardinalitaet und die Formen
+  // B–D. Was der Nutzer nicht anfasst, bleibt Zeichen für Zeichen stehen.
+  const rels = [
+    '    - to: B', '      label: kauft',
+    '    - to: B', '      rolle: liefert', '      kardinalitaet:', '        from: exactly_one', '        to: zero_or_many',
+    '    - storniert:', '        to: B'];
+  const text = ['BusinessObjects:', '  A:', '    Domain: Alt', '    relationships:', ...rels,
+    '  B:', '    Domain: Alt', ''].join('\n');
+  const o = api.buildModel(text).objects.A;
+  const e = aend => Object.assign({name:'A', domain:'Alt', domains:['Alt'], desc:'', keys:[], sources:[], attrs:[], extra:{},
+    rels: o.rels.map(r => Object.assign({}, r, {_alt:r}))}, aend || {});
+  const nurDomain = api.goObjektAendern(text, 'A', e({domain:'Neu', domains:['Neu']}), o);
+  t('eine reine Domain-Änderung lässt alle Beziehungen wörtlich stehen',
+    nurDomain.includes(['    relationships:', ...rels].join('\n')), nurDomain);
+
+  const geaendert = o.rels.map(r => Object.assign({}, r, {_alt:r}));
+  geaendert[0] = Object.assign({}, geaendert[0], {toCard:'exactly_one'});
+  const eineAnders = api.goObjektAendern(text, 'A', e({rels:geaendert}), o);
+  t('ist eine Beziehung geändert, bleiben die anderen wörtlich',
+    eineAnders.includes(rels.slice(2).join('\n')) && !/label: kauft/.test(eineAnders), eineAnders);
+  t('die geänderte steht in der Grundform',
+    eineAnders.includes('    - to: B\n      name: kauft\n      cardinality:\n        to: exactly_one'), eineAnders);
+
+  const textD = ['BusinessObjects:', '  A:', '    Domain: Alt', '    relationships:',
+    '      kauft:', '        to: B', '  B:', '    Domain: Alt', ''].join('\n');
+  const oD = api.buildModel(textD).objects.A;
+  const nurDomainD = api.goObjektAendern(textD, 'A', Object.assign(e({domain:'Neu', domains:['Neu']}),
+    {rels: oD.rels.map(r => Object.assign({}, r, {_alt:r}))}), oD);
+  t('Form D bleibt ebenso stehen', nurDomainD.includes('    relationships:\n      kauft:\n        to: B\n'), nurDomainD);
 }
 
 console.log('== Löschen nimmt die eingehenden Beziehungen mit ==');

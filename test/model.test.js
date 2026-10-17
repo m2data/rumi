@@ -239,6 +239,11 @@ console.log('== Unbekannte Kardinalitätswerte werden gemeldet ==');
   t('der Hinweis nennt die erlaubten Werte', has(m.messages, 'warn', 'zero_or_many'));
   const treffer = m.messages.filter(x => x.group === 'Kardinalität unbekannt').length;
   t('gültige Werte lösen keinen Hinweis aus', treffer === 2, treffer + ' Meldungen');
+  // Gezeichnet wird ein eigener schlichter Strich, nicht „genau eins" (zwei
+  // Striche), und zum 1:1-Anhängsel macht die Seite nichts
+  const text = m.messages.find(x => x.group === 'Kardinalität unbekannt').body;
+  t('der Hinweis beschreibt Zeichnung und Anordnung zutreffend',
+    !/genau eins/.test(text) && /schlichten Strich/.test(text), text);
 }
 
 console.log('== "many" ohne Untergrenze ist kein gültiger Wert mehr ==');
