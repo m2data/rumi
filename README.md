@@ -81,7 +81,8 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Strg+Z bzw. Strg+Y (auch Strg+Umschalt+Z); auch ein eingespieltes
   Delta-Modell und jede geänderte Einstellung lassen sich so zurücknehmen.
 - **Inhalt**: wählen, was im Kasten steht (Beschreibung, Domain,
-  Business Keys, Quellen, Attribute, Datentypen, Beziehungsnamen).
+  Business Keys, Quellen, Quelltabellen, Attribute, nur Schlüsselattribute,
+  Datentypen, Beziehungsnamen).
 - **Suchen**: das Feld über den Reitern der Seitenleiste — also aus jedem
   Reiter erreichbar — hebt passende Objekte im Diagramm hervor und blendet den
   Rest ab; rechts daneben steht die Trefferzahl. Gesucht wird in allem, was ein
@@ -149,7 +150,8 @@ gespeichert:
    Beziehung mit gleichem Ziel *und* gleichem Namen — dort gilt die Fassung des
    Deltas. Unterschiedlich benannte Beziehungen zum selben Ziel bleiben als zwei
    Beziehungen erhalten. Einzelwerte wie Domain und Beschreibung nimmt das
-   Delta. So lassen sich zwei Modelle, die dieselben Objekte aus verschiedenen
+   Delta; eine Domain-Liste auf beiden Seiten wird vereinigt, und ein Feld in
+   anderer Schreibweise (`domain`) landet im Feld der Basis. So lassen sich zwei Modelle, die dieselben Objekte aus verschiedenen
    Blickwinkeln beschreiben, zusammenführen. Die Objekte selbst lassen sich
    auch **in der App** pflegen (siehe „Pflegen") und über „Speichern" wieder
    als diese YAML ausgeben.

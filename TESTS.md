@@ -66,6 +66,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   in einem Zug, der schon Knicke hat.
 - **`anzeige.js`** — Seitenleiste und Kästen: Inhaltsauswahl, Prüfliste
   (Gruppen, Sprung zum Objekt), Objektliste, Kastengeometrie.
+- **`seitenleiste.js`** — Breite der Seitenleiste: Ziehgriff an ihrer Kante,
+  Grenzen, Doppelklick auf die Standardbreite; eine reine
+  Ansichtseinstellung, weder Änderung noch Teil der Positionsinformationen.
 - **`elemente.js`** — Quelle und Domäne als eigene Elemente (Einstellungen):
   je Objekt eigene Kästen rechts daneben, gesperrter Inhalt-Eintrag, Ein- und
   Ausblenden mit dem Objekt, gemerkte Einstellung, dasselbe in der Hierarchie;
@@ -95,7 +98,7 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
 - **`uebernahme.js`** — Geschäftsobjekte aus den Quelltabellen übernehmen:
   beim Laden der Datei und über das Menü, Anlegen und Ergänzen (Domäne,
   Beschreibung mit Herkunftsmarke und ohne Doppel, Business Keys aus den
-  Primärschlüsseln, Attribute nur in Objekte ohne, umgesetzte Beziehungen und
+  Primärschlüsseln, jedes Attribut, gleichnamige werden eins, umgesetzte Beziehungen und
   Verweise, eingeschaltete Zusatzfelder), Geschäftsobjekte für
   Beziehungsziele ohne Zuordnung samt Meldung in der Prüfung, Quelltabellen
   ohne Business Keys, die

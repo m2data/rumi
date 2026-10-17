@@ -73,8 +73,8 @@ Darunter die Reiter:
   für „im Diagramm zeigen". Ganz unten die **Notation** (welches Kantenende
   welche Kardinalität bedeutet).
 - **Details** — alles zum gewählten Objekt.
-- **Prüfung** — Auffälligkeiten im Modell, mit Zähler am Reiter (nur in der
-  Komplettansicht).
+- **Prüfung** — Auffälligkeiten im Modell, mit Zähler am Reiter (in der
+  Komplettansicht und bei den Quelltabellen, dort für das Tabellenmodell).
 
 Die **Breite der Seitenleiste** lässt sich an ihrer Kante zur Zeichenfläche
 mit der Maus ziehen — von 220 Pixeln bis 60 % der Fensterbreite, höchstens
@@ -723,7 +723,7 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
 | Business Keys | die Primärschlüssel (`primary_key`) der Tabelle | fehlende Primärschlüssel werden angehängt |
 | Attribute | alle, je mit `attribut_sources: [Webshop.Bestellung.KundeID]` | alle; gleichnamige werden eins, Eigenschaften aus übereinstimmenden Quellen (s. u.) |
 | Beziehungen | übernommen, Ziel umgesetzt | übernommen, Ziel umgesetzt |
-| Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben, wo das Objekt keinen Wert hat |
+| Zusatzfelder | die unter „Zusatzattribute …" eingeschalteten | dieselben; fehlende Werte werden angehängt, aus einem Einzelwert wird so eine Liste, entfernt wird nichts |
 | `Table_Sources` | `Webshop.Bestellung` | Tabelle angehängt |
 
 - **Ziel umsetzen:** `to: Webshop.Position` wird zum Geschäftsobjekt der
@@ -843,7 +843,7 @@ BusinessObjects:            # Pflichtabschnitt
 
 | Ebene | Feld | Bedeutung |
 | --- | --- | --- |
-| `meta` | `titel`, `urheber`, `lizenz`, `lizenz_url`, `hinweis` | Herkunft der Daten; wird beim Speichern mitgeführt |
+| `meta` | `titel`, `urheber`, `lizenz`, `lizenz_url`, `hinweis` (auch `title`; `autor`, `author`, `quelle`; `license`; `license_url`, `url`; `note`) | Herkunft der Daten; wird beim Speichern mitgeführt |
 | Objekt | `Domain` | fachliche Domäne, eine (`Domain: Willibald`) oder mehrere als Liste |
 | | `leading_domain` | die führende Domäne (auch `Leading_Domain`, `Führende_Domäne`); nur sie wird angezeigt und gruppiert die Objektliste. Bei genau einer Domain ist diese führend |
 | | `desc` | Beschreibung (auch mehrzeilig) |
@@ -966,7 +966,11 @@ Objekte **ergänzt**:
   Beziehung mit gleichem Ziel *und* gleichem Namen — dort gilt die Fassung des
   Deltas. Unterschiedlich benannte Beziehungen zum selben Ziel bleiben als zwei
   Beziehungen erhalten.
-- **Einzelwerte** wie Domain und Beschreibung nimmt das Delta.
+- **Einzelwerte** wie Domain und Beschreibung nimmt das Delta. Steht `Domain`
+  auf beiden Seiten als Liste, werden die Listen vereinigt wie die Quellen.
+  Ein Feld in anderer Schreibweise (`domain` statt `Domain`) landet im Feld
+  der Basis, unter deren Namen; `relationships` als Abbildung wird ebenfalls
+  vereinigt.
 
 So lassen sich zwei Modelle zusammenführen, die dieselben Objekte aus
 verschiedenen Blickwinkeln beschreiben. Kommentare und Reihenfolge der
@@ -999,12 +1003,13 @@ Text und seine Unterdiagramme.
 - Jeder Knoten ist ein Diagramm mit `beschreibung` (optional), `objekte` (Liste
   von Objektnamen aus dem Modell) und optional `Details` (untergeordnete
   Diagramme). Der Name des Knotens ist zugleich sein Titel im Baum.
-- Alternativ gelesen werden `objects` statt `objekte`, `text` oder
+- Alternativ gelesen werden `objects`, `tabellen` und `tables` statt `objekte`, `text` oder
   `description` statt `beschreibung` sowie `details`/`kinder` statt `Details`.
 - Objektnamen, die es im Modell nicht gibt, werden übergangen und gemeldet.
 - Die Datei lässt sich vollständig **in der App** bearbeiten (Kapitel 11) und
   über „Speichern" wieder ausgeben. Beschreibungen stehen in der Ausgabe als
-  einzeilige Werte mit `\n`-Escapes — der Leser stellt sie verlustfrei her.
+  Block (`beschreibung: |`); was sich so nicht verlustfrei schreiben lässt,
+  steht maskiert in Anführungszeichen.
 - Im Projektordner heißt sie `Name_hier.yaml` (Kapitel 14).
 
 ## Anhang C — Positionsinformationen (JSON)
@@ -1018,6 +1023,7 @@ Sie enthält:
 
 | Feld | Inhalt |
 | --- | --- |
+| `version` | Formatstand der Datei |
 | `verfahren` | gewähltes Anordnungsverfahren, Richtung, Beziehungsnamen an/aus |
 | `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
 | `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
@@ -1025,6 +1031,7 @@ Sie enthält:
 | `elemente` | ob in der Komplettansicht Quelle, Quelltabelle und Domäne als eigene Elemente stehen (die Diagramme tragen ihre unter `hierarchie` bzw. `quelltabellen`; ältere Dateien mit nur diesem Eintrag geben ihn an die Komplettansicht) |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
+| `zusatzfelder` | die unter „Zusatzattribute …" zur Pflege gewählten Felder, je `objekt` und `attribut` |
 | `uebersichtText` | die Hierarchiebeschreibung |
 | `hierarchie` | je Diagramm: Anordnung, Kantenzüge, sichtbare Objekte, Text, eigene Elemente |
 | `quelltabellen` | Schalter „Quelltabellen verwenden" (`an`) und „… bearbeiten" (`pflegeAn`), die Diagramm-YAML (`uebersichtText`) und je Diagramm Anordnung, Kantenzüge, sichtbare Tabellen, Text, eigene Elemente. Fehlt der Eintrag (ältere Datei), gelten die Vorgaben. |
@@ -1045,10 +1052,10 @@ mit seinen Tabellen, und jede Tabelle trägt statt der Liste `source_systems`
 ihre Zuordnung zu einem Geschäftsobjekt:
 
 ```yaml
-SourceTables:                       # auch: Quelltabellen, source_tables
+SourceTables:                       # auch: Quelltabellen, sourceTables, source_tables
   Webshop:                          # Quellsystem
     Bestellung:                     # Tabelle, Kennung Webshop.Bestellung
-      business_object: Bestellung   # auch: Geschäftsobjekt
+      business_object: Bestellung   # auch: Business_Object, Geschäftsobjekt, Geschaeftsobjekt
       Domain: Willibald
       attributes:
       - name: BestellungID
@@ -1088,7 +1095,9 @@ SourceTables:                       # auch: Quelltabellen, source_tables
   `Source_System:`). Sie werden weiter gelesen und gepflegt; ein Eintrag gilt
   als solche Tabelle, sobald er Tabellenfelder trägt (`source_system`,
   `business_object`, `attributes`, `business_keys`, `Domain`, `desc`,
-  `relationships`).
+  `relationships` oder eine ihrer Schreibweisen: `Source_System`,
+  `Business_Object`, `Geschäftsobjekt`, `Geschaeftsobjekt`, `BusinessKeys`,
+  `domain`, `beschreibung`, `description`).
 - Geprüft wird wie bei den Geschäftsobjekten, dazu: **kein Quellsystem**
   (Hinweis, nur in der älteren Form möglich), **Quellsystem widersprüchlich**
   (Hinweis: `source_system:` passt nicht zum Abschnitt — es gilt der
@@ -1099,8 +1108,8 @@ SourceTables:                       # auch: Quelltabellen, source_tables
 ## Anhang E — Quelltabellen-Diagramme (YAML)
 
 Die eigenen Diagramme des Bereichs Quelltabellen, aufgebaut wie die
-Hierarchiebeschreibung (Anhang B); die Liste heißt `tabellen` (`objekte` wird
-auch gelesen) und nennt `System.Tabelle`. Die Diagramme der Quellsysteme
+Hierarchiebeschreibung (Anhang B); die Liste heißt `tabellen` (`tables`,
+`objekte` und `objects` werden auch gelesen) und nennt `System.Tabelle`. Die Diagramme der Quellsysteme
 stehen **nicht** darin, sie entstehen aus den Tabellen.
 
 ```yaml
