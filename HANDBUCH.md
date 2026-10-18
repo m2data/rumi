@@ -798,45 +798,79 @@ Ein vollständiger Arbeitsstand besteht aus drei Dateien, die einzeln geladen
 und gespeichert werden; mit den Quelltabellen (Kapitel 17) kommen zwei dazu.
 Nur die erste ist Pflicht.
 
+## Strukturvorlagen
+
+Die YAML-Dateien sind in den folgenden Anhängen als **Strukturvorlage**
+beschrieben: in der gewohnten YAML-Struktur, aber mit Datentypen statt
+konkreter Werte. Auch frei wählbare Schlüssel wie Objekt-, System- und
+Tabellennamen tragen einen Typ. Die Vorlage dient der fachlichen Abstimmung
+und Dokumentation, nicht der maschinellen Prüfung.
+
+| Schreibweise | Bedeutung |
+| --- | --- |
+| `string` | Zeichenkette |
+| `boolean` | Wahrheitswert (`true` oder `false`) |
+| `integer` | Ganzzahl |
+| `number` | Zahl |
+| `object` | Abschnitt mit eingerückten Feldern darunter |
+| `list[string]` | Liste von Zeichenketten |
+| `list[object]` | Liste von Abschnitten, die Elemente stehen eingerückt darunter |
+| `string, optional` | optionale Zeichenkette |
+| `string \| list[string]` | Zeichenkette oder Liste von Zeichenketten |
+| `<Quellsystem: string>` | frei wählbarer Schlüsselname vom Typ String |
+| `<Tabelle: string>` | frei wählbarer Tabellenname vom Typ String |
+| `- name: string` | Element einer Liste von Objekten |
+| `# Kommentar` | Erläuterung oder fachliche Regel |
+
+Ohne den Zusatz `optional` ist ein Feld verpflichtend. Die Darstellung ist
+eine beschreibende, YAML-ähnliche Notation; vor allem die Typangaben und die
+eingerückten Listenelemente sind nicht als unmittelbar einlesbare Datei
+gedacht. Beispiele zum Laden liegen in `models/`.
+
 ## Anhang A — Geschäftsobjekte (YAML)
 
 Das Modell: welche Geschäftsobjekte es gibt, wie sie beschrieben sind und wie
 sie zusammenhängen.
 
-```yaml
-meta:                       # optional: Herkunft und Lizenz der Daten
-  titel: Willibald
-  urheber: DDVUG e.V.
-  lizenz: CC BY 4.0
-  lizenz_url: https://creativecommons.org/licenses/by/4.0/
+```
+meta: object, optional                       # Herkunft und Lizenz der Daten
+  titel: string, optional
+  urheber: string, optional
+  lizenz: string, optional
+  lizenz_url: string, optional
+  hinweis: string, optional
 
-BusinessObjects:            # Pflichtabschnitt
-  Bestellung:
-    Domain: Willibald                          # fachliche Domäne
-    desc: Repräsentiert einen Kundenauftrag.   # Beschreibung
-    business_keys:                             # fachliche Schlüssel
-    - BestellungID
-    source_systems:                            # Quellsysteme/-tabellen
-    - Bestellung
-    - Bestellung_VRS
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true                        # PK
-    - name: Auftragsnummer
-      type: char(10)
-      alternate_key: true                      # AK (nie zugleich PK)
-    - name: KundeID
-      type: char(13)
-      foreign_key: true                        # FK
-      references: Kunde.KundeID                # Verweisziel: Objekt.Attribut
-    relationships:
-    - to: Position                             # Zielobjekt (Pflicht)
-      name: enthält                            # Beziehungsname (optional)
-      cardinality:
-        from: exactly_one                      # Kardinalität an der Quelle
-        to: zero_or_many                       # … und am Ziel
+BusinessObjects:
+  <Geschäftsobjekt: string>:
+    Domain: string | list[string], optional
+    leading_domain: string, optional         # führende Domäne, steht unter Domain
+    desc: string, optional
+    business_keys: list[string], optional    # fehlt er, wird es gemeldet
+    source_systems: list[string | object], optional   # die wichtigste zuerst
+      - string                               # Kurzform: Name der Quelle
+      - name: string                         # Quelle in einer Überschneidungsgruppe
+        overlap_group: string | integer
+    Table_Sources: list[string], optional    # System.Tabelle, von der Übernahme gesetzt
+    <Zusatzattribut: string>: string | list[string], optional
+
+    attributes: list[object], optional
+      - name: string
+        type: string, optional               # z. B. char(13)
+        nullable: boolean, optional
+        primary_key: boolean, optional
+        alternate_key: boolean, optional     # nie zugleich primary_key
+        foreign_key: boolean, optional
+        references: string, optional         # Objekt.Attribut
+        attribut_sources: string | list[string], optional   # System.Tabelle.Spalte
+        <Zusatzattribut: string>: string | list[string], optional
+
+    relationships: list[object], optional    # weitere Schreibweisen siehe unten
+      - to: string                           # Zielobjekt
+        name: string, optional
+        cardinality: object, optional
+          from: string, optional             # Kardinalität an der Quelle
+          to: string, optional               # Kardinalität am Ziel
+        Relation_Sources: list[string], optional   # System.Tabelle→System.Tabelle
 ```
 
 ### Felder
@@ -981,23 +1015,12 @@ Grunddatei bleiben erhalten.
 Der Baum der redaktionellen Diagramme: welche Objekte ein Diagramm zeigt, sein
 Text und seine Unterdiagramme.
 
-```yaml
-Übersicht:                                     # oberstes Diagramm
-  beschreibung: "Überblick über das Modell."   # Text (leichtes Markdown)
-  objekte:                                     # Objektnamen wie im Modell
-    - Kunde
-    - Bestellung
-  Details:                                     # Unterdiagramme, rekursiv gleich
-    webshop:
-      beschreibung: "Bestellprozess im Webshop"
-      objekte:
-        - Bestellung
-        - Position
-      Details:
-        Produkt:
-          objekte:
-            - Produkt
-            - Kategorie
+```
+<Diagramm: string>:                          # Name ist zugleich Titel im Baum
+  beschreibung: string, optional             # leichtes Markdown
+  objekte: list[string], optional            # Objektnamen wie im Modell
+  Details: object, optional                  # Unterdiagramme
+    <Diagramm: string>: object               # rekursiv gleich aufgebaut
 ```
 
 - Jeder Knoten ist ein Diagramm mit `beschreibung` (optional), `objekte` (Liste
@@ -1051,27 +1074,33 @@ der Abschnitt `SourceTables`, darunter steht **je Quellsystem ein Abschnitt**
 mit seinen Tabellen, und jede Tabelle trägt statt der Liste `source_systems`
 ihre Zuordnung zu einem Geschäftsobjekt:
 
-```yaml
-SourceTables:                       # auch: Quelltabellen, sourceTables, source_tables
-  Webshop:                          # Quellsystem
-    Bestellung:                     # Tabelle, Kennung Webshop.Bestellung
-      business_object: Bestellung   # auch: Business_Object, Geschäftsobjekt, Geschaeftsobjekt
-      Domain: Willibald
-      attributes:
-      - name: BestellungID
-        primary_key: true           # wird Business Key des Geschäftsobjekts
-      - name: Auftragsnummer
-        alternate_key: true         # AK, kommt als AK ans Attribut des Geschäftsobjekts
-      - name: KundeID
-        foreign_key: true
-        references: Webshop.Kunde.KundeID   # System.Tabelle.Spalte
-      relationships:                # zwischen Tabellen, auch über Systeme hinweg
-      - to: Webshop.Position        # System.Tabelle
-        name: enthält
-  Roadshow:
-    Bestellung:                     # gleicher Name, andere Tabelle: Roadshow.Bestellung
-      business_object: Bestellung
 ```
+SourceTables:                                # auch: Quelltabellen, sourceTables, source_tables
+  <Quellsystem: string>:                     # ohne Punkt
+    <Tabelle: string>:                       # ohne Punkt; Kennung System.Tabelle
+      business_object: string, optional      # auch: Business_Object, Geschäftsobjekt, Geschaeftsobjekt
+      Domain: string, optional               # eine Domäne; bei einer Liste gilt die erste
+      desc: string, optional
+      <Zusatzattribut: string>: string | list[string], optional
+
+      attributes: list[object], optional
+        - name: string
+          type: string, optional
+          nullable: boolean, optional
+          primary_key: boolean, optional     # wird Business Key des Geschäftsobjekts
+          alternate_key: boolean, optional   # wird AK am Attribut des Geschäftsobjekts
+          foreign_key: boolean, optional
+          references: string, optional       # System.Tabelle.Spalte
+          <Zusatzattribut: string>: string | list[string], optional
+
+      relationships: list[object], optional  # auch über Systeme hinweg
+        - to: string                         # System.Tabelle
+          name: string, optional
+          cardinality: object, optional      # wie bei den Geschäftsobjekten
+```
+
+Dieselbe Tabelle kann in mehreren Systemen vorkommen: `Webshop.Bestellung`
+und `Roadshow.Bestellung` sind zwei Tabellen.
 
 - `Domain` ist an einer Quelltabelle **ein Wert**. Steht doch eine Liste da,
   gilt die erste Domäne, und die Prüfung meldet „mehrere Domänen an einer
@@ -1112,12 +1141,12 @@ Hierarchiebeschreibung (Anhang B); die Liste heißt `tabellen` (`tables`,
 `objekte` und `objects` werden auch gelesen) und nennt `System.Tabelle`. Die Diagramme der Quellsysteme
 stehen **nicht** darin, sie entstehen aus den Tabellen.
 
-```yaml
-Bestellung Webshop/Roadshow:
-  beschreibung: "Dieselbe Bestellung aus zwei Systemen"
-  tabellen:
-    - Webshop.Bestellung
-    - Roadshow.Bestellung_VRS
+```
+<Diagramm: string>:
+  beschreibung: string, optional             # leichtes Markdown
+  tabellen: list[string], optional           # System.Tabelle
+  Details: object, optional                  # Unterdiagramme
+    <Diagramm: string>: object               # rekursiv gleich aufgebaut
 ```
 
 Ein Name ohne System (ältere Dateien) gilt, wenn genau eine Tabelle so heißt;

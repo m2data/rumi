@@ -172,42 +172,40 @@ Mit eingeschalteten Quelltabellen kommen zwei weitere dazu (Format siehe
 ### 1. Geschäftsobjekt-Modell (YAML)
 
 Beschreibt die Geschäftsobjekte mit ihren Attributen, Quellen und Beziehungen.
+Die Vorlagen hier und im Handbuch nennen statt Werten Datentypen; ohne
+`optional` ist ein Feld Pflicht, `<Name: string>` ist ein frei wählbarer
+Schlüssel (Notation im [Handbuch](HANDBUCH.md#strukturvorlagen)).
 
-```yaml
-meta:                       # optional: Herkunft/Lizenz der Daten
-  titel: Willibald
-  urheber: DDVUG e.V.
-  lizenz: CC BY 4.0
-  lizenz_url: https://creativecommons.org/licenses/by/4.0/
+```
+meta: object, optional                       # Herkunft und Lizenz der Daten
+  titel: string, optional
+  urheber: string, optional
+  lizenz: string, optional
+  lizenz_url: string, optional
 
-BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
-  Bestellung:
-    Domain: Willibald                       # fachliche Domäne
-    desc: Repräsentiert einen Kundenauftrag …   # Beschreibung
-    business_keys:                          # fachliche Schlüssel
-    - BestellungID
-    source_systems:                         # Quellsysteme/-tabellen
-    - Bestellung
-    - Bestellung_VRS
-    schema.org: https://schema.org/Order    # Zusatzattribut (frei wählbar)
-    attributes:
-    - name: BestellungID
-      type: bigint
-      nullable: false
-      primary_key: true                     # Primärschlüssel (PK)
-    - name: Auftragsnummer
-      type: char(10)
-      alternate_key: true                   # Alternativschlüssel (AK), nie zugleich PK
-    - name: KundeID
-      type: char(13)
-      foreign_key: true                     # Fremdschlüssel (FK)
-      references: Kunde.KundeID              # Verweisziel Objekt.Attribut
-    relationships:
-    - to: Position                          # Zielobjekt
-      name: enthält                         # Beziehungsname (optional)
-      cardinality:
-        from: exactly_one                   # Kardinalität an der Quelle
-        to: zero_or_many                    # … und am Ziel
+BusinessObjects:
+  <Geschäftsobjekt: string>:
+    Domain: string | list[string], optional
+    desc: string, optional
+    business_keys: list[string], optional
+    source_systems: list[string], optional   # Quellsysteme/-tabellen, die wichtigste zuerst
+    <Zusatzattribut: string>: string, optional   # frei wählbar, z. B. schema.org
+
+    attributes: list[object], optional
+      - name: string
+        type: string, optional
+        nullable: boolean, optional
+        primary_key: boolean, optional
+        alternate_key: boolean, optional     # nie zugleich primary_key
+        foreign_key: boolean, optional
+        references: string, optional         # Objekt.Attribut
+
+    relationships: list[object], optional
+      - to: string                           # Zielobjekt
+        name: string, optional
+        cardinality: object, optional
+          from: string, optional             # Kardinalität an der Quelle
+          to: string, optional               # … und am Ziel
 ```
 
 - Nur `BusinessObjects` ist Pflicht, alles andere optional. Der Leser ist
@@ -236,23 +234,12 @@ BusinessObjects:            # Pflichtabschnitt: benannte Geschäftsobjekte
 Definiert den Baum der redaktionellen Diagramme: welche Objekte ein Diagramm
 zeigt, seine Beschreibung und seine Unterdiagramme.
 
-```yaml
-Übersicht:                                  # oberstes Diagramm
-  beschreibung: "Überblick über das Modell …"   # Text (leichtes Markdown)
-  objekte:                                  # gezeigte Objekte (Namen wie im Modell)
-    - Kunde
-    - Bestellung
-  Details:                                  # Unterdiagramme, rekursiv gleich aufgebaut
-    webshop:
-      beschreibung: "Bestellprozess im Webshop"
-      objekte:
-        - Bestellung
-        - Position
-      Details:
-        Produkt:
-          objekte:
-            - Produkt
-            - Kategorie
+```
+<Diagramm: string>:                          # Name ist zugleich Titel im Baum
+  beschreibung: string, optional             # leichtes Markdown
+  objekte: list[string], optional            # Objektnamen wie im Modell
+  Details: object, optional                  # Unterdiagramme
+    <Diagramm: string>: object               # rekursiv gleich aufgebaut
 ```
 
 - Jeder Knoten ist ein Diagramm mit `beschreibung` (optional), `objekte` (Liste
