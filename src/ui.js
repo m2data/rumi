@@ -1200,10 +1200,32 @@ function quellDiagrammeYaml(){
   });
 }
 
-function toast(msg, ms = 1800){            // eine Ablehnung mit Begründung braucht länger zum Lesen
-  const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), ms);
+/* Meldungen unten im Bild. Eine längere (ms über der Vorgabe: Laden,
+   Speichern, Ablehnung mit Begründung) bleibt stehen, bis sie mit OK
+   bestätigt ist — sonst ginge sie unter, sobald die nächste kommt. Sie
+   stapeln sich, die neueste unten. Kurze Quittungen verschwinden von selbst
+   und ersetzen einander. Der Timer sucht seine Zeile über die Kennung: nach
+   standAlsHtml sind es neue Knoten. */
+const TOAST_KURZ = 1800;
+function toast(msg, ms = TOAST_KURZ){
+  const box = $('toast');
+  const bleibt = ms > TOAST_KURZ;
+  box.querySelectorAll('.toast-msg').forEach(z=>{
+    if(z.querySelector('.toast-text').textContent === String(msg) || (!bleibt && !z.querySelector('.toast-ok'))) z.remove();
+  });
+  const id = 't' + (toast._n = (toast._n || 0) + 1);
+  const z = document.createElement('div');
+  z.className = 'toast-msg';
+  z.dataset.id = id;
+  z.innerHTML = `<span class="toast-text">${esc(msg)}</span>`
+    + (bleibt ? '<button class="toast-ok" title="Meldung schließen">OK</button>' : '');
+  box.appendChild(z);
+  if(!bleibt) setTimeout(()=>{ const alt = box.querySelector(`[data-id="${id}"]`); if(alt) alt.remove(); }, ms);
 }
+$('toast').addEventListener('click', e=>{
+  const z = e.target.closest && e.target.closest('.toast-ok') && e.target.closest('.toast-msg');
+  if(z) z.remove();
+});
 
 /* ---------- Export ---------- */
 function exportSVG(){
@@ -1799,10 +1821,13 @@ function standAlsHtml(){
     Object.assign(texte, layoutFile())
   ).replace(/</g, '\\u003c');
 
-  // Generierte Bereiche leeren, damit die Datei klein bleibt
-  ['canvas','objectList','msgList','legend','detailBody'].forEach(id => $(id).innerHTML = '');
+  // Generierte Bereiche leeren, damit die Datei klein bleibt; stehende
+  // Meldungen gehören nicht in die Datei, bleiben aber auf dem Schirm
+  const meldungen = $('toast').innerHTML;
+  ['canvas','objectList','msgList','legend','detailBody','toast'].forEach(id => $(id).innerHTML = '');
   const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
   el.textContent = before;
+  $('toast').innerHTML = meldungen;
 
   initSvg(); draw(); renderObjectList(); renderMessages(); renderLegend(); renderDetails();
   return html;

@@ -437,5 +437,47 @@ console.log('== Beschreibung in den Details ==');
 t('Zeilenumbrüche der Beschreibung bleiben in den Details stehen',
   /\.descbox\{[^}]*white-space:pre-wrap/.test(html));
 
+console.log('== Modus-Knöpfe ==');
+{
+  const knopf = m => document.querySelector(`.mode-btn[data-mode="${m}"]`).textContent;
+  t('die Knöpfe heißen Geschäftsobjekte, GO-Hierarchie, Quelltabellen',
+    knopf('komplett') === 'Geschäftsobjekte' && knopf('hierarchie') === 'GO-Hierarchie' && knopf('quellen') === 'Quelltabellen',
+    [knopf('komplett'), knopf('hierarchie'), knopf('quellen')].join(' | '));
+}
+
+console.log('== Meldungen: längere bleiben bis zur Bestätigung ==');
+{
+  const box = document.getElementById('toast');
+  box.textContent = '';
+  const zeilen = ()=> box.querySelectorAll('.toast-msg');
+  api.toast('Erste lange Meldung', 6000);
+  api.toast('Zweite lange Meldung', 4000);
+  t('zwei lange Meldungen stehen beide da', zeilen().length === 2
+    && /Erste lange/.test(box.textContent) && /Zweite lange/.test(box.textContent), box.innerHTML);
+  t('die neueste steht unten', /Zweite/.test(zeilen()[1].textContent));
+  t('jede lange hat einen OK-Knopf', zeilen().every(z => z.querySelector('.toast-ok')));
+  api.toast('Erste lange Meldung', 6000);
+  t('derselbe Text steht nur einmal da, jetzt unten',
+    zeilen().length === 2 && /Erste/.test(zeilen()[1].textContent), box.innerHTML);
+  api.toast('kurz');
+  api.toast('noch kürzer');
+  t('eine kurze hat keinen OK-Knopf, und kurze ersetzen einander',
+    zeilen().length === 3 && !zeilen()[2].querySelector('.toast-ok') && !/kurz</.test(box.innerHTML)
+    && /noch kürzer/.test(box.textContent), box.innerHTML);
+  const ok = zeilen()[0].querySelector('.toast-ok');
+  dispatch(ok, 'click', {});
+  t('OK nimmt die Meldung weg', zeilen().length === 2 && !/Zweite lange/.test(box.textContent), box.innerHTML);
+  // Das Mini-DOM verwirft <script>-Blöcke; den Platzhalter fürs Einbacken nachreichen
+  const baked = document.createElement('script');
+  baked.setAttribute('id', 'bakedState');
+  baked.textContent = 'null';
+  document.body.appendChild(baked);
+  const gesichert = api.standAlsHtml();
+  t('eine gesicherte HTML enthält keine Meldung', !/Erste lange Meldung/.test(gesichert));
+  t('danach steht sie wieder da', /Erste lange Meldung/.test(box.textContent), box.innerHTML);
+  dispatch(box.querySelector('.toast-ok'), 'click', {});
+  t('auch nach dem Sichern lässt sie sich bestätigen', !/Erste lange/.test(box.textContent), box.innerHTML);
+}
+
 finish();
 })();

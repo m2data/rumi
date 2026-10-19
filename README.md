@@ -10,11 +10,11 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
 
 ## Was das Tool kann
 
-- **Komplettansicht** – das ganze Geschäftsobjektmodell. Unter
+- **Geschäftsobjekte** – das ganze Geschäftsobjektmodell. Unter
   „Einstellungen" lassen sich **Quellen** und **Domäne** als eigene Kästen
   rechts neben jedes Objekt stellen (verbunden über „quelle" bzw. „Domäne");
   das gilt auch in der Hierarchie.
-- **Hierarchie** – redaktionell gestaltete Diagramme: ein Baum aus Diagrammen
+- **GO-Hierarchie** – redaktionell gestaltete Diagramme: ein Baum aus Diagrammen
   (Übersicht → Domänen → Themen), jedes zeigt nur einen Ausschnitt der Objekte
   und hat einen Beschreibungstext (leichtes Markdown). Diagramme sind frei
   anordenbar; verknüpfte Objekte lassen sich zu einer Auswahl hinzuholen. Im Baum

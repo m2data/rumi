@@ -16,7 +16,7 @@ Dateien siehe den [Anhang](#anhang-die-dateien) am Ende.
 - [8. Anordnen](#8-anordnen)
 - [9. Kanten von Hand](#9-kanten-von-hand)
 - [10. Was im Kasten steht](#10-was-im-kasten-steht)
-- [11. Hierarchie: redaktionelle Diagramme](#11-hierarchie-redaktionelle-diagramme)
+- [11. GO-Hierarchie: redaktionelle Diagramme](#11-go-hierarchie-redaktionelle-diagramme)
 - [12. Prüfung](#12-prüfung)
 - [13. Geschäftsobjekte bearbeiten](#13-geschäftsobjekte-bearbeiten)
 - [14. Laden, Speichern, Weitergeben](#14-laden-speichern-weitergeben)
@@ -57,7 +57,7 @@ will. Bloßes Umschalten zwischen Ansichten und Diagrammen zählt dabei nicht al
 | Bereich | Bedeutung |
 | --- | --- |
 | Titel und Dateiname | welches Modell gerade geladen ist |
-| **Komplettansicht \| Hierarchie** | die beiden Arbeitsweisen (Kapitel 3 bzw. 11); mit „Quelltabellen verwenden" kommt **Quelltabellen** dazu (Kapitel 17) |
+| **Geschäftsobjekte \| GO-Hierarchie** | die beiden Arbeitsweisen (Kapitel 3 bzw. 11); mit „Quelltabellen verwenden" kommt **Quelltabellen** dazu (Kapitel 17) |
 | **Anordnen ▾** | Verfahren, Richtung, Kanten neu ziehen (Kapitel 8) |
 | **Inhalt ▾** | was in den Kästen steht (Kapitel 10) |
 | **Einpassen** | alles ins Bild rücken (Taste `F`) |
@@ -74,7 +74,7 @@ Darunter die Reiter:
   welche Kardinalität bedeutet).
 - **Details** — alles zum gewählten Objekt.
 - **Prüfung** — Auffälligkeiten im Modell, mit Zähler am Reiter (in der
-  Komplettansicht und bei den Quelltabellen, dort für das Tabellenmodell).
+  Ansicht „Geschäftsobjekte" und bei den Quelltabellen, dort für das Tabellenmodell).
 
 Die **Breite der Seitenleiste** lässt sich an ihrer Kante zur Zeichenfläche
 mit der Maus ziehen — von 220 Pixeln bis 60 % der Fensterbreite, höchstens
@@ -90,7 +90,7 @@ gewählt") blendet das Werkzeug unten links ein.
 
 ## 3. Quelle und Domäne als eigene Elemente
 
-Die Komplettansicht zeigt das ganze Modell: die Objekte und ihre fachlichen
+Die Ansicht „Geschäftsobjekte" zeigt das ganze Modell: die Objekte und ihre fachlichen
 Beziehungen. Die Kästen tragen ab Werk nur den Objektnamen; Domain, Business
 Keys, Quellen, Attribute und Beschreibung lassen sich über „Inhalt" dazunehmen
 (Kapitel 10).
@@ -106,7 +106,7 @@ Kasten herausnehmen und als **eigener Kasten** daneben stellen:
   verbunden über eine Linie mit der Beschriftung „Domäne". Ohne führende
   Domäne (mehrere Domänen, keine festgelegt — Kapitel 13) gibt es keinen.
 
-Die Haken sind unabhängig und gelten **je Diagramm**: die Komplettansicht und
+Die Haken sind unabhängig und gelten **je Diagramm**: die Ansicht „Geschäftsobjekte" und
 jedes Diagramm der Hierarchie haben ihre eigenen. Wer sie in einem Diagramm
 setzt, ändert kein anderes; das Menü zeigt immer den Stand des gewählten.
 „Quellen" und „Quelltabellen" gibt es bei den Quelltabellen (Kapitel 17) nicht. Jedes Objekt bekommt seine **eigenen** Kästen, auch wenn mehrere
@@ -308,7 +308,7 @@ Ein **Klick auf eine Kante** wählt sie aus; erst dann erscheinen ihre Griffe.
 ## 10. Was im Kasten steht
 
 Das Menü **Inhalt ▾** bestimmt, welche Bestandteile eines Objekts im Kasten
-erscheinen. Die Auswahl gilt für die Komplettansicht und die Hierarchie
+erscheinen. Die Auswahl gilt für die Ansicht „Geschäftsobjekte" und die GO-Hierarchie
 gleichermaßen:
 
 - Beschreibung
@@ -326,9 +326,9 @@ Nach einer Änderung werden die Kästen neu vermessen; die Lagen bleiben, aber
 die Größen ändern sich. Bei größeren Umstellungen lohnt danach ein „Anordnen"
 oder wenigstens „Kanten neu ziehen".
 
-## 11. Hierarchie: redaktionelle Diagramme
+## 11. GO-Hierarchie: redaktionelle Diagramme
 
-Die Komplettansicht zeigt *alles*. Der Modus **Hierarchie** zeigt **erzählte
+Die Ansicht „Geschäftsobjekte" zeigt *alles*. Der Modus **GO-Hierarchie** zeigt **erzählte
 Ausschnitte**: einen Baum aus Diagrammen — üblich ist Übersicht → Domänen →
 Spezialthemen —, jedes mit eigener Objektauswahl, eigener Anordnung und einem
 erklärenden Text.
@@ -366,7 +366,7 @@ damit die bestehende Anordnung liegen bleibt. Auch „Verknüpfte Objekte ins
 Diagramm holen" (Reiter Details) arbeitet hier je Diagramm.
 
 Anordnen, Kanten umlenken und die Suche funktionieren wie in der
-Komplettansicht. Das Inhalt-Menü und die Elemente aus Kapitel 3 gelten hier
+Ansicht „Geschäftsobjekte". Das Inhalt-Menü und die Elemente aus Kapitel 3 gelten hier
 genauso; Quellen- und Domänenkästen erscheinen nur an den Objekten, die das
 Diagramm zeigt.
 
@@ -1051,7 +1051,7 @@ Sie enthält:
 | `ansichten` | die Lage jedes Kastens (Schlüssel `1`; Einträge `2` und `3` älterer Dateien werden ignoriert) |
 | `kantenzuege` | Stützpunkte, Anschlusspunkte und Beschriftungslagen |
 | `inhalt` | was in den Kästen steht |
-| `elemente` | ob in der Komplettansicht Quelle, Quelltabelle und Domäne als eigene Elemente stehen (die Diagramme tragen ihre unter `hierarchie` bzw. `quelltabellen`; ältere Dateien mit nur diesem Eintrag geben ihn an die Komplettansicht) |
+| `elemente` | ob in der Ansicht „Geschäftsobjekte" Quelle, Quelltabelle und Domäne als eigene Elemente stehen (die Diagramme tragen ihre unter `hierarchie` bzw. `quelltabellen`; ältere Dateien mit nur diesem Eintrag geben ihn an die Ansicht „Geschäftsobjekte") |
 | `ausgeblendet` | die derzeit nicht gezeigten Objekte |
 | `pflegeAn` | ob „Geschäftsobjekte bearbeiten" eingeschaltet ist |
 | `zusatzfelder` | die unter „Zusatzattribute …" zur Pflege gewählten Felder, je `objekt` und `attribut` |

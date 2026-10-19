@@ -502,10 +502,19 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
 
 .toast{
   position:absolute;left:50%;transform:translateX(-50%);bottom:20px;z-index:90;
-  background:var(--ink);color:#fff;font-size:12px;padding:8px 14px;border-radius:3px;
-  opacity:0;transition:opacity .2s;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  max-width:calc(100% - 40px);pointer-events:none;
 }
-.toast.show{opacity:1}
+.toast-msg{
+  display:flex;align-items:center;gap:12px;
+  background:var(--ink);color:#fff;font-size:12px;padding:8px 14px;border-radius:3px;
+}
+.toast-msg:has(.toast-ok){pointer-events:auto;padding-right:8px}
+.toast-ok{
+  background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:3px;
+  font:inherit;font-weight:600;padding:2px 10px;cursor:pointer;flex:none;
+}
+.toast-ok:hover{background:rgba(255,255,255,.15)}
 
 @media (max-width:820px){
   aside{position:absolute;z-index:70;height:calc(100% - 52px);top:52px;box-shadow:0 0 30px rgba(18,32,41,.2)}
@@ -532,8 +541,8 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
   </div>
 
   <div class="modes" role="tablist" aria-label="Darstellung">
-    <button class="mode-btn" role="tab" data-mode="komplett" aria-selected="true">Komplettansicht</button>
-    <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">Hierarchie</button>
+    <button class="mode-btn" role="tab" data-mode="komplett" aria-selected="true">Geschäftsobjekte</button>
+    <button class="mode-btn" role="tab" data-mode="hierarchie" aria-selected="false">GO-Hierarchie</button>
     <button class="mode-btn nur-quellen" role="tab" data-mode="quellen" aria-selected="false">Quelltabellen</button>
   </div>
 
@@ -579,11 +588,11 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
                 title="Zeigt im Bereich „Quelltabellen“ „Bearbeiten“ in den Details und „＋ Objekt“ über der Liste — wie „Geschäftsobjekte bearbeiten“, nur für die Tabellen.">Quelltabellen bearbeiten<span class="tick">✓</span></button>
         <div class="head">ALS EIGENES ELEMENT</div>
         <button class="opt nur-go" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
-                title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in Komplettansicht und Hierarchie.">Quellen<span class="tick">✓</span></button>
+                title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in den Ansichten Geschäftsobjekte und GO-Hierarchie.">Quellen<span class="tick">✓</span></button>
         <button class="opt nur-go" id="optTabQuelle" role="menuitemcheckbox" aria-checked="false"
-                title="Jede Quelltabelle eines Geschäftsobjekts (Table_Sources) als eigener Kasten rechts neben dem Objekt, verbunden über „Quelltabelle“. Gilt in Komplettansicht und Hierarchie.">Quelltabellen<span class="tick">✓</span></button>
+                title="Jede Quelltabelle eines Geschäftsobjekts (Table_Sources) als eigener Kasten rechts neben dem Objekt, verbunden über „Quelltabelle“. Gilt in den Ansichten Geschäftsobjekte und GO-Hierarchie.">Quelltabellen<span class="tick">✓</span></button>
         <button class="opt" id="optDomaene" role="menuitemcheckbox" aria-checked="false"
-                title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in Komplettansicht und Hierarchie.">Domäne<span class="tick">✓</span></button>
+                title="Die Domäne eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „Domäne“. Gilt in den Ansichten Geschäftsobjekte und GO-Hierarchie.">Domäne<span class="tick">✓</span></button>
         <button class="opt nur-quellen" id="optGO" role="menuitemcheckbox" aria-checked="false"
                 title="Nur bei den Quelltabellen: das zugeordnete Geschäftsobjekt als eigener Kasten, einmal je Diagramm, verbunden mit allen seinen Tabellen.">Geschäftsobjekt<span class="tick">✓</span></button>
         <div class="head">PFLEGE</div>
@@ -9172,10 +9181,32 @@ function quellDiagrammeYaml(){
   });
 }
 
-function toast(msg, ms = 1800){            // eine Ablehnung mit Begründung braucht länger zum Lesen
-  const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._id); toast._id = setTimeout(()=> t.classList.remove('show'), ms);
+/* Meldungen unten im Bild. Eine längere (ms über der Vorgabe: Laden,
+   Speichern, Ablehnung mit Begründung) bleibt stehen, bis sie mit OK
+   bestätigt ist — sonst ginge sie unter, sobald die nächste kommt. Sie
+   stapeln sich, die neueste unten. Kurze Quittungen verschwinden von selbst
+   und ersetzen einander. Der Timer sucht seine Zeile über die Kennung: nach
+   standAlsHtml sind es neue Knoten. */
+const TOAST_KURZ = 1800;
+function toast(msg, ms = TOAST_KURZ){
+  const box = $('toast');
+  const bleibt = ms > TOAST_KURZ;
+  box.querySelectorAll('.toast-msg').forEach(z=>{
+    if(z.querySelector('.toast-text').textContent === String(msg) || (!bleibt && !z.querySelector('.toast-ok'))) z.remove();
+  });
+  const id = 't' + (toast._n = (toast._n || 0) + 1);
+  const z = document.createElement('div');
+  z.className = 'toast-msg';
+  z.dataset.id = id;
+  z.innerHTML = `<span class="toast-text">${esc(msg)}</span>`
+    + (bleibt ? '<button class="toast-ok" title="Meldung schließen">OK</button>' : '');
+  box.appendChild(z);
+  if(!bleibt) setTimeout(()=>{ const alt = box.querySelector(`[data-id="${id}"]`); if(alt) alt.remove(); }, ms);
 }
+$('toast').addEventListener('click', e=>{
+  const z = e.target.closest && e.target.closest('.toast-ok') && e.target.closest('.toast-msg');
+  if(z) z.remove();
+});
 
 /* ---------- Export ---------- */
 function exportSVG(){
@@ -9771,10 +9802,13 @@ function standAlsHtml(){
     Object.assign(texte, layoutFile())
   ).replace(/</g, '\\u003c');
 
-  // Generierte Bereiche leeren, damit die Datei klein bleibt
-  ['canvas','objectList','msgList','legend','detailBody'].forEach(id => $(id).innerHTML = '');
+  // Generierte Bereiche leeren, damit die Datei klein bleibt; stehende
+  // Meldungen gehören nicht in die Datei, bleiben aber auf dem Schirm
+  const meldungen = $('toast').innerHTML;
+  ['canvas','objectList','msgList','legend','detailBody','toast'].forEach(id => $(id).innerHTML = '');
   const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
   el.textContent = before;
+  $('toast').innerHTML = meldungen;
 
   initSvg(); draw(); renderObjectList(); renderMessages(); renderLegend(); renderDetails();
   return html;
