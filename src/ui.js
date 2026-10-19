@@ -504,7 +504,7 @@ const expandedMsgGroups = new Set();        // aufgeklappte Hinweisgruppen (nur 
 function renderMessages(){
   // Zu den Geschäftsobjekten die Infos der letzten Übernahme, solange es das Objekt gibt
   const list = S.mode === 'quellen' ? aktModell().messages
-    : aktModell().messages.concat(S.uebernahmeMeldungen.filter(m => S.model.objects[m.obj]), typAbweichungen());
+    : aktModell().messages.concat(S.uebernahmeMeldungen.filter(m => S.model.objects[m.obj]), typAbweichungen(), abgleichMeldungen());
   const bad = list.filter(m => m.level !== 'info').length;
   const badge = $('msgBadge');
   badge.textContent = list.length;

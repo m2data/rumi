@@ -244,6 +244,68 @@ function typAbweichungen(){
   return out;
 }
 
+/* Prüfung über beide Modelle: was zwischen Geschäftsobjekten und
+   Quelltabellen nicht zusammenpasst. Beim Laden eines Projekts läuft keine
+   Übernahme — wird die Tabellen-Datei draußen geändert, zeigt die Herkunft an
+   den Objekten ins Leere. Je Objekt und Art eine Meldung mit allen Verweisen;
+   geändert wird nichts. */
+function abgleichMeldungen(){
+  if(!S.quellenAn || !S.quellModell || !S.model) return [];
+  const tabellen = S.quellModell.objects;
+  const systeme = new Set(Object.values(tabellen).map(t => t.system).filter(Boolean));
+  const nachTabelle = new Map();
+  Object.values(tabellen).forEach(t=>{
+    const k = t.tabelle || t.name;
+    if(!nachTabelle.has(k)) nachTabelle.set(k, []);
+    nachTabelle.get(k).push(t.name);
+  });
+  // Steht die Tabelle unter genau einem anderen System, ist sie vermutlich umgezogen
+  const mitHinweis = n=>{
+    const andere = (nachTabelle.get(n.slice(n.indexOf('.') + 1)) || []).filter(x => x !== n);
+    return andere.length === 1 ? `${n} (gibt es als ${andere[0]})` : n;
+  };
+  const out = [];
+  const melde = (o, group, liste, text)=>{
+    if(liste.length) out.push({level:'warn', group, obj:o.name, title:`${o.name}: ${group}`, body: text(liste.join(', '))});
+  };
+  for(const o of Object.values(S.model.objects)){
+    const fehlt = new Set(), spalten = [], bez = [];
+    const pruefe = n => { if(!tabellen[n]) fehlt.add(n); return !!tabellen[n]; };
+    o.tabQuellen.forEach(pruefe);
+    o.attrs.forEach(a => a.quellen.forEach(q=>{
+      const n = qtTabelle(q);
+      if(pruefe(n) && !tabellen[n].attrs.some(s => s.name === qtSpalte(q))) spalten.push(q);
+    }));
+    o.rels.forEach(x => x.quellen.forEach(h=>{
+      const [von, nach] = h.split('→');
+      const da = pruefe(von);
+      if(pruefe(nach) && da && !tabellen[von].rels.some(b => b.to === nach)) bez.push(h);
+    }));
+    for(const m of String(o.desc || '').matchAll(/--->aus (\S+) kopiert/g)) pruefe(m[1]);
+    melde(o, 'Quelltabelle fehlt', [...fehlt].map(mitHinweis),
+      l => `Die Herkunft nennt ${l} — in den Quelltabellen gibt es keine solche Tabelle.`);
+    melde(o, 'Quellspalte fehlt', spalten, l => `Die Attributquellen nennen ${l} — die Tabelle hat keine solche Spalte.`);
+    melde(o, 'Quellbeziehung fehlt', bez, l => `Relation_Sources nennt ${l} — die Quelltabelle hat keine solche Beziehung.`);
+    // Von Hand gepflegte Objekte dürfen freie Quellnamen tragen
+    if(o.tabQuellen.length) melde(o, 'Quellsystem ohne Tabellen', o.sources.filter(s => !systeme.has(s)),
+      l => `source_systems nennt ${l} — zu diesem System gibt es keine Quelltabelle.`);
+  }
+  const offen = new Map();
+  Object.values(tabellen).forEach(t=>{
+    const g = t.bo && S.model.objects[t.bo];
+    if(!t.bo || (g && g.tabQuellen.includes(t.name))) return;
+    if(!offen.has(t.bo)) offen.set(t.bo, []);
+    offen.get(t.bo).push(t.name);
+  });
+  offen.forEach((namen, bo)=>{
+    const g = S.model.objects[bo];
+    out.push({level:'info', group:'noch nicht übernommen', obj: g ? bo : undefined, title:`${bo}: noch nicht übernommen`,
+      body:`${namen.join(', ')} nennt ${bo} unter business_object, ` + (g ? 'das Objekt führt sie aber nicht unter Table_Sources.' : 'das Objekt gibt es noch nicht.')
+        + ' „Geschäftsobjekte übernehmen" gleicht ab.'});
+  });
+  return out;
+}
+
 const uebernahmeText = r => `Übernahme: ${r.angelegt} angelegt, ${r.aktualisiert} aktualisiert, ${r.unveraendert} unverändert`
   + (r.ausZiel.length ? `, ${r.ausZiel.length} aus Beziehungsziel angelegt: ${r.ausZiel.join(', ')}` : '')
   + (r.ohneZiel ? `, ${r.ohneZiel} Beziehung(en) ohne Ziel` : '')

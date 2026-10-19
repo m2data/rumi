@@ -723,5 +723,46 @@ console.log('== Neue Tabellen ersetzen alle bisherigen: schon beim ersten Laden 
   t('die Rückmeldung nennt die Gelöschten', /1 gelöscht/.test($('toast').textContent), $('toast').textContent);
 }
 
+console.log('== Abgleich: die Prüfung meldet, was nicht zusammenpasst ==');
+{
+  // Beim Laden eines Projekts läuft keine Übernahme: ist die Tabellen-Datei
+  // draußen geändert worden, zeigen die Verweise der Geschäftsobjekte ins Leere.
+  const qt = (system, ohneSpalte, ohneBeziehung, dazu)=> ['SourceTables:', '  ' + system + ':',
+    '    PA001:', '      business_object: Person', '      attributes:',
+    '      - name: PERNR', '        primary_key: true', ...(ohneSpalte ? [] : ['      - name: Name']),
+    ...(ohneBeziehung ? [] : ['      relationships:', '      - to: ' + system + '.PA002']),
+    '    PA002:', '      business_object: Abteilung',
+    ...(dazu ? ['    PA003:', '      business_object: Person'] : []), ''].join('\n');
+  await api.loadYaml('BusinessObjects:\n  Person:\n    Domain: HR\n', 'hr.yaml');
+  S.quellenAn = true;
+  api.loadQuellen(qt('HRCM'), 'hr_quellen.yaml');
+  const go = S.yamlText;
+  const pruefung = ()=>{ api.setMode('komplett'); api.renderMessages(); return $('msgList').textContent; };
+  const laden = async q => api.projektLaden([{name:'hr.yaml', text: async ()=> go},
+    {name:'hr_quellen.yaml', text: async ()=> q}], 'hr');
+  const ABGLEICH = /Quelltabelle fehlt|Quellspalte fehlt|Quellbeziehung fehlt|Quellsystem ohne Tabellen|noch nicht übernommen/;
+  t('Ausgangslage: Person stammt aus HRCM.PA001', S.model.objects.Person.tabQuellen.includes('HRCM.PA001')
+    && S.model.objects.Person.sources.includes('HRCM'), S.yamlText);
+  t('nach der Übernahme passt alles zusammen', !ABGLEICH.test(pruefung()), pruefung());
+
+  await laden(qt('HCM'));
+  let p = pruefung();
+  t('ein umbenanntes System: die Tabelle fehlt', /Quelltabelle fehlt/.test(p) && /HRCM\.PA001/.test(p), p);
+  t('… mit dem Hinweis auf den neuen Namen', /gibt es als HCM\.PA001/.test(p), p);
+  t('… und das System ohne Tabellen', /Quellsystem ohne Tabellen/.test(p) && /source_systems nennt HRCM/.test(p), p);
+  t('der Titel springt zum Geschäftsobjekt', !!$('msgList').querySelector('[data-msgobj="Person"]'));
+
+  await laden(qt('HRCM', true));
+  t('eine entfernte Spalte', /Quellspalte fehlt/.test(pruefung()) && /HRCM\.PA001\.Name/.test(pruefung()), pruefung());
+  await laden(qt('HRCM', false, true));
+  t('eine entfernte Beziehung', /Quellbeziehung fehlt/.test(pruefung()) && /HRCM\.PA001→HRCM\.PA002/.test(pruefung()), pruefung());
+  await laden(qt('HRCM', false, false, true));
+  p = pruefung();
+  t('eine neue Tabelle ist noch nicht übernommen', /noch nicht übernommen/.test(p) && /HRCM\.PA003/.test(p)
+    && !/Quelltabelle fehlt|Quellspalte fehlt|Quellbeziehung fehlt/.test(p), p);
+  S.quellenAn = false;
+  t('ohne Quelltabellen meldet der Abgleich nichts', !ABGLEICH.test(pruefung()), pruefung());
+}
+
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });
