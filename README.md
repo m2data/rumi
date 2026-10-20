@@ -35,10 +35,16 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —
   Kommentare, Reihenfolge, Einrückung und Schreibvarianten des Übrigen bleiben
   stehen. Jede Bearbeitung ist eine Aktion im Verlauf, Strg+Z nimmt sie zurück.
-  Der Schalter selbst ist keine: er wird gemerkt und wandert in Export und
+  Der Schalter selbst ist keine: er wandert in Export und
   Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
   dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und
   die Hierarchie bleiben davon unberührt.
+  **Im Browser gemerkt** werden nur persönliche Einstellungen, und zwar für
+  alle Dateien: „Geschäftsobjekte bearbeiten", „Quelltabellen verwenden" und
+  „Quelltabellen bearbeiten" setzen sich gegen die Datei durch, sobald man sie
+  einmal umgeschaltet hat. Die Auswahl der Zusatzattribute ist eine gemeinsame
+  Liste. Bringt eine Datei eine eigene mit, gilt die der Datei. Angezeigt wird
+  nur, was das geladene Modell auch kennt.
 - **Quelltabellen** – zunächst **ausgeschaltet** („Einstellungen →
   Quelltabellen verwenden"; ausgeschaltet bleibt alles wie zuvor). Die Einträge
   unter `source_systems` ausformuliert: Tabellen mit denselben Feldern wie ein

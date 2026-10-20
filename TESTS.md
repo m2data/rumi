@@ -95,6 +95,12 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
+- **`einstellungen.js`** — was sich der Browser merkt: die drei Schalter
+  (Bearbeiten, Quelltabellen verwenden/bearbeiten) überleben das Neuladen und
+  gewinnen gegen die Datei, die Zusatzattribute nur ohne Liste in der Datei;
+  Strg+Z nimmt das Gemerkte mit zurück, schreibt aber sonst nichts; gemerkte
+  Schlüssel, die das Modell nicht kennt, erscheinen weder in Details noch im
+  Formular.
 - **`uebernahme.js`** — Geschäftsobjekte aus den Quelltabellen übernehmen:
   beim Laden der Datei und über das Menü, Anlegen und Ergänzen (Domäne,
   Beschreibung mit Herkunftsmarke und ohne Doppel, Business Keys aus den

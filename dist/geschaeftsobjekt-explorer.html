@@ -581,11 +581,11 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
       <button class="btn" id="btnEinst" aria-haspopup="true" aria-expanded="false">Einstellungen ▾</button>
       <div class="menu" id="einstMenu" role="menu">
         <button class="opt" id="optPflege" role="menuitemcheckbox" aria-checked="false"
-                title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Stand wird gemerkt und in Export und Positionsinformationen mitgegeben.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
+                title="Zeigt „Bearbeiten“ in den Details und „＋ Objekt“ über der Objektliste. Ausgeschaltet bleibt das Werkzeug ein Betrachter — Anordnen, Kanten umlenken und die Hierarchie gehen weiterhin. Der Browser merkt sich die Einstellung für alle Dateien.">Geschäftsobjekte bearbeiten<span class="tick">✓</span></button>
         <button class="opt" id="optQuellen" role="menuitemcheckbox" aria-checked="false"
-                title="Schaltet den Bereich „Quelltabellen“ frei: eine eigene Datei mit den Tabellen der Quellsysteme, je Quellsystem ein Diagramm und frei gestaltete Gegenüberstellungen. Ausgeschaltet bleibt alles wie ohne Quelltabellen.">Quelltabellen verwenden<span class="tick">✓</span></button>
+                title="Schaltet den Bereich „Quelltabellen“ frei: eine eigene Datei mit den Tabellen der Quellsysteme, je Quellsystem ein Diagramm und frei gestaltete Gegenüberstellungen. Ausgeschaltet bleibt alles wie ohne Quelltabellen. Der Browser merkt sich die Einstellung für alle Dateien.">Quelltabellen verwenden<span class="tick">✓</span></button>
         <button class="opt nur-quellen" id="optQuellPflege" role="menuitemcheckbox" aria-checked="false"
-                title="Zeigt im Bereich „Quelltabellen“ „Bearbeiten“ in den Details und „＋ Objekt“ über der Liste — wie „Geschäftsobjekte bearbeiten“, nur für die Tabellen.">Quelltabellen bearbeiten<span class="tick">✓</span></button>
+                title="Zeigt im Bereich „Quelltabellen“ „Bearbeiten“ in den Details und „＋ Objekt“ über der Liste — wie „Geschäftsobjekte bearbeiten“, nur für die Tabellen. Der Browser merkt sich die Einstellung für alle Dateien.">Quelltabellen bearbeiten<span class="tick">✓</span></button>
         <div class="head">ALS EIGENES ELEMENT</div>
         <button class="opt nur-go" id="optQuelle" role="menuitemcheckbox" aria-checked="false"
                 title="Jede Quelle eines Geschäftsobjekts als eigener Kasten rechts neben dem Objekt, verbunden über „quelle“. Gilt in den Ansichten Geschäftsobjekte und GO-Hierarchie.">Quellen<span class="tick">✓</span></button>
@@ -597,7 +597,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
                 title="Nur bei den Quelltabellen: das zugeordnete Geschäftsobjekt als eigener Kasten, einmal je Diagramm, verbunden mit allen seinen Tabellen.">Geschäftsobjekt<span class="tick">✓</span></button>
         <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
-                title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden">Zusatzattribute …</button>
+                title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden. Der Browser merkt sich die Auswahl; eine Datei, die eine eigene mitbringt, setzt sich durch.">Zusatzattribute …</button>
       </div>
     </div>
     <div class="menu-wrap">
@@ -7080,7 +7080,7 @@ function pfEntwurfAus(o){
     quellListe: (o.sources || []).map(s => ({name: s, gruppe: (o.quellGruppe || {})[s] || null})),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
-    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
+    extra: Object.fromEntries(zusatzAktiv('objekt').map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
                             pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quellen:a.quellen.slice(), extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', quellen:r.quellen.slice(), _alt:r}))
@@ -7115,7 +7115,7 @@ function pfLesen(){
     const w = f.value.split('\n').map(x => x.trim()).filter(Boolean);
     return w.join('\u0000') === alsListe(vor).join('\u0000') && vor !== undefined ? vor : zwAus(w);
   };
-  S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = zusatz(feld('.pfo-extra', z), e.extra[k]); });
+  zusatzAktiv('objekt').forEach((k, z)=>{ e.extra[k] = zusatz(feld('.pfo-extra', z), e.extra[k]); });
   e.attrs.forEach((a, i)=>{
     a.name = feld('.pfa-name', i).value.trim();
     a.type = feld('.pfa-type', i).value.trim();
@@ -7125,7 +7125,7 @@ function pfLesen(){
     a.fk   = feld('.pfa-fk', i).checked;
     a.nullable = feld('.pfa-null', i).checked;
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
-    S.zusatzAn.attribut.forEach((k, z)=>{
+    zusatzAktiv('attribut').forEach((k, z)=>{
       const v = zusatz(zf[z], a.extra[k]);
       // Leer und vorher nicht da: kein Platzhalter anlegen.
       if(v === '' && !(a._alt && k in a._alt.extra)) delete a.extra[k];
@@ -7173,7 +7173,7 @@ function pflegeFormular(box){
          ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
             <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
          : pfQuellenMarkup(e)}
-       ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><textarea class="pfo-extra" data-i="${z}" rows="${zeilen(e.extra[k])}" title="ein Wert je Zeile"></textarea></label>`).join('')}
+       ${zusatzAktiv('objekt').map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><textarea class="pfo-extra" data-i="${z}" rows="${zeilen(e.extra[k])}" title="ein Wert je Zeile"></textarea></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
        ${e.attrs.map((a,i)=>`<div class="pfa">
@@ -7187,7 +7187,7 @@ function pflegeFormular(box){
             <label class="pfk"><input type="checkbox" class="pfa-null" data-i="${i}">null</label>
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
           </div>
-          ${S.zusatzAn.attribut.map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
+          ${zusatzAktiv('attribut').map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
             <textarea class="pfa-extra" data-i="${i}" rows="${zeilen(a.extra[k])}" placeholder="${esc(k)}" aria-label="${esc(k)}" title="ein Wert je Zeile"></textarea></div>`).join('')}</div>`).join('')}
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
@@ -7214,10 +7214,10 @@ function pflegeFormular(box){
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
   else e.quellListe.forEach((q, i)=>{ feld('.pfq-name', i).value = q.name; });
-  S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = alsListe(e.extra[k]).join('\n'); });
+  zusatzAktiv('objekt').forEach((k, z)=>{ feld('.pfo-extra', z).value = alsListe(e.extra[k]).join('\n'); });
   e.attrs.forEach((a,i)=>{
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
-    S.zusatzAn.attribut.forEach((k, z)=>{ zf[z].value = alsListe(a.extra[k]).join('\n'); });
+    zusatzAktiv('attribut').forEach((k, z)=>{ zf[z].value = alsListe(a.extra[k]).join('\n'); });
     feld('.pfa-name', i).value = a.name;
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;
@@ -7413,7 +7413,7 @@ function pflegeSchalten(an){
   if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   renderObjectList(); renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.pflegeAn ? 'Bearbeiten eingeschaltet' : 'Bearbeiten ausgeschaltet');
 }
 
@@ -7450,11 +7450,11 @@ function zusatzSchalten(ebene, k, an){
   S.zusatzAn = Object.assign({}, S.zusatzAn, {[ebene]: liste});
   if(pfEntwurf && ebene === 'objekt'){
     const o = aktModell().objects[S.pflege.slice(2)], alt = pfEntwurf.extra;
-    pfEntwurf.extra = Object.fromEntries(liste.map(x =>
+    pfEntwurf.extra = Object.fromEntries(zusatzAktiv('objekt').map(x =>
       [x, x in alt ? alt[x] : (o && x in o.extra ? o.extra[x] : '')]));
   }
   renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
 }
 
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
@@ -7485,7 +7485,7 @@ function quellenSchalten(an){
   S.quellenAn = !!an;
   syncEinstMenu();
   if(!S.quellenAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; setMode('hierarchie'); }
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.quellenAn ? 'Quelltabellen eingeschaltet' : 'Quelltabellen ausgeschaltet');
 }
 /* „Quelltabellen bearbeiten": dasselbe wie „Geschäftsobjekte bearbeiten",
@@ -7495,7 +7495,7 @@ function quellPflegeSchalten(an){
   if(!S.quellPflegeAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; }
   syncEinstMenu();
   renderObjectList(); renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.quellPflegeAn ? 'Bearbeiten der Quelltabellen eingeschaltet' : 'Bearbeiten der Quelltabellen ausgeschaltet');
 }
 
@@ -8103,13 +8103,39 @@ function positionsSnapshot(){
   return m;
 }
 
-/* Der Browser merkt sich nichts: bei file:// teilen sich alle lokalen
+/* Der Browser merkt sich kein Modell: bei file:// teilen sich alle lokalen
    HTML-Dateien einen Speicher, und eine frisch geöffnete Datei zeigte dann
    das Modell einer anderen. Was bleiben soll, steckt in der Datei selbst
    („Stand speichern"); hier geht der Stand nur in den Verlauf. */
 function writeStore(){
   recordHistory(verlaufsStand());
 }
+
+/* Gemerkt werden nur persönliche Einstellungen — gerade weil der Speicher
+   geteilt ist, gelten sie für jede Datei. Die drei Schalter gewinnen gegen
+   die Datei; die Zusatzattribute nur, wenn die Datei keine mitbringt. */
+const EINST_KEY = 'geschaeftsobjekt-explorer:einstellungen';
+const einstellungenText = ()=> JSON.stringify({pflegeAn:S.pflegeAn, quellenAn:S.quellenAn,
+  quellPflegeAn:S.quellPflegeAn, zusatzAn:S.zusatzAn});
+function einstellungenMerken(){
+  try{ localStorage.setItem(EINST_KEY, einstellungenText()); }catch(_){}
+}
+function einstellungenAnwenden(mitZusatz){
+  let e = null;
+  try{ e = JSON.parse(localStorage.getItem(EINST_KEY)); }catch(_){}
+  if(!e || typeof e !== 'object') return;
+  if(typeof e.pflegeAn === 'boolean') S.pflegeAn = e.pflegeAn;
+  if(typeof e.quellenAn === 'boolean') S.quellenAn = e.quellenAn;
+  if(typeof e.quellPflegeAn === 'boolean') S.quellPflegeAn = e.quellPflegeAn;
+  const z = e.zusatzAn;
+  if(mitZusatz && z && typeof z === 'object') S.zusatzAn = {
+    objekt:   Array.isArray(z.objekt)   ? z.objekt.slice()   : [],
+    attribut: Array.isArray(z.attribut) ? z.attribut.slice() : []
+  };
+}
+/* Angezeigt und gepflegt wird nur, was das geladene Modell auch kennt: die
+   gemerkte Liste gilt für alle Modelle. */
+const zusatzAktiv = ebene => S.zusatzAn[ebene].filter(k => aktModell().zusatz[ebene].has(k));
 /* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
    Geschäftsobjekt-Modell und die Quelltabellen (eigene Datei). */
 const modellTexte = ()=> ({fileName:S.fileName, modellName:S.modellName, yaml:S.yamlText,
@@ -8152,9 +8178,13 @@ function restoreHistory(snap){
     quellModellBauen();
     const H = S.bereiche.hierarchie, Q = S.bereiche.quellen;
     const vorH = H.outlineText, vorQ = Q.outlineText;
+    const vorEinst = einstellungenText();
     adoptLayoutFile(p.stand);
     // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
     if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }
+    // Strg+Z nimmt auch das Gemerkte zurück — aber nur, wenn es einen Schalter
+    // betraf: sonst ginge ein Stand aus einer Datei still in den Browser
+    if(einstellungenText() !== vorEinst) einstellungenMerken();
     syncEinstMenu();
     // Änderte sich die Struktur eines Baums, ihn aus dem Text neu aufbauen.
     // Die Quelltabellen stets: ihre Systemdiagramme folgen den Tabellen.
@@ -8439,7 +8469,7 @@ function renderDetails(){
        <dl class="kv"><dt>Domain</dt><dd>${o.domains.length
          ? o.domains.map(d => esc(d) + (o.domains.length > 1 && d === o.leading ? ' (führend)' : '')).join(', ') : '—'}</dd></dl>
        ${o.leading && !o.domains.includes(o.leading) ? `<dl class="kv"><dt>Führende Domäne</dt><dd>${esc(o.leading)}</dd></dl>` : ''}
-       ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${esc(alsListe(o.extra[k]).join(', ')) || '—'}</dd></dl>`).join('')}
+       ${zusatzAktiv('objekt').map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${esc(alsListe(o.extra[k]).join(', ')) || '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
@@ -8456,7 +8486,7 @@ function renderDetails(){
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
           + (a.quellen.length ? `<tr><td class="aref" colspan="3">aus ${a.quellen.map(esc).join(', ')}</td></tr>` : '')
-          + S.zusatzAn.attribut.filter(k => alsListe(a.extra[k]).length).map(k=>
+          + zusatzAktiv('attribut').filter(k => alsListe(a.extra[k]).length).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(alsListe(a.extra[k]).join(', '))}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
@@ -9569,7 +9599,9 @@ $('layoutInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t=>{
     try{
-      adoptLayoutFile(JSON.parse(t));
+      const obj = JSON.parse(t);
+      adoptLayoutFile(obj);
+      einstellungenAnwenden(!(obj && obj.zusatzfelder));
       syncLayoutMenu(); syncEinstMenu();
       ansichtNeu();
       toast('Positionsinformationen übernommen');
@@ -9771,6 +9803,7 @@ async function loadYaml(text, name, preset){
       if(preset.quellFileName) S.quellFileName = preset.quellFileName;
     }
     if(preset) adoptLayoutFile(preset);
+    einstellungenAnwenden(!(preset && preset.zusatzfelder));   // vor resetHistory: kein ungesicherter Start
     quellModellBauen();
     modellNameFeld.value = S.modellName;
     syncEinstMenu();

@@ -555,7 +555,7 @@ function pfEntwurfAus(o){
     quellListe: (o.sources || []).map(s => ({name: s, gruppe: (o.quellGruppe || {})[s] || null})),
     system: o.system || '', bo: o.bo || '',          // nur bei Quelltabellen belegt
     // Am Objekt nur die eingeschalteten: nur sie verantwortet die Pflege.
-    extra: Object.fromEntries(S.zusatzAn.objekt.map(k => [k, k in o.extra ? o.extra[k] : ''])),
+    extra: Object.fromEntries(zusatzAktiv('objekt').map(k => [k, k in o.extra ? o.extra[k] : ''])),
     attrs: o.attrs.map(a=>({name:a.name, type:a.type||'', nullable:!!a.nullable,
                             pk:!!a.pk, ak:!!a.ak, fk:!!a.fk, ref:a.ref||'', quellen:a.quellen.slice(), extra:Object.assign({}, a.extra), _alt:a})),
     rels:  o.rels.map(r=>({to:r.to, name:r.name||'', from:r.from||'', toCard:r.toCard||'', quellen:r.quellen.slice(), _alt:r}))
@@ -590,7 +590,7 @@ function pfLesen(){
     const w = f.value.split('\n').map(x => x.trim()).filter(Boolean);
     return w.join('\u0000') === alsListe(vor).join('\u0000') && vor !== undefined ? vor : zwAus(w);
   };
-  S.zusatzAn.objekt.forEach((k, z)=>{ e.extra[k] = zusatz(feld('.pfo-extra', z), e.extra[k]); });
+  zusatzAktiv('objekt').forEach((k, z)=>{ e.extra[k] = zusatz(feld('.pfo-extra', z), e.extra[k]); });
   e.attrs.forEach((a, i)=>{
     a.name = feld('.pfa-name', i).value.trim();
     a.type = feld('.pfa-type', i).value.trim();
@@ -600,7 +600,7 @@ function pfLesen(){
     a.fk   = feld('.pfa-fk', i).checked;
     a.nullable = feld('.pfa-null', i).checked;
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
-    S.zusatzAn.attribut.forEach((k, z)=>{
+    zusatzAktiv('attribut').forEach((k, z)=>{
       const v = zusatz(zf[z], a.extra[k]);
       // Leer und vorher nicht da: kein Platzhalter anlegen.
       if(v === '' && !(a._alt && k in a._alt.extra)) delete a.extra[k];
@@ -648,7 +648,7 @@ function pflegeFormular(box){
          ? `<label class="pfr"><span>Quellsystem</span><input id="pfSystem"></label>
             <label class="pfr"><span>Geschäftsobjekt</span>${wahlGO}</label>`
          : pfQuellenMarkup(e)}
-       ${S.zusatzAn.objekt.map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><textarea class="pfo-extra" data-i="${z}" rows="${zeilen(e.extra[k])}" title="ein Wert je Zeile"></textarea></label>`).join('')}
+       ${zusatzAktiv('objekt').map((k,z)=>`<label class="pfr col"><span>${esc(k)}</span><textarea class="pfo-extra" data-i="${z}" rows="${zeilen(e.extra[k])}" title="ein Wert je Zeile"></textarea></label>`).join('')}
 
        <div class="grouphead">ATTRIBUTE</div>
        ${e.attrs.map((a,i)=>`<div class="pfa">
@@ -662,7 +662,7 @@ function pflegeFormular(box){
             <label class="pfk"><input type="checkbox" class="pfa-null" data-i="${i}">null</label>
             <input class="pfa-ref" data-i="${i}" placeholder="verweist auf Objekt.Attribut" aria-label="Verweisziel">
           </div>
-          ${S.zusatzAn.attribut.map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
+          ${zusatzAktiv('attribut').map(k=>`<div class="pfz"><span class="pfk">${esc(k)}</span>
             <textarea class="pfa-extra" data-i="${i}" rows="${zeilen(a.extra[k])}" placeholder="${esc(k)}" aria-label="${esc(k)}" title="ein Wert je Zeile"></textarea></div>`).join('')}</div>`).join('')}
        <button class="pfadd" data-neu="attr">＋ Attribut</button>
 
@@ -689,10 +689,10 @@ function pflegeFormular(box){
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   if(quellen){ $('pfSystem').value = e.system; $('pfBO').value = e.bo; }
   else e.quellListe.forEach((q, i)=>{ feld('.pfq-name', i).value = q.name; });
-  S.zusatzAn.objekt.forEach((k, z)=>{ feld('.pfo-extra', z).value = alsListe(e.extra[k]).join('\n'); });
+  zusatzAktiv('objekt').forEach((k, z)=>{ feld('.pfo-extra', z).value = alsListe(e.extra[k]).join('\n'); });
   e.attrs.forEach((a,i)=>{
     const zf = box.querySelectorAll('.pfa-extra[data-i="' + i + '"]');
-    S.zusatzAn.attribut.forEach((k, z)=>{ zf[z].value = alsListe(a.extra[k]).join('\n'); });
+    zusatzAktiv('attribut').forEach((k, z)=>{ zf[z].value = alsListe(a.extra[k]).join('\n'); });
     feld('.pfa-name', i).value = a.name;
     feld('.pfa-type', i).value = a.type;
     feld('.pfa-ref', i).value = a.ref;
@@ -888,7 +888,7 @@ function pflegeSchalten(an){
   if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }   // offenes Formular schließen
   $('optPflege').setAttribute('aria-checked', String(S.pflegeAn));
   renderObjectList(); renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.pflegeAn ? 'Bearbeiten eingeschaltet' : 'Bearbeiten ausgeschaltet');
 }
 
@@ -925,11 +925,11 @@ function zusatzSchalten(ebene, k, an){
   S.zusatzAn = Object.assign({}, S.zusatzAn, {[ebene]: liste});
   if(pfEntwurf && ebene === 'objekt'){
     const o = aktModell().objects[S.pflege.slice(2)], alt = pfEntwurf.extra;
-    pfEntwurf.extra = Object.fromEntries(liste.map(x =>
+    pfEntwurf.extra = Object.fromEntries(zusatzAktiv('objekt').map(x =>
       [x, x in alt ? alt[x] : (o && x in o.extra ? o.extra[x] : '')]));
   }
   renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
 }
 
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
@@ -960,7 +960,7 @@ function quellenSchalten(an){
   S.quellenAn = !!an;
   syncEinstMenu();
   if(!S.quellenAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; setMode('hierarchie'); }
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.quellenAn ? 'Quelltabellen eingeschaltet' : 'Quelltabellen ausgeschaltet');
 }
 /* „Quelltabellen bearbeiten": dasselbe wie „Geschäftsobjekte bearbeiten",
@@ -970,7 +970,7 @@ function quellPflegeSchalten(an){
   if(!S.quellPflegeAn && S.mode === 'quellen'){ S.pflege = null; pfEntwurf = null; }
   syncEinstMenu();
   renderObjectList(); renderDetails();
-  writeStore();
+  writeStore(); einstellungenMerken();
   toast(S.quellPflegeAn ? 'Bearbeiten der Quelltabellen eingeschaltet' : 'Bearbeiten der Quelltabellen ausgeschaltet');
 }
 

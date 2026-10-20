@@ -122,13 +122,39 @@ function positionsSnapshot(){
   return m;
 }
 
-/* Der Browser merkt sich nichts: bei file:// teilen sich alle lokalen
+/* Der Browser merkt sich kein Modell: bei file:// teilen sich alle lokalen
    HTML-Dateien einen Speicher, und eine frisch geöffnete Datei zeigte dann
    das Modell einer anderen. Was bleiben soll, steckt in der Datei selbst
    („Stand speichern"); hier geht der Stand nur in den Verlauf. */
 function writeStore(){
   recordHistory(verlaufsStand());
 }
+
+/* Gemerkt werden nur persönliche Einstellungen — gerade weil der Speicher
+   geteilt ist, gelten sie für jede Datei. Die drei Schalter gewinnen gegen
+   die Datei; die Zusatzattribute nur, wenn die Datei keine mitbringt. */
+const EINST_KEY = 'geschaeftsobjekt-explorer:einstellungen';
+const einstellungenText = ()=> JSON.stringify({pflegeAn:S.pflegeAn, quellenAn:S.quellenAn,
+  quellPflegeAn:S.quellPflegeAn, zusatzAn:S.zusatzAn});
+function einstellungenMerken(){
+  try{ localStorage.setItem(EINST_KEY, einstellungenText()); }catch(_){}
+}
+function einstellungenAnwenden(mitZusatz){
+  let e = null;
+  try{ e = JSON.parse(localStorage.getItem(EINST_KEY)); }catch(_){}
+  if(!e || typeof e !== 'object') return;
+  if(typeof e.pflegeAn === 'boolean') S.pflegeAn = e.pflegeAn;
+  if(typeof e.quellenAn === 'boolean') S.quellenAn = e.quellenAn;
+  if(typeof e.quellPflegeAn === 'boolean') S.quellPflegeAn = e.quellPflegeAn;
+  const z = e.zusatzAn;
+  if(mitZusatz && z && typeof z === 'object') S.zusatzAn = {
+    objekt:   Array.isArray(z.objekt)   ? z.objekt.slice()   : [],
+    attribut: Array.isArray(z.attribut) ? z.attribut.slice() : []
+  };
+}
+/* Angezeigt und gepflegt wird nur, was das geladene Modell auch kennt: die
+   gemerkte Liste gilt für alle Modelle. */
+const zusatzAktiv = ebene => S.zusatzAn[ebene].filter(k => aktModell().zusatz[ebene].has(k));
 /* Die Modelldateien, die nicht in den Positionsinformationen stehen: das
    Geschäftsobjekt-Modell und die Quelltabellen (eigene Datei). */
 const modellTexte = ()=> ({fileName:S.fileName, modellName:S.modellName, yaml:S.yamlText,
@@ -171,9 +197,13 @@ function restoreHistory(snap){
     quellModellBauen();
     const H = S.bereiche.hierarchie, Q = S.bereiche.quellen;
     const vorH = H.outlineText, vorQ = Q.outlineText;
+    const vorEinst = einstellungenText();
     adoptLayoutFile(p.stand);
     // Einstellungen gehen mit zurück: ohne Pflege kein offenes Formular
     if(!pflegeErlaubt()){ S.pflege = null; pfEntwurf = null; }
+    // Strg+Z nimmt auch das Gemerkte zurück — aber nur, wenn es einen Schalter
+    // betraf: sonst ginge ein Stand aus einer Datei still in den Browser
+    if(einstellungenText() !== vorEinst) einstellungenMerken();
     syncEinstMenu();
     // Änderte sich die Struktur eines Baums, ihn aus dem Text neu aufbauen.
     // Die Quelltabellen stets: ihre Systemdiagramme folgen den Tabellen.
@@ -458,7 +488,7 @@ function renderDetails(){
        <dl class="kv"><dt>Domain</dt><dd>${o.domains.length
          ? o.domains.map(d => esc(d) + (o.domains.length > 1 && d === o.leading ? ' (führend)' : '')).join(', ') : '—'}</dd></dl>
        ${o.leading && !o.domains.includes(o.leading) ? `<dl class="kv"><dt>Führende Domäne</dt><dd>${esc(o.leading)}</dd></dl>` : ''}
-       ${S.zusatzAn.objekt.map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${esc(alsListe(o.extra[k]).join(', ')) || '—'}</dd></dl>`).join('')}
+       ${zusatzAktiv('objekt').map(k=>`<dl class="kv"><dt>${esc(k)}</dt><dd>${esc(alsListe(o.extra[k]).join(', ')) || '—'}</dd></dl>`).join('')}
        ${o.desc ? `<div class="descbox">${esc(o.desc)}</div>` : ''}
        <div class="grouphead">BUSINESS KEYS</div>
        <div>${o.keys.length ? o.keys.map(k=>`<span class="chip key">${esc(k)}</span>`).join('') : '<span class="empty">keine</span>'}</div>
@@ -475,7 +505,7 @@ function renderDetails(){
           <td class="ak">${a.pk ? '<span class="pk">PK</span>' : ''}${a.ak ? '<span class="alt">AK</span>' : ''}${a.fk ? '<span class="fk">FK</span>' : ''}</td>
           </tr>` + (a.ref ? `<tr><td class="aref" colspan="3">→ ${esc(a.ref)}</td></tr>` : '')
           + (a.quellen.length ? `<tr><td class="aref" colspan="3">aus ${a.quellen.map(esc).join(', ')}</td></tr>` : '')
-          + S.zusatzAn.attribut.filter(k => alsListe(a.extra[k]).length).map(k=>
+          + zusatzAktiv('attribut').filter(k => alsListe(a.extra[k]).length).map(k=>
             `<tr><td class="aref" colspan="3">${esc(k)}: ${esc(alsListe(a.extra[k]).join(', '))}</td></tr>`).join('')).join('') + `</table>`
         : '<div class="empty">keine</div>'}
        <div class="grouphead">BEZIEHUNGEN AUSGEHEND</div>
@@ -1588,7 +1618,9 @@ $('layoutInput').addEventListener('change', e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t=>{
     try{
-      adoptLayoutFile(JSON.parse(t));
+      const obj = JSON.parse(t);
+      adoptLayoutFile(obj);
+      einstellungenAnwenden(!(obj && obj.zusatzfelder));
       syncLayoutMenu(); syncEinstMenu();
       ansichtNeu();
       toast('Positionsinformationen übernommen');
@@ -1790,6 +1822,7 @@ async function loadYaml(text, name, preset){
       if(preset.quellFileName) S.quellFileName = preset.quellFileName;
     }
     if(preset) adoptLayoutFile(preset);
+    einstellungenAnwenden(!(preset && preset.zusatzfelder));   // vor resetHistory: kein ungesicherter Start
     quellModellBauen();
     modellNameFeld.value = S.modellName;
     syncEinstMenu();
