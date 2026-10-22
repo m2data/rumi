@@ -9633,11 +9633,13 @@ $('uebersichtInput').addEventListener('change', e=>{
 
 /* Nach geändertem Modell die laufende Ansicht neu aufbauen. Im Bereich der
    Quelltabellen nie über setView: das legte die Lagen der Geschäftsobjekte
-   unter den gleichlautenden Kennungen der Tabellen ab. */
+   unter den gleichlautenden Kennungen der Tabellen ab. In der Hierarchie
+   ebenso wenig: dort wird persist() zu hierPersist(), und setView legte die
+   Lagen der Komplettansicht als Anordnung des gewählten Diagramms ab. */
 function ansichtNeu(opts){
   if(S.mode === 'quellen'){ setMode('quellen'); return; }
+  if(S.mode === 'hierarchie'){ setMode('hierarchie'); hierPersist(); return; }
   setView(opts);
-  if(S.mode === 'hierarchie') setMode('hierarchie');
 }
 
 /* Quelltabellen laden: eine eigene Datei. Ist sie nicht lesbar, bleibt der
@@ -10051,7 +10053,7 @@ async function projektSpeichern(){
   const fremd = goKandidaten(namen).filter(n => ohneEndung(n) !== S.modellName);
   toast(`${dateien.length} Dateien in ${ziel.name} gespeichert`
     + (fremd.length ? ` · im Ordner liegen noch ${fremd.join(', ')} — bitte entfernen, sonst ist das Laden nicht eindeutig` : ''),
-    fremd.length ? 8000 : 2500);
+    fremd.length ? 8000 : TOAST_KURZ);
 }
 
 function projektSetzen(ordner, name){

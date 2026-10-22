@@ -615,6 +615,38 @@ console.log('== Anlegen und Löschen über die Dialoge ==');
   t('ein Ja löscht es', !S.model.objects.Testobjekt, Object.keys(S.model.objects).join(','));
 }
 
+console.log('== Löschen im Hierarchie-Diagramm behält die Anordnung ==');
+{
+  /* Regression: der Neuaufbau nach dem Löschen lief über setView(), und dessen
+     persist() legte die Lagen der Komplettansicht als Anordnung des gewählten
+     Diagramms ab — alle übrigen Kästen sprangen. */
+  if(!S.pflegeAn) S.pflegeAn = true;
+  global.confirm = ()=> true;
+  const [a, b, c] = Object.keys(S.model.objects);
+  api.loadUebersicht('Drei:\n  objekte:\n    - ' + a + '\n    - ' + b + '\n    - ' + c + '\n');
+  api.setMode('hierarchie');
+  api.selectDiagram('Drei');
+  const vis = S.graph.nodes.filter(n => !n.hidden && !n.eltern && !n.abgeleitet);
+  vis.forEach((n, i)=>{ n.x = 1000 + i * 300; n.y = 2000 + i * 11; });
+  api.persist();
+  const lage = Object.fromEntries(vis.map(n => [n.id, n.x + '/' + n.y]));
+  const kasten = [...document.getElementById('nodes').querySelectorAll('.node')]
+    .find(el => el.dataset.id === 'o:' + c);
+  dispatch(kasten, 'contextmenu', {clientX:100, clientY:100});
+  dispatch(document.getElementById('ctxMenu').querySelector('[data-ctx="delete"]'), 'click', {});
+  t('das Objekt ist gelöscht', !S.model.objects[c]);
+  const bewegt = [a, b].map(x => S.graph.byId.get('o:' + x))
+    .filter(n => !n || lage[n.id] !== n.x + '/' + n.y);
+  t('die übrigen Kästen bleiben liegen', !bewegt.length,
+    bewegt.map(n => n && (n.id + ' ' + lage[n.id] + ' → ' + n.x + '/' + n.y)).join(', '));
+  const merk = S.hierSaved[S.hierSel] || {};
+  t('und das Diagramm merkt sich diese Lagen',
+    [a, b].every(x => merk['o:' + x] && lage['o:' + x] === merk['o:' + x].x + '/' + merk['o:' + x].y),
+    JSON.stringify(merk));
+  api.undo();
+  api.setMode('komplett'); api.setView();
+}
+
 console.log('== Umbenennen zieht den Hierarchie-Ausschnitt mit ==');
 {
   /* Die Kennung eines Objekts steckt in seinem Namen (o:Kunde). Beim Umbenennen

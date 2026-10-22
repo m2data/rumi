@@ -647,6 +647,11 @@ console.log('== Projektordner: alle Dateien auf einmal laden und speichern ==');
   t('der einzelne Positionen-Knopf behält die Diagrammtexte', 'uebersichtText' in api.layoutFile());
   t('danach gilt der Stand als gesichert', !verlassen());
   t('die Meldung nennt den Ordner', /5 Dateien in repo gespeichert/.test(toastText()), toastText());
+  // Regression: mit 2500 ms galt sie als lange Meldung und stand bis zum OK —
+  // noch bei der nächsten Aktion, als gehörte sie zu ihr
+  t('die Erfolgsmeldung verschwindet von selbst',
+    ![...document.getElementById('toast').querySelectorAll('.toast-msg')]
+      .some(z => /gespeichert/.test(z.textContent) && z.querySelector('.toast-ok')), toastText());
 
   // Weiter im selben Ordner: Strg+S fragt wieder, mit dem offenen Ordner als Vorschlag
   S.graph.byId.get(n.id).x += 40;
