@@ -167,7 +167,10 @@ console.log('== Orthogonal: 72 Objekte in vertretbarer Zeit ==');
   /* Gemeldet: 72 Geschäftsobjekte brauchten im Browser rund 20 s bis zum
      orthogonalen Bild. Jeder probeweise Spur- und Anschlusstausch zählte alle
      Segmentpaare des Diagramms neu (hier 10 s); jetzt nur die der getauschten
-     Kanten (unter 1 s). Erzeugtes Modell mit festem Keim, 113 Kanten. */
+     Kanten (unter 1 s). Hierarchisch dasselbe Muster in der Note der weichen
+     Führung: jeder Anschlusstausch und Spaltenversatz bewertete alle Züge
+     neu (6,6 s), jetzt nur die geänderten. Erzeugtes Modell mit festem Keim,
+     113 Kanten. */
   let keim = 7;
   const zufall = ()=> (keim = (keim * 16807) % 2147483647) / 2147483647;
   let y = 'BusinessObjects:\n';
@@ -183,6 +186,10 @@ console.log('== Orthogonal: 72 Objekte in vertretbarer Zeit ==');
   layoutMit('ortho', 'TB');
   const ms = Date.now() - t0;
   t(`72 Objekte, ${S.graph.edges.length} Kanten: orthogonal unter 3 s`, ms < 3000, ms + ' ms');
+  const t1 = Date.now();
+  layoutMit('hier', 'TB');
+  const msH = Date.now() - t1;
+  t(`72 Objekte, ${S.graph.edges.length} Kanten: hierarchisch unter 3 s`, msH < 3000, msH + ' ms');
 }
 
 finish();
