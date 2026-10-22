@@ -162,34 +162,48 @@ console.log('== Weiche Führung: „Tasse" läuft gerade, ohne Umweg-Veto ==');
   }
 }
 
-console.log('== Orthogonal: 72 Objekte in vertretbarer Zeit ==');
+console.log('== 72 Objekte in vertretbarer Zeit ==');
 {
   /* Gemeldet: 72 Geschäftsobjekte brauchten im Browser rund 20 s bis zum
      orthogonalen Bild. Jeder probeweise Spur- und Anschlusstausch zählte alle
-     Segmentpaare des Diagramms neu (hier 10 s); jetzt nur die der getauschten
-     Kanten (unter 1 s). Hierarchisch dasselbe Muster in der Note der weichen
-     Führung: jeder Anschlusstausch und Spaltenversatz bewertete alle Züge
-     neu (6,6 s), jetzt nur die geänderten. Erzeugtes Modell mit festem Keim,
-     113 Kanten. */
+     Segmentpaare des Diagramms neu, hierarchisch bewertete jeder
+     Anschlusstausch und Spaltenversatz alle Züge neu. Jetzt wird nur
+     gerechnet, was sich geändert hat — bei diesem Modell (fester Keim,
+     153 Kanten) orthogonal 127 s → 2,9 s, hierarchisch 75 s → 3,9 s.
+
+     Zeitgrenzen: das Doppelte des Medians aus fünf Läufen, geeicht am
+     2026-10-22 auf dem Entwicklungsrechner (orthogonal 2949 ms,
+     hierarchisch 3870 ms). Ändert sich die Laufzeit gewollt, sind sie neu zu
+     setzen; siehe TESTS.md, „Zeitgrenzen". Unter Last werden die Läufe bis
+     zu 1,7-mal so lang — darum wird bei gerissener Grenze bis zu dreimal
+     gemessen und der schnellste Lauf gewertet. */
+  const GRENZE_ORTHO = 5900, GRENZE_HIER = 7700;
   let keim = 7;
   const zufall = ()=> (keim = (keim * 16807) % 2147483647) / 2147483647;
   let y = 'BusinessObjects:\n';
   for(let i = 0; i < 72; i++){
     y += `  Objekt${i}:\n    desc: ''\n    Domain: D${i % 6}\n    source_systems:\n    - Q${i % 4}\n    relationships:\n`;
-    const k = Math.round(3 * zufall());
+    const k = Math.round(4 * zufall());
     for(let j = 0; j < k; j++)
       y += `    - name: r${j}\n      to: Objekt${Math.floor(zufall() * 72)}\n      cardinality:\n        from: exactly_one\n        to: zero_or_many\n`;
   }
   await api.loadYaml(y, 'gross.yaml');
   document.getElementById('showAll').onclick();
-  const t0 = Date.now();
-  layoutMit('ortho', 'TB');
-  const ms = Date.now() - t0;
-  t(`72 Objekte, ${S.graph.edges.length} Kanten: orthogonal unter 3 s`, ms < 3000, ms + ' ms');
-  const t1 = Date.now();
-  layoutMit('hier', 'TB');
-  const msH = Date.now() - t1;
-  t(`72 Objekte, ${S.graph.edges.length} Kanten: hierarchisch unter 3 s`, msH < 3000, msH + ' ms');
+  const dauer = algo=>{
+    const t0 = Date.now();
+    layoutMit(algo, 'TB');
+    return Date.now() - t0;
+  };
+  const ortho = [], hier = [];
+  do {
+    ortho.push(dauer('ortho'));
+    hier.push(dauer('hier'));
+  } while(ortho.length < 3 && (Math.min(...ortho) >= GRENZE_ORTHO || Math.min(...hier) >= GRENZE_HIER));
+  const kanten = S.graph.edges.length;
+  t(`72 Objekte, ${kanten} Kanten: orthogonal unter ${GRENZE_ORTHO} ms`,
+    Math.min(...ortho) < GRENZE_ORTHO, ortho.join(' / ') + ' ms');
+  t(`72 Objekte, ${kanten} Kanten: hierarchisch unter ${GRENZE_HIER} ms`,
+    Math.min(...hier) < GRENZE_HIER, hier.join(' / ') + ' ms');
 }
 
 finish();

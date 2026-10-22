@@ -212,6 +212,21 @@ App und behauptet Geometrie, die es im Browser nicht gibt. Dazu die Kastenmaße
 vereinheitlichen (`n.w = 152; n.h = 38`), sonst hängt das Ergebnis an der
 Schriftmessung des Mini-DOM. Beispiele in [`rauch/fuehrung.js`](test/rauch/fuehrung.js).
 
+## Zeitgrenzen
+
+[`rauch/ortho.js`](test/rauch/ortho.js) misst am Ende, wie lange ein erzeugtes
+Modell (72 Objekte, 153 Kanten, fester Keim) orthogonal und hierarchisch
+braucht. Die Grenzen sind das Doppelte des Medians aus fünf Läufen, geeicht auf
+dem Entwicklungsrechner — rot heißt also: mindestens doppelt so langsam wie zum
+Zeitpunkt der Eichung. Unter Last werden die Läufe bis zu 1,7-mal so lang;
+darum wird bei gerissener Grenze bis zu dreimal gemessen und der schnellste
+Lauf gewertet.
+
+Ändert sich die Laufzeit gewollt (oder läuft der Test auf einem deutlich
+langsameren Rechner), sind die Konstanten `GRENZE_ORTHO` und `GRENZE_HIER` neu
+zu setzen: Median aus mehreren Läufen × 2, Datum und Messwerte in den
+Kommentar.
+
 ## Absicherung im Hook
 
 Der Pre-Commit-Hook liegt versioniert unter `hooks/` und wird pro Klon einmalig
