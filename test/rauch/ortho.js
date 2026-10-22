@@ -162,5 +162,28 @@ console.log('== Weiche Führung: „Tasse" läuft gerade, ohne Umweg-Veto ==');
   }
 }
 
+console.log('== Orthogonal: 72 Objekte in vertretbarer Zeit ==');
+{
+  /* Gemeldet: 72 Geschäftsobjekte brauchten im Browser rund 20 s bis zum
+     orthogonalen Bild. Jeder probeweise Spur- und Anschlusstausch zählte alle
+     Segmentpaare des Diagramms neu (hier 10 s); jetzt nur die der getauschten
+     Kanten (unter 1 s). Erzeugtes Modell mit festem Keim, 113 Kanten. */
+  let keim = 7;
+  const zufall = ()=> (keim = (keim * 16807) % 2147483647) / 2147483647;
+  let y = 'BusinessObjects:\n';
+  for(let i = 0; i < 72; i++){
+    y += `  Objekt${i}:\n    desc: ''\n    Domain: D${i % 6}\n    source_systems:\n    - Q${i % 4}\n    relationships:\n`;
+    const k = Math.round(3 * zufall());
+    for(let j = 0; j < k; j++)
+      y += `    - name: r${j}\n      to: Objekt${Math.floor(zufall() * 72)}\n      cardinality:\n        from: exactly_one\n        to: zero_or_many\n`;
+  }
+  await api.loadYaml(y, 'gross.yaml');
+  document.getElementById('showAll').onclick();
+  const t0 = Date.now();
+  layoutMit('ortho', 'TB');
+  const ms = Date.now() - t0;
+  t(`72 Objekte, ${S.graph.edges.length} Kanten: orthogonal unter 3 s`, ms < 3000, ms + ' ms');
+}
+
 finish();
 })();

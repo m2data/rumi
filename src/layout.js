@@ -399,11 +399,11 @@ function layered(nodes, edges, dir, ortho){
 
   /* Transponieren: benachbarte Knoten einer Ebene tauschen, solange es die
      lokalen Kreuzungen senkt. Räumt weg, was die Median-Ordnung stehen lässt. */
-  const pairCross = (i, x, y)=>{                       // Kreuzungen, wenn x links von y
+  // nachbarn: [Bezug, Lage in der Nachbarebene] — je Ebene einmal gebaut, denn
+  // beim Tauschen in Ebene i bleiben die Nachbarebenen unverändert.
+  const pairCross = (nachbarn, x, y)=>{                // Kreuzungen, wenn x links von y
     let c = 0;
-    for(const [rel, adj] of [[up, rows[i-1]], [down, rows[i+1]]]){
-      if(!adj) continue;
-      const pos = new Map(adj.map((n,k)=>[n,k]));
+    for(const [rel, pos] of nachbarn){
       const px = (rel.get(x)||[]).map(n=>pos.get(n)).filter(v=>v!==undefined);
       const py = (rel.get(y)||[]).map(n=>pos.get(n)).filter(v=>v!==undefined);
       for(const a of px) for(const b of py) if(a > b) c++;
@@ -415,8 +415,10 @@ function layered(nodes, edges, dir, ortho){
       moved = false;
       for(let i=0;i<L;i++){
         const row = rows[i];
+        const nachbarn = [[up, rows[i-1]], [down, rows[i+1]]].filter(([, adj]) => adj)
+          .map(([rel, adj]) => [rel, new Map(adj.map((n,k)=>[n,k]))]);
         for(let j=0;j<row.length-1;j++){
-          if(pairCross(i, row[j], row[j+1]) > pairCross(i, row[j+1], row[j])){
+          if(pairCross(nachbarn, row[j], row[j+1]) > pairCross(nachbarn, row[j+1], row[j])){
             const t = row[j]; row[j] = row[j+1]; row[j+1] = t; moved = true;
           }
         }
@@ -1375,22 +1377,65 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
      gezeichneten Züge dadurch seltener kreuzen. Deterministisch, endet spätestens
      nach vier Runden ohne Verbesserung. */
   const planList = [...plans.values()];
-  const zaehlKreuzungen = ()=>{
-    const segs = [];
-    planList.forEach((p, ei)=>{
-      const pts = pathOf(p);
-      for(let i=0;i<pts.length-1;i++) segs.push({ei, a:pts[i], b:pts[i+1]});
-    });
-    const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+  /* Gezählt wird je Kantenpaar. Ein Tausch ändert nur die Züge weniger Kanten
+     — nur deren Anteil an den Kreuzungen wird neu gerechnet, nicht das Ganze.
+     Segmente, deren Rechtecke sich nicht berühren, können sich nicht kreuzen. */
+  const ccw = (p,q,r)=> (r.y-p.y)*(q.x-p.x) - (q.y-p.y)*(r.x-p.x);
+  const segsOf = p=>{
+    const pts = pathOf(p), segs = [];
+    segs.x0 = segs.y0 = Infinity; segs.x1 = segs.y1 = -Infinity;
+    for(let i=0;i<pts.length-1;i++){
+      const a = pts[i], b = pts[i+1];
+      const s = {a, b, x0:Math.min(a.x,b.x), x1:Math.max(a.x,b.x), y0:Math.min(a.y,b.y), y1:Math.max(a.y,b.y)};
+      segs.push(s);
+      segs.x0 = Math.min(segs.x0, s.x0); segs.x1 = Math.max(segs.x1, s.x1);
+      segs.y0 = Math.min(segs.y0, s.y0); segs.y1 = Math.max(segs.y1, s.y1);
+    }
+    return segs;
+  };
+  const kreuzPaar = (S1, S2)=>{
+    if(S1.x1 < S2.x0 || S2.x1 < S1.x0 || S1.y1 < S2.y0 || S2.y1 < S1.y0) return 0;
     let n = 0;
-    for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
-      const s = segs[i], u = segs[j];
-      if(s.ei === u.ei) continue;
+    for(const s of S1) for(const u of S2){
+      if(s.x1 < u.x0 || u.x1 < s.x0 || s.y1 < u.y0 || u.y1 < s.y0) continue;
       const d1=ccw(u.a,u.b,s.a), d2=ccw(u.a,u.b,s.b), d3=ccw(s.a,s.b,u.a), d4=ccw(s.a,s.b,u.b);
       if(((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0))) n++;
     }
     return n;
   };
+  const segsJe = planList.map(segsOf);
+  const paar = segsJe.map(()=> []);           // paar[i][j]: Kreuzungen zwischen Kante i und j
+  for(let i=0;i<segsJe.length;i++){
+    paar[i][i] = 0;
+    for(let j=i+1;j<segsJe.length;j++) paar[i][j] = paar[j][i] = kreuzPaar(segsJe[i], segsJe[j]);
+  }
+  const zaehlKreuzungen = ()=>{
+    let n = 0;
+    for(let i=0;i<paar.length;i++) for(let j=i+1;j<paar.length;j++) n += paar[i][j];
+    return n;
+  };
+  const anteil = (ix, M)=>{                   // Kreuzungen, an denen eine der Kanten ix beteiligt ist
+    let n = 0;
+    for(const i of ix) for(let j=0;j<paar.length;j++)
+      if(j !== i && (!ix.includes(j) || j > i)) n += M.get(i)[j];
+    return n;
+  };
+  // Kreuzungszahl nach einer Änderung an den Kanten ix, ausgehend von der
+  // Zahl vorher; behalten() übernimmt die neuen Paarzahlen, zurueck() stellt
+  // die alten Segmente wieder her.
+  const nachAenderung = (ix, vorher, aendern)=>{
+    const alt = ix.map(i => segsJe[i]);
+    const c0 = anteil(ix, new Map(ix.map(i => [i, paar[i]])));
+    aendern();
+    ix.forEach(i =>{ segsJe[i] = segsOf(planList[i]); });
+    const neu = new Map(ix.map(i => [i, segsJe.map((Sj, j)=> j === i ? 0 : kreuzPaar(segsJe[i], Sj))]));
+    return {c: vorher - c0 + anteil(ix, neu),
+            behalten: ()=> neu.forEach((zeile, i)=> zeile.forEach((v, j)=>{ paar[i][j] = paar[j][i] = v; })),
+            zurueck: ()=> ix.forEach((i,k)=>{ segsJe[i] = alt[k]; })};
+  };
+  const eiVon = new Map();
+  planList.forEach((p, ei)=> p.steps.forEach(st => eiVon.set(st, ei)));
+  [...plans.keys()].forEach((e, ei)=> eiVon.set(e, ei));
   /* Tausch-Züge für Anschlusspunkte: Kanten, die dieselbe Knotenseite nutzen,
      kreuzen sich sofort am Kasten, wenn ihre Reihenfolge nicht zur Lage der
      Gegenseiten passt (die Verteilung entstand vor dem Geraderücken der langen
@@ -1423,19 +1468,22 @@ function orthogonalize(edges, nodeOf, vertical, chans, LAY){
       let besser = false;
       for(const ch of chanOrders){
         for(let p=0; p<ch.order.length-1; p++) for(let q=p+1; q<ch.order.length; q++){
-          const a = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = a;
-          ch.apply();
-          const c = zaehlKreuzungen();
-          if(c < best){ best = c; besser = true; }
-          else { const b = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = b; ch.apply(); }
+          // Der Tausch versetzt nur die beiden Läufe, die übrigen behalten ihre Spur.
+          const ix = [...new Set([eiVon.get(ch.list[ch.order[p]]), eiVon.get(ch.list[ch.order[q]])])];
+          const {c, behalten, zurueck} = nachAenderung(ix, best, ()=>{
+            const a = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = a;
+            ch.apply();
+          });
+          if(c < best){ best = c; besser = true; behalten(); }
+          else { const b = ch.order[p]; ch.order[p] = ch.order[q]; ch.order[q] = b; ch.apply(); zurueck(); }
         }
       }
       for(const grp of portGroups.values()){
         for(let p=0; p<grp.length-1; p++) for(let q=p+1; q<grp.length; q++){
-          swapT(grp[p], grp[q]);
-          const c = zaehlKreuzungen();
-          if(c < best){ best = c; besser = true; const t2 = grp[p]; grp[p] = grp[q]; grp[q] = t2; }
-          else swapT(grp[p], grp[q]);   // zurück
+          const ix = [...new Set([eiVon.get(grp[p].e), eiVon.get(grp[q].e)])];
+          const {c, behalten, zurueck} = nachAenderung(ix, best, ()=> swapT(grp[p], grp[q]));
+          if(c < best){ best = c; besser = true; behalten(); const t2 = grp[p]; grp[p] = grp[q]; grp[q] = t2; }
+          else { swapT(grp[p], grp[q]); zurueck(); }   // zurück
         }
       }
       if(!besser) break;
