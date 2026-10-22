@@ -731,15 +731,21 @@ dafür nicht gebraucht. Je Tabelle mit Zuordnung:
   gleichem Ziel und gleichem Namen, kommt keine zweite dazu, nur ihre Herkunft:
   `Relation_Sources` nennt dann `Webshop.Bestellung→Webshop.Position` und
   `Roadshow.Bestellung_VRS→Roadshow.Position_VRS`.
-- **Ziel ohne Geschäftsobjekt:** Zeigt eine Beziehung auf eine Tabelle ohne
-  `business_object`, wird sie ihrem eigenen Namen zugeordnet
-  (`Webshop.Lager` → Geschäftsobjekt `Lager`). Die Zuordnung wird in die
-  Tabellen-YAML geschrieben, danach wird die Tabelle wie jede andere
-  übernommen; gibt es das Objekt schon, wird es ergänzt. Das gilt auch weiter
-  entlang einer Kette (Lager → Regal). Die Rückmeldung nennt die so
-  angelegten Objekte, und der Reiter „Prüfung" zeigt sie als Info „aus
-  Beziehungsziel angelegt" — bis zur nächsten Übernahme oder bis ein anderes
-  Modell geladen wird; das steht in keinen Daten.
+- **Ziel ohne Geschäftsobjekt:** Zeigt eine Beziehung einer Tabelle **mit**
+  `business_object` auf eine Tabelle ohne, wird diese ihrem eigenen Namen
+  zugeordnet (`Webshop.Lager` → Geschäftsobjekt `Lager`) und wie jede andere
+  übernommen; gibt es das Objekt schon, wird es ergänzt. Die Zuordnung wird
+  nicht in die Tabellen-YAML geschrieben, jeder Lauf leitet sie neu ab. Es
+  bleibt bei dieser einen Stufe: zeigt Lager weiter auf Regal, wird Regal
+  nicht übernommen, denn Lager hat selbst kein `business_object`. Die
+  Rückmeldung nennt die so angelegten Objekte, und der Reiter „Prüfung" zeigt
+  sie als Info „aus Beziehungsziel angelegt" — bis zur nächsten Übernahme
+  oder bis ein anderes Modell geladen wird; das steht in keinen Daten.
+- **Tabelle ohne Geschäftsobjekt:** Eine Tabelle, die weder
+  `business_object` hat noch auf diese Weise Ziel ist, wird nicht übernommen
+  — gleich ob sie mit der Datei oder einem Delta kam. Die Prüfung der
+  Geschäftsobjekte meldet sie als Hinweis „Quelltabelle ohne
+  Geschäftsobjekt", bis sie eine Angabe bekommt.
 - **Attribute:** Jedes Attribut jeder Tabelle kommt ins Objekt. **Gleichnamige
   werden eins** — gleicher Name wie das Attribut am Objekt oder wie eine Spalte
   in dessen `attribut_sources` (so findet auch ein umbenanntes Attribut neue
@@ -1130,7 +1136,9 @@ und `Roadshow.Bestellung` sind zwei Tabellen.
 - Geprüft wird wie bei den Geschäftsobjekten, dazu: **kein Quellsystem**
   (Hinweis, nur in der älteren Form möglich), **Quellsystem widersprüchlich**
   (Hinweis: `source_system:` passt nicht zum Abschnitt — es gilt der
-  Abschnitt) und **ohne Geschäftsobjekt** (Info). Nennt `business_object` ein
+  Abschnitt) und **ohne Geschäftsobjekt** (Info; in der Prüfung der
+  Geschäftsobjekte als Hinweis „Quelltabelle ohne Geschäftsobjekt", sofern
+  die Tabelle auch nicht als Beziehungsziel zugeordnet wird). Nennt `business_object` ein
   Objekt, das es nicht gibt, ist das kein Befund: die Übernahme legt es an
   (Kapitel 17).
 

@@ -61,7 +61,9 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   (keine gleiche doppelt), Beziehungen, Attribute (gleichnamige werden eins,
   Primärschlüssel werden Business Keys), eingeschaltete Zusatzfelder — mit
   Herkunft in `Table_Sources`, `Relation_Sources` und `attribut_sources`. Ein
-  Beziehungsziel ohne Geschäftsobjekt bekommt eins. Der Dialog „Attribute
+  direktes Beziehungsziel einer zugeordneten Tabelle bekommt ein
+  Geschäftsobjekt; jede andere Tabelle ohne `business_object` wird nicht
+  übernommen, sondern in der Prüfung gemeldet. Der Dialog „Attribute
   zusammenführen …“ vereint, trennt und benennt Attribute am Objekt um.
   Siehe
   [Handbuch, Kapitel 17](HANDBUCH.md#17-quelltabellen).

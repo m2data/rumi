@@ -106,7 +106,9 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Beschreibung mit Herkunftsmarke und ohne Doppel, Business Keys aus den
   Primärschlüsseln, jedes Attribut, gleichnamige werden eins, umgesetzte Beziehungen und
   Verweise, eingeschaltete Zusatzfelder), Geschäftsobjekte für
-  Beziehungsziele ohne Zuordnung samt Meldung in der Prüfung, Quelltabellen
+  Beziehungsziele ohne Zuordnung (eine Stufe, nicht in die Tabellen-YAML)
+  samt Meldung in der Prüfung, Tabellen ohne `business_object` (auch per
+  Delta) nicht übernommen, sondern als Hinweis gemeldet, Quelltabellen
   ohne Business Keys, die
   Herkunftsfelder `Table_Sources`/`Relation_Sources`/`attribut_sources`,
   Aktualisieren bei jedem Lauf (Beschreibungsblock erneuern, Eigenschaften aus

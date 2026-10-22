@@ -141,7 +141,7 @@ const vorherGO = S.yamlText, vorherTab = S.quellText;
 await fuettern('quellInput', 'tabellen.yaml', TAB);
 {
   t('die Rückmeldung zählt und nennt die Ziel-Objekte',
-    /Übernahme: 3 angelegt, 2 aktualisiert, 0 unverändert, 2 aus Beziehungsziel angelegt: Lager, Regal/.test($('toast').textContent),
+    /Übernahme: 2 angelegt, 2 aktualisiert, 0 unverändert, 1 aus Beziehungsziel angelegt: Lager, 1 Beziehung\(en\) ohne Ziel$/.test($('toast').textContent),
     $('toast').textContent);
   const A = S.model.objects.Auftrag;
   t('Auftrag ist angelegt', !!A);
@@ -198,25 +198,26 @@ await fuettern('quellInput', 'tabellen.yaml', TAB);
   t('Lager aus dem Beziehungsziel angelegt, voll übernommen',
     L && L.domains.join(',') === 'Logistik' && L.desc === 'Ein Lager.\n--->aus Webshop.Lager kopiert'
     && L.keys.join(',') === 'LagerID' && L.tabQuellen.join(',') === 'Webshop.Lager', JSON.stringify(L));
-  t('die Kette weiter: Regal ebenso', R && R.keys.join(',') === 'RegalID' && L.rels.some(r => r.to === 'Regal'));
+  t('keine Kette: Regal nicht, seine Quelle Lager hat kein eigenes business_object',
+    !R && !L.rels.some(r => r.to === 'Regal'), Object.keys(S.model.objects).join(','));
   t('ein Ziel, das es als Geschäftsobjekt schon gibt, wird ergänzt',
     P.tabQuellen.join(',') === 'Webshop.Produkt' && P.keys.join(',') === 'ProduktID', JSON.stringify(P));
   t('eine vorhandene Quelle bleibt vorn, das Quellsystem kommt dazu', P.sources.join(',') === 'Altsystem,Webshop', P.sources.join(','));
   t('Lager: Quellsystem auch beim aus dem Ziel angelegten', L.sources.join(',') === 'Webshop', L.sources.join(','));
 
-  const neu = S.quellText.split('\n'), alt = TAB.split('\n');
-  t('in der Tabellen-YAML sind nur die Zuordnungen dazugekommen',
-    neu.filter(l => !alt.includes(l)).join('|') === '      business_object: Lager|      business_object: Regal|      business_object: Produkt'
-    && alt.every(l => neu.includes(l)), neu.filter(l => !alt.includes(l)).join('|'));
-  t('die Tabellen sind zugeordnet', S.quellModell.objects['Webshop.Lager'].bo === 'Lager');
+  t('die Tabellen-YAML bleibt unverändert, die Zuordnung der Ziele wird jedes Mal abgeleitet',
+    S.quellText === TAB && !S.quellModell.objects['Webshop.Lager'].bo, S.quellText);
 
   const msg = $('msgList').innerHTML;
   t('die Prüfung meldet die aus Zielen angelegten', /Lager: aus Beziehungsziel angelegt|aus Beziehungsziel angelegt/.test(msg)
-    && $('msgList').querySelector('[data-msgobj="Lager"]') && $('msgList').querySelector('[data-msgobj="Regal"]'), msg.slice(0, 300));
+    && $('msgList').querySelector('[data-msgobj="Lager"]'), msg.slice(0, 300));
+  const ohneGo = msg.match(/Hinweis<\/strong><span class="mlink">[^<]*: Quelltabelle ohne Geschäftsobjekt/g) || [];
+  t('Regal ohne Angabe ist ein Hinweis in der Prüfung, die zugeordneten nicht',
+    ohneGo.length === 1 && ohneGo[0].endsWith('Webshop.Regal: Quelltabelle ohne Geschäftsobjekt'), ohneGo.join('|'));
   klick($('msgList').querySelector('.mgh') || $('msgList').querySelector('[data-msgobj="Lager"]'));
   klick($('msgList').querySelector('[data-msgobj="Lager"]'));
   t('ein Klick springt zum Objekt', S.selected === 'o:Lager', S.selected);
-  t('Produkt (gab es schon) wird dort nicht gemeldet', S.uebernahmeMeldungen.map(m => m.obj).join(',') === 'Lager,Regal'
+  t('Produkt (gab es schon) wird dort nicht gemeldet', S.uebernahmeMeldungen.map(m => m.obj).join(',') === 'Lager'
     && !/Produkt: aus Beziehungsziel/.test(msg), S.uebernahmeMeldungen.map(m => m.obj).join(','));
 
   const kb = block('Kunde');
@@ -231,14 +232,15 @@ console.log('== Wiederholen ändert nichts ==');
 {
   const vorher = S.yamlText, vorherQ = S.quellText;
   klick(akt('uebernehmen'));
-  t('Rückmeldung: nichts zu tun, alle unverändert', /Übernahme: 0 angelegt, 0 aktualisiert, 5 unverändert$/.test($('toast').textContent), $('toast').textContent);
+  t('Rückmeldung: nichts zu tun, alle unverändert', /Übernahme: 0 angelegt, 0 aktualisiert, 4 unverändert, 1 Beziehung\(en\) ohne Ziel$/.test($('toast').textContent), $('toast').textContent);
   t('beide Texte unverändert', S.yamlText === vorher && S.quellText === vorherQ);
+  t('auch der zweite Lauf legt Regal nicht an', !S.model.objects.Regal);
   api.undo();
   t('kein eigener Verlaufsschritt: Strg+Z nimmt das Laden zurück', S.yamlText === vorherGO && !S.model.objects.Auftrag);
   t('auch die Tabellen sind wieder die vorigen', S.quellText === vorherTab);
   t('die Meldung verschwindet mit dem Objekt', !$('msgList').querySelector('[data-msgobj="Lager"]'));
   api.redo();
-  t('Strg+Y bringt beides wieder', !!S.model.objects.Lager && S.quellModell.objects['Webshop.Lager'].bo === 'Lager');
+  t('Strg+Y bringt es wieder', !!S.model.objects.Lager && S.quellText === TAB);
 }
 
 console.log('== Menü übernimmt eine neue Tabelle ==');
@@ -253,7 +255,7 @@ console.log('== Menü übernimmt eine neue Tabelle ==');
   t('Produkt ergänzt', P.tabQuellen.join(',') === 'Webshop.Produkt,Webshop.Artikel' && /--->aus Webshop.Artikel kopiert$/.test(P.desc), JSON.stringify(P));
   t('die Domäne ist schon da, nichts doppelt', P.domains.join(',') === 'Willibald');
   t('ausgeschaltetes Zusatzfeld wird nicht übernommen', !P.extra['schema.org'], P.extra['schema.org']);
-  t('die übrigen Objekte unverändert', /0 angelegt, 1 aktualisiert, 4 unverändert/.test($('toast').textContent), $('toast').textContent);
+  t('die übrigen Objekte unverändert', /0 angelegt, 1 aktualisiert, 3 unverändert/.test($('toast').textContent), $('toast').textContent);
   t('die Infos zum Beziehungsziel gelten bis zur nächsten Übernahme', !S.uebernahmeMeldungen.length);
   api.undo();
   t('Strg+Z nimmt die Übernahme in einem Schritt zurück', S.yamlText === vorher, S.yamlText.slice(-120));
@@ -703,6 +705,16 @@ console.log('== Delta Quelltabellen ergänzt und aktualisiert ==');
   await fuettern('quellDeltaInput', 'kaputt.yaml', 'BusinessObjects:\n  X:\n    Domain: D\n');
   t('eine Datei ohne SourceTables wird benannt', /Quelltabellen/.test($('toast').textContent), $('toast').textContent);
   t('… und der Stand bleibt', S.quellText === nachUndo);
+
+  const hinweis = ()=>{ api.setMode('komplett'); api.renderMessages();
+    return /Kasse\.Beleg: Quelltabelle ohne Geschäftsobjekt/.test($('msgList').innerHTML); };
+  await fuettern('quellDeltaInput', 'beleg.yaml', 'SourceTables:\n  Kasse:\n    Beleg:\n      desc: Ein Kassenbeleg.\n');
+  t('Delta: eine neue Tabelle ohne business_object wird nicht übernommen', !!S.quellModell.objects['Kasse.Beleg'] && !S.model.objects.Beleg);
+  t('… sondern als Hinweis gemeldet', hinweis(), $('msgList').textContent.slice(0, 400));
+  await fuettern('quellDeltaInput', 'beleg.yaml', 'SourceTables:\n  Kasse:\n    Beleg:\n      business_object: Beleg\n');
+  t('mit business_object kommt das Objekt', !!S.model.objects.Beleg && S.model.objects.Beleg.tabQuellen.join(',') === 'Kasse.Beleg');
+  t('… und der Hinweis ist weg', !hinweis());
+  api.undo(); api.undo();
 }
 
 console.log('== Neue Tabellen ersetzen alle bisherigen: schon beim ersten Laden ==');
@@ -740,7 +752,7 @@ console.log('== Abgleich: die Prüfung meldet, was nicht zusammenpasst ==');
   const pruefung = ()=>{ api.setMode('komplett'); api.renderMessages(); return $('msgList').textContent; };
   const laden = async q => api.projektLaden([{name:'hr.yaml', text: async ()=> go},
     {name:'hr_quellen.yaml', text: async ()=> q}], 'hr');
-  const ABGLEICH = /Quelltabelle fehlt|Quellspalte fehlt|Quellbeziehung fehlt|Quellsystem ohne Tabellen|noch nicht übernommen/;
+  const ABGLEICH = /Quelltabelle fehlt|Quellspalte fehlt|Quellbeziehung fehlt|Quellsystem ohne Tabellen|noch nicht übernommen|Quelltabelle ohne Geschäftsobjekt/;
   t('Ausgangslage: Person stammt aus HRCM.PA001', S.model.objects.Person.tabQuellen.includes('HRCM.PA001')
     && S.model.objects.Person.sources.includes('HRCM'), S.yamlText);
   t('nach der Übernahme passt alles zusammen', !ABGLEICH.test(pruefung()), pruefung());

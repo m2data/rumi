@@ -7633,25 +7633,20 @@ const leeresObjekt = name => ({name, domains:[], domain:null, desc:null, keys:[]
   attrs:[], rels:[], extra:{}, tabQuellen:[]});
 
 /* Welche Tabelle welchem Geschäftsobjekt zugeordnet ist — fortgeschrieben:
-   Zeigt eine Beziehung einer zugeordneten Tabelle auf eine ohne Zuordnung,
-   wird diese ihrem eigenen Namen zugeordnet (Webshop.Lager → Lager). Bis sich
-   nichts mehr ändert, damit auch Ketten erfasst werden. */
+   Zeigt eine Beziehung einer Tabelle mit eigenem business_object auf eine
+   ohne, wird diese ihrem eigenen Namen zugeordnet (Webshop.Lager → Lager).
+   Nur diese eine Stufe, keine Kette; geschrieben wird die abgeleitete
+   Zuordnung nicht, jeder Lauf leitet sie neu ab. */
 function zuordnungFortschreiben(tabellen){
-  const zu = new Map(Object.values(tabellen).filter(t => t.bo).map(t => [t.name, t.bo]));
+  const mit = Object.values(tabellen).filter(t => t.bo);
+  const zu = new Map(mit.map(t => [t.name, t.bo]));
   const neu = [];
-  for(let weiter = true; weiter;){
-    weiter = false;
-    for(const t of Object.values(tabellen)){
-      if(!zu.has(t.name)) continue;
-      t.rels.forEach(b=>{
-        const z = tabellen[b.to];
-        if(!z || zu.has(z.name)) return;
-        zu.set(z.name, z.tabelle || z.name);
-        neu.push(z);
-        weiter = true;
-      });
-    }
-  }
+  mit.forEach(t => t.rels.forEach(b=>{
+    const z = tabellen[b.to];
+    if(!z || zu.has(z.name)) return;
+    zu.set(z.name, z.tabelle || z.name);
+    neu.push(z);
+  }));
   return {zu, neu};
 }
 
@@ -7743,7 +7738,7 @@ function uebernahmeRechnen(goModell, quellModell, zusatzAn, weg = new Set()){
     if(PF_VERBOTEN.test(bo)){ if(!r.ungueltig.includes(bo)) r.ungueltig.push(bo); continue; }
     const ent = entFuer(bo), e = ent.e;
     if(neu.includes(t)){
-      r.zuordnen.push({t, bo});                       // business_object in die Tabellen-YAML
+      r.zuordnen.push({t, bo});                       // für die Info „aus Beziehungsziel angelegt"
       if(ent.neu && !r.ausZiel.includes(bo)) r.ausZiel.push(bo);
     }
 
@@ -7804,12 +7799,11 @@ function uebernahmeRechnen(goModell, quellModell, zusatzAn, weg = new Set()){
   return r;
 }
 
-/* Rechnen und schreiben: das Geschäftsobjekt-Modell und — für Tabellen, die
-   erst als Beziehungsziel eine Zuordnung bekamen — die Tabellen-YAML. Gezählt
-   wird je Geschäftsobjekt: angelegt, aktualisiert (der Text hat sich
-   geändert) oder unverändert. Hat sich etwas geändert (r.geaendert), sind
-   beide Modelle neu gebaut. Ansicht, Ablage und Verlauf sind Sache des
-   Aufrufers. */
+/* Rechnen und schreiben: das Geschäftsobjekt-Modell; die Tabellen-YAML bleibt
+   unberührt. Gezählt wird je Geschäftsobjekt: angelegt, aktualisiert (der
+   Text hat sich geändert) oder unverändert. Hat sich etwas geändert
+   (r.geaendert), ist das Modell neu gebaut. Ansicht, Ablage und Verlauf sind
+   Sache des Aufrufers. */
 function goAusQuellenUebernehmen(weg){
   const r = uebernahmeRechnen(S.model, S.quellModell, S.zusatzAn, weg);
   Object.assign(r, {angelegt:0, aktualisiert:0, unveraendert:0});
@@ -7823,19 +7817,13 @@ function goAusQuellenUebernehmen(weg){
     else if(text !== vorher) r.aktualisiert++;
     else r.unveraendert++;
   }
-  let qtext = quellTextAkt();
-  r.zuordnen.forEach(({t, bo})=>{
-    const e = Object.assign(pfEntwurfAus(t), {bo});
-    qtext = goObjektAendern(qtext, t.name, e, t, splitQuellTabellen) || qtext;
-  });
-  r.geaendert = text !== S.yamlText || qtext !== quellTextAkt();
-  if(text !== S.yamlText){ S.yamlText = text; S.model = buildModel(text); }
-  if(qtext !== quellTextAkt()){ S.quellText = qtext; quellModellBauen(); }
+  r.geaendert = text !== S.yamlText;
+  if(r.geaendert){ S.yamlText = text; S.model = buildModel(text); }
   // Die Info in der Prüfung: steht in keinen Daten, gilt bis zur nächsten Übernahme
   if(r.geaendert) S.uebernahmeMeldungen = r.ausZiel.map(bo=>{
     const tab = r.zuordnen.filter(z => z.bo === bo).map(z => z.t.name);
     return {level:'info', group:'aus Beziehungsziel angelegt', obj:bo, title:`${bo}: aus Beziehungsziel angelegt`,
-      body:`Eine Beziehung der Quelltabellen zeigte auf ${tab.join(', ')} ohne Geschäftsobjekt. Die Übernahme hat „${bo}" angelegt und die Tabelle ihm zugeordnet.`};
+      body:`Eine Beziehung der Quelltabellen zeigt auf ${tab.join(', ')} ohne Geschäftsobjekt. Die Übernahme hat „${bo}" angelegt; die Zuordnung steht nicht in der Tabellen-YAML.`};
   });
   return r;
 }
@@ -7918,6 +7906,11 @@ function abgleichMeldungen(){
       body:`${namen.join(', ')} nennt ${bo} unter business_object, ` + (g ? 'das Objekt führt sie aber nicht unter Table_Sources.' : 'das Objekt gibt es noch nicht.')
         + ' „Geschäftsobjekte übernehmen" gleicht ab.'});
   });
+  // Ohne business_object und nicht Ziel einer zugeordneten Tabelle: wird nicht übernommen
+  const {zu} = zuordnungFortschreiben(tabellen);
+  Object.values(tabellen).filter(t => !zu.has(t.name)).forEach(t => out.push({level:'warn', group:'Quelltabelle ohne Geschäftsobjekt',
+    title:`${t.name}: Quelltabelle ohne Geschäftsobjekt`,
+    body:'Kein business_object und kein Ziel einer Tabelle mit business_object — die Tabelle wird nicht übernommen.'}));
   return out;
 }
 
