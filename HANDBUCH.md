@@ -463,8 +463,9 @@ deren Anzahl.
 die gespeicherte Anordnung, die Kantenzüge und die Hierarchiebeschreibung.
 
 Geschrieben wird **in die vorhandene YAML hinein**: geändert wird nur die
-bearbeitete Stelle. Kommentare, Reihenfolge, Einrückung und Schreibvarianten
-des Übrigen bleiben stehen. Jede Bearbeitung ist eine Aktion im Verlauf —
+bearbeitete Stelle. Kommentare, Einrückung und Schreibvarianten des Übrigen
+bleiben stehen; die Felder jedes Objekts ordnet das Speichern in die
+Reihenfolge von Anhang A bzw. D (siehe dort). Jede Bearbeitung ist eine Aktion im Verlauf —
 Strg+Z nimmt sie zurück.
 
 **Zusatzattribute.** Jeder Schlüssel in der YAML, den die App nicht selbst
@@ -1035,8 +1036,20 @@ werden gemeldet: der spätere gewinnt.
 Quelltabellen-YAML, bei „Stand speichern“ und beim Speichern im Formular
 stehen alle Beschreibungen als Block `desc: |`, anderer mehrzeiliger Text
 ebenso; einzeiliger Text schlicht, wo es geht, sonst in `"…"`; Inline-Listen
-als Blockliste. Kommentare, Reihenfolge und Einrückung bleiben, ebenso Zahlen,
+als Blockliste. Kommentare und Einrückung bleiben, ebenso Zahlen,
 Anker und Tags; die Zeilenenden werden LF.
+
+**Gespeichert wird geordnet:** Die Felder jedes Geschäftsobjekts und jeder
+Quelltabelle stehen danach in der Reihenfolge des Schemas oben (Anhang D für
+Quelltabellen): erst die Felder des Objekts, dann Zusatzattribute in ihrer
+bisherigen Folge, dann `attributes`, zuletzt `relationships`. Ebenso geordnet
+werden die Felder jedes Attributs (`name`, `type`, … , Zusatzattribute) und
+jeder Beziehung der Form `- to:` (`to`, `name`, `cardinality` mit `from` vor
+`to`, `Relation_Sources`); Beziehungen der anderen Schreibweisen bleiben, wie
+sie stehen. Ein Kommentar über einem Feld wandert mit ihm. Die Folge der
+Objekte und alles außerhalb von `BusinessObjects` und `SourceTables` bleibt
+unverändert; ergäbe die neue Folge einen anderen Inhalt (etwa ein Alias vor
+seinem Anker), bleibt das Objekt, wie es war.
 
 **Vier Schreibweisen für Beziehungen** werden gelesen:
 

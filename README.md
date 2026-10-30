@@ -33,8 +33,9 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,
   ebenso Anordnung, Kantenzüge und die Hierarchiebeschreibung. Geschrieben wird
   **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —
-  Kommentare, Reihenfolge, Einrückung und Schreibvarianten des Übrigen bleiben
-  stehen. Jede Bearbeitung ist eine Aktion im Verlauf, Strg+Z nimmt sie zurück.
+  Kommentare, Einrückung und Schreibvarianten des Übrigen bleiben stehen; die
+  Felder jedes Objekts stehen nach dem Speichern in der Reihenfolge des
+  Handbuchs (Anhang A und D). Jede Bearbeitung ist eine Aktion im Verlauf, Strg+Z nimmt sie zurück.
   Der Schalter selbst ist keine: er wandert in Export und
   Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
   dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und

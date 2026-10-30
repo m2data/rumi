@@ -1000,14 +1000,42 @@ console.log('== Einheitliches Format (yamlEinheitlich) ==');
   // Beschreibungen werden wie im Formular getrimmt — sonst muss der Inhalt gleich bleiben
   const ohneRand = v => Array.isArray(v) ? v.map(ohneRand) : v && typeof v === 'object'
     ? Object.fromEntries(Object.entries(v).map(([k, w]) => [k, /^(desc|beschreibung|description)$/.test(k) && typeof w === 'string' ? w.trim() : ohneRand(w)])) : v;
+  // Die Felder dürfen ihre Reihenfolge ändern (yamlOrdnen), der Inhalt nicht
+  const kanon = v => Array.isArray(v) ? v.map(kanon) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, kanon(v[k])])) : v;
   dateien.forEach(([n, s])=>{
     const e = E(s);
     t('E7 ' + n + ': einmal ist genug', E(e) === e);
-    t('E8 ' + n + ': gleicher Inhalt', JSON.stringify(ohneRand(y.readYaml(e).doc)) === JSON.stringify(ohneRand(y.readYaml(s).doc)));
+    t('E8 ' + n + ': gleicher Inhalt', JSON.stringify(kanon(ohneRand(y.readYaml(e).doc))) === JSON.stringify(kanon(ohneRand(y.readYaml(s).doc))));
   });
   // Ausweichweg: eine Zeile nur aus Leerzeichen trägt der Block nicht verlustfrei
   const roh = 'a: "eins\\n   \\nzwei"';
   t('E9 was als Block nicht verlustfrei ginge, bleibt in den alten Zeilen', E(roh) === roh, zeig(roh));
+
+  // Felder in der Reihenfolge des Handbuchs (Anhang A und D)
+  const bo = (...z) => ['BusinessObjects:', ...z].join('\n');
+  const o1 = bo('  A:', '    relationships:', '    - to: B', '    attributes:', '    - name: x', '    desc: d', '    prio: x', '    Domain: D', '  B:', '    Domain: D');
+  t('O1 Objektfelder, Zusatzattribut, Attribute, Beziehungen', E(o1) === bo('  A:', '    Domain: D', '    desc: |', '      d', '    prio: x',
+    '    attributes:', '    - name: x', '    relationships:', '    - to: B', '  B:', '    Domain: D'), zeig(o1));
+  const o2 = bo('  A:', '    desc: |', '      d', '    # zu Domain', '    Domain: D');
+  t('O2 ein Kommentar wandert mit seinem Feld', E(o2) === bo('  A:', '    # zu Domain', '    Domain: D', '    desc: |', '      d'), zeig(o2));
+  const o3 = bo('  A:', '    desc: |', '      d', '    Domain: D', '', '  B:', '    Domain: D');
+  t('O3 die Leerzeile am Objektende bleibt am Ende', E(o3) === bo('  A:', '    Domain: D', '    desc: |', '      d', '', '  B:', '    Domain: D'), zeig(o3));
+  const o4 = bo('  A:', '    Domain: D', '    attributes:', '    - type: int', '      name: x', '      src: q', '      primary_key: true', '', '    - name: y');
+  t('O4 Attributfelder', E(o4) === bo('  A:', '    Domain: D', '    attributes:', '    - name: x', '      type: int', '      primary_key: true', '      src: q', '', '    - name: y'), zeig(o4));
+  const o5 = bo('  A:', '    Domain: D', '    relationships:', '    - name: kauft', '      cardinality:', '        to: zero_or_many', '        from: exactly_one', '      to: B');
+  t('O5 Beziehung: to, name, cardinality mit from vor to', E(o5) === bo('  A:', '    Domain: D', '    relationships:', '    - to: B', '      name: kauft',
+    '      cardinality:', '        from: exactly_one', '        to: zero_or_many'), zeig(o5));
+  const o6 = bo('  A:', '    Domain: D', '    relationships:', '    - kauft:', '        to: B', '    - liefert:', '      to: B', '  B:', '    Domain: D', '    relationships:', '      hat:', '        to: A');
+  t('O6 Beziehungen der Formen B, C und D bleiben, wie sie stehen', E(o6) === o6, zeig(o6));
+  const qt = (...z) => ['SourceTables:', ...z].join('\n');
+  const o7 = qt('  S:', '    T:', '      desc: |', '        d', '      Domain: D', '      business_object: A', '  U:', '    Domain: D', '    business_object: A', '    source_system: S');
+  t('O7 Quelltabellen gruppiert und flach', E(o7) === qt('  S:', '    T:', '      business_object: A', '      Domain: D', '      desc: |', '        d',
+    '  U:', '    source_system: S', '    business_object: A', '    Domain: D'), zeig(o7));
+  const o8 = bo('  A:', '    desc: *k', '    Domain: &k D');
+  t('O8 was umgeordnet anders gelesen würde, bleibt stehen', E(o8) === o8, zeig(o8));
+  const o9 = ['meta:', '  urheber: x', '  titel: y', 'BusinessObjects:', '  B:', '    Domain: D', '  A:', '    Domain: D'].join('\n');
+  t('O9 meta und die Folge der Objekte bleiben', E(o9) === o9, zeig(o9));
 }
 
 console.log('== Beziehungsname aus Leerzeichen ==');

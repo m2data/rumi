@@ -966,9 +966,141 @@ function yKommentarAb(s){
   return -1;
 }
 
+/* Die Felder jedes Geschäftsobjekts und jeder Quelltabelle in die Reihenfolge
+   des Handbuchs (Anhang A und D) bringen: erst die Felder des Objekts, dann
+   Unbekanntes (Zusatzattribute) in seiner bisherigen Folge, dann attributes,
+   zuletzt relationships; in Attributen und Beziehungen ebenso. Eine
+   Rangliste nennt je Rang alle Schreibweisen eines Feldes, null ist der Platz
+   für alles Unbekannte. Beziehungen nur in der Form „- to: …" — in den
+   Formen B bis D trägt der Name die Bedeutung, er darf nicht verrutschen. */
+const Y_RANG_OBJ = [['source_system','Source_System'], ['business_object','Business_Object','Geschäftsobjekt','Geschaeftsobjekt'],
+  ['Domain','domain'], ['leading_domain','Leading_Domain','Führende_Domäne'], ['desc','beschreibung','description'],
+  ['business_keys','BusinessKeys'], ['source_systems','sources'], ['Table_Sources'], null, ['attributes'], ['relationships']];
+const Y_RANG_ATTR = [['name'], ['type'], ['nullable'], ['primary_key'], ['alternate_key'], ['foreign_key'], ['references'], ['attribut_sources'], null];
+const Y_RANG_REL = [['to'], ['name','label','bezeichnung','rolle'], ['cardinality','kardinalitaet'], ['Relation_Sources'], null];
+const Y_RANG_KARD = [['from'], ['to'], null];
+const yRang = (liste, key)=>{ const i = liste.findIndex(g => g && g.includes(key)); return i >= 0 ? i : liste.indexOf(null); };
+const yLeer = s => s.trim() === '' || /^\s*#/.test(s);
+// Schlüssel einer Zeile „schlüssel: …" (auch hinter „- "), dazu ob ein Wert dahinter steht
+const ySchluessel = s=>{
+  const m = s.match(/^\s*(?:-\s+)?["']?([^"':#]+?)["']?\s*:(?:\s+(.*))?$/);
+  return m ? {key: m[1].trim(), leer: !m[2] || m[2].trim().startsWith('#')} : null;
+};
+const yKanon = v => Array.isArray(v) ? v.map(yKanon) : v && typeof v === 'object'
+  ? Object.fromEntries(Object.keys(v).sort().map(k => [k, yKanon(v[k])])) : v;
+
+/* Die Zeilen unter einer Kopfzeile als Abbildung umordnen. Kommentar- und
+   Leerzeilen vor einem Schlüssel gehören zu ihm und wandern mit; was hinter
+   dem letzten Feld steht, bleibt am Ende. `innen(feld)` ordnet den Inhalt
+   eines Feldes, `erlaubt(felder)` kann das Umordnen verweigern. Ist es keine
+   Abbildung, kommt alles unverändert zurück. */
+function yFelderOrdnen(zeilen, rang, innen, erlaubt){
+  const erste = zeilen.find(l => !yLeer(l));
+  if(!erste) return zeilen;
+  const col = yColw(erste), felder = [], vor = [];
+  if(/^\s*-(\s|$)/.test(erste)) return zeilen;
+  for(const l of zeilen){
+    // eine Liste darf auf der Spalte ihres Schlüssels stehen („attributes:" / „- name: …")
+    if(!yLeer(l) && yColw(l) === col && !/^\s*-(\s|$)/.test(l)){
+      const k = ySchluessel(l);
+      if(!k) return zeilen;
+      felder.push({key: k.key, leer: k.leer, lines: [l]});
+    } else if(felder.length) felder[felder.length - 1].lines.push(l);
+    else vor.push(l);
+  }
+  if(erlaubt && !erlaubt(felder)) return zeilen;
+  // Lose Zeilen am Feldende (leer oder Kommentar nicht tiefer als die Feldspalte) gehören zum nächsten Feld
+  let mit = [];
+  felder.forEach(f=>{
+    const los = [];
+    while(f.lines.length > 1 && (f.lines[f.lines.length - 1].trim() === ''
+          || (/^\s*#/.test(f.lines[f.lines.length - 1]) && yColw(f.lines[f.lines.length - 1]) <= col))) los.unshift(f.lines.pop());
+    f.lines = [...mit, ...(innen ? innen(f) : f.lines)];
+    mit = los;
+  });
+  const sortiert = felder.map((f, i) => ({f, i, r: yRang(rang, f.key)})).sort((a, b) => a.r - b.r || a.i - b.i).map(x => x.f);
+  return [...vor, ...sortiert.reduce((s, f) => s.concat(f.lines), []), ...mit];
+}
+
+/* Die Einträge eines Listenfeldes je für sich ordnen: „- " wird für die
+   Dauer zu Leerzeichen, danach steht es vor dem ersten Schlüssel. */
+function yEintraegeOrdnen(feld, rang, innen, erlaubt){
+  const kopf = feld.lines[0], items = [], vor = [];
+  let itemCol = null;
+  feld.lines.slice(1).forEach(l=>{
+    if(!yLeer(l) && /^\s*-\s/.test(l) && (itemCol === null || yColw(l) === itemCol)){ itemCol = yColw(l); items.push([l]); }
+    else if(items.length) items[items.length - 1].push(l);
+    else vor.push(l);
+  });
+  if(itemCol === null || items.some(it => !ySchluessel(it[0]))) return feld.lines;
+  const out = [kopf, ...vor];
+  items.forEach(it=>{
+    const roh = [it[0].replace(/^(\s*)-/, '$1 '), ...it.slice(1)];
+    const neu = yFelderOrdnen(roh, rang, innen, erlaubt);
+    if(neu === roh){ out.push(...it); return; }
+    const k = neu.findIndex(l => !yLeer(l));
+    out.push(...neu.map((l, i) => i === k ? l.slice(0, itemCol) + '-' + l.slice(itemCol + 1) : l));
+  });
+  return out;
+}
+
+const yKardOrdnen = f => /^(cardinality|kardinalitaet)$/.test(f.key) ? [f.lines[0], ...yFelderOrdnen(f.lines.slice(1), Y_RANG_KARD)] : f.lines;
+// Form A: „to" auf Eintragsebene und kein Schlüssel ohne Wert, der ein Beziehungsname sein könnte (Form C)
+const yFormA = felder => felder.some(f => f.key === 'to') && felder.every(f => !f.leer || yRang(Y_RANG_REL, f.key) !== yRang(Y_RANG_REL, '?'));
+const yObjInnen = f => f.key === 'attributes' ? yEintraegeOrdnen(f, Y_RANG_ATTR)
+  : f.key === 'relationships' ? yEintraegeOrdnen(f, Y_RANG_REL, yKardOrdnen, yFormA) : f.lines;
+
+// Ein Objektblock (Kopfzeile und Felder); ergäbe die neue Folge einen anderen Inhalt, bleibt der alte
+function yObjektOrdnen(block){
+  const neu = [block[0], ...yFelderOrdnen(block.slice(1), Y_RANG_OBJ, yObjInnen)];
+  if(neu.join('\n') === block.join('\n')) return block;
+  try{
+    const lies = z => JSON.stringify(yKanon(readYaml(z.join('\n') + '\n').doc));
+    if(lies(neu) === lies(block)) return neu;
+  }catch(_){}
+  return block;
+}
+
+// Die Kinder unter einer Kopfzeile als Blöcke: Kopfzeile auf der Kinderspalte, alles bis zur nächsten
+function yKinder(zeilen){
+  const erste = zeilen.find(l => !yLeer(l));
+  const col = erste ? yColw(erste) : null, vor = [], kinder = [];
+  zeilen.forEach(l=>{
+    if(!yLeer(l) && yColw(l) === col) kinder.push([l]);
+    else if(kinder.length) kinder[kinder.length - 1].push(l);
+    else vor.push(l);
+  });
+  return {vor, kinder};
+}
+
+const Y_TABELLENFELD = new Set([...Y_RANG_OBJ.filter(Boolean).flat(), 'source_system', 'Source_System']);
+function yamlOrdnen(text){
+  const z = text.split('\n'), out = [];
+  for(let i = 0; i < z.length; i++){
+    const bo = /^\s*(BusinessObjects|businessObjects|business_objects|Geschaeftsobjekte)\s*:\s*(#.*)?$/.test(z[i]);
+    const qt = /^\s*(SourceTables|sourceTables|source_tables|Quelltabellen)\s*:\s*(#.*)?$/.test(z[i]);
+    out.push(z[i]);
+    if(!bo && !qt) continue;
+    let j = i + 1;
+    while(j < z.length && (yLeer(z[j]) || yColw(z[j]) > yColw(z[i]))) j++;
+    while(j > i + 1 && z[j-1].trim() === '') j--;
+    const {vor, kinder} = yKinder(z.slice(i + 1, j));
+    out.push(...vor);
+    kinder.forEach(k=>{
+      // Unter SourceTables ist ein Kind mit Tabellenfeldern selbst eine Tabelle (ältere, flache Form), sonst ein System
+      const tabelle = bo || yKinder(k.slice(1)).kinder.some(t => { const s = ySchluessel(t[0]); return s && Y_TABELLENFELD.has(s.key); });
+      if(tabelle){ out.push(...yObjektOrdnen(k)); return; }
+      const sys = yKinder(k.slice(1));
+      out.push(k[0], ...sys.vor, ...sys.kinder.reduce((s, t) => s.concat(yObjektOrdnen(t)), []));
+    });
+    i = j - 1;
+  }
+  return out.join('\n');
+}
+
 /* Eine ganze YAML-Datei in einheitliche Schreibweise bringen — so wird jede
-   Datei gespeichert. Kommentare, Reihenfolge und Einrückung bleiben; neu
-   geschrieben werden nur Einzelwerte:
+   Datei gespeichert. Kommentare und Einrückung bleiben, die Felder der
+   Objekte ordnet zuletzt yamlOrdnen; neu geschrieben werden nur Einzelwerte:
      - Beschreibungen (desc, beschreibung, description) immer als Block „|",
        Leerraum am Rand fällt weg wie im Formular,
      - anderer Text mit Zeilenumbruch ebenfalls als Block,
@@ -1000,6 +1132,8 @@ function yamlEinheitlich(text){
     const vorne = l.match(/^\s*(-\s+)?/)[0];
     const col = vorne.replace(/\t/g, ' '.repeat(TAB_WIDTH)).length;   // Spalte des Schlüssels, hinter „- "
     const istEintrag = !/:[ \t]+$/.test(k[1]);  // „- wert" ohne Schlüssel
+    // „- name:" ohne Wert ist eine Abbildung (Beziehung Form B), kein Text
+    if(istEintrag && /:$/.test(wertText.trim())){ out.push(l); continue; }
     const key = istEintrag ? null : k[1].slice(vorne.length).replace(/:[ \t]+$/, '').replace(/^["']|["']$/g, '');
     const kopf = k[1].replace(/[ \t]+$/, '');
     let j = i + 1;
@@ -1030,7 +1164,7 @@ function yamlEinheitlich(text){
     else out.push(...feld);
     i = j - 1;
   }
-  return out.join('\n');
+  return yamlOrdnen(out.join('\n'));
 }
 
 function readYaml(text){

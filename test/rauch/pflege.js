@@ -1261,5 +1261,27 @@ console.log('== Speichern macht alle Beschreibungen der Datei einheitlich ==');
   api.setMode('komplett');
 }
 
+console.log('== Speichern ordnet die Felder wie im Handbuch ==');
+{
+  await api.loadYaml(['BusinessObjects:', '  A:', '    relationships:', '    - to: B', '    desc: |', '      d', '    Domain: D',
+    '  B:', '    Domain: D', ''].join('\n'), 'ordnen.yaml');
+  api.setMode('komplett'); S.pflegeAn = true;
+  formularOeffnen('o:B');
+  $('pfDomain').value = 'E';
+  dispatch($('pfSave'), 'click', {});
+  t('auch das unberührte Objekt steht danach in Handbuch-Reihenfolge',
+    S.yamlText.includes('  A:\n    Domain: D\n    desc: |\n      d\n    relationships:\n    - to: B\n'), S.yamlText);
+
+  api.loadQuellen(['SourceTables:', '  S:', '    T:', '      Domain: D', '      business_object: A', ''].join('\n'), 'ordnen-q.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  formularOeffnen('o:S.T');
+  $('pfDesc').value = 'neu';
+  dispatch($('pfSave'), 'click', {});
+  t('Quelltabelle: business_object, Domain, dann die neue Beschreibung',
+    S.quellText.includes('    T:\n      business_object: A\n      Domain: D\n      desc: |\n        neu\n'), S.quellText);
+  api.setMode('komplett');
+}
+
 finish();
 })();
