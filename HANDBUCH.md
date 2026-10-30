@@ -833,6 +833,82 @@ eine beschreibende, YAML-ähnliche Notation; vor allem die Typangaben und die
 eingerückten Listenelemente sind nicht als unmittelbar einlesbare Datei
 gedacht. Beispiele zum Laden liegen in `models/`.
 
+### Eine Strukturvorlage erstellen
+
+So entsteht aus einer YAML-Datei ihre Vorlage, etwa für ein neues Format oder
+ein neues Feld:
+
+1. **Von echten Dateien ausgehen.** Eine oder mehrere typische Dateien
+   nehmen, möglichst mit allen Feldern, die vorkommen dürfen. Was in keiner
+   Beispieldatei steht, aber erlaubt ist, gleich mit aufschreiben.
+2. **Feste Schlüssel wörtlich übernehmen.** Abschnitts- und Feldnamen, die in
+   jeder Datei gleich heißen (`SourceTables`, `attributes`, `name`), bleiben
+   stehen, wie sie sind, mit derselben Einrückung.
+3. **Frei wählbare Schlüssel ersetzen.** Ein Schlüssel, den der Autor der
+   Datei selbst vergibt — ein System-, Tabellen-, Objekt- oder Diagrammname —,
+   wird zu `<Rolle: Typ>`. Die Rolle sagt fachlich, wofür der Name steht
+   (`<Quellsystem: string>`, nicht `<Name: string>`). Von mehreren
+   gleichartigen Einträgen bleibt **einer** stehen.
+4. **Werte durch Typen ersetzen.**
+   - Text → `string`, `true`/`false` → `boolean`, ganze Zahl → `integer`,
+     jede andere Zahl → `number`.
+   - Ein Schlüssel mit eingerückten Feldern darunter → `object`; die Felder
+     bleiben darunter stehen und werden ebenso beschrieben.
+   - Eine Liste einfacher Werte → `list[string]` (bzw. `list[integer]` …),
+     ohne Elemente darunter.
+   - Eine Liste von Abschnitten → `list[object]`, darunter **ein**
+     Musterelement, das mit `- ` vor dem ersten Feld beginnt
+     (`- name: string`).
+   - Darf an einer Stelle zweierlei stehen, beide Typen mit `|` verbinden
+     (`string | list[string]`).
+   - Ist ein Abschnitt in sich wiederholt aufgebaut (Unterdiagramme), genügt
+     eine Ebene mit dem Kommentar `# rekursiv gleich aufgebaut`.
+5. **Pflicht oder optional festlegen.** Alles, was fehlen darf, erhält
+   `, optional` hinter dem Typ. Steht nichts dahinter, ist das Feld Pflicht —
+   im Zweifel also lieber `optional` und die Regel in den Kommentar.
+6. **Kommentieren, was der Typ nicht sagt.** Ein Kommentar mit `#` hinter dem
+   Feld nennt die Regel: das Format (`# System.Tabelle.Spalte`), den
+   Wertevorrat, Abhängigkeiten (`# nie zugleich primary_key`), Alias-Namen,
+   Herkunft. Er wiederholt nicht den Typ und nicht den Feldnamen.
+7. **Ordnen.** Einzelwerte zuerst, Listen und Unterabschnitte danach, vor
+   großen Listen eine Leerzeile. Die Kommentare stehen auf einer gemeinsamen
+   Spalte, damit die Struktur links lesbar bleibt.
+8. **Gegenprüfen.** Jede Beispieldatei Zeile für Zeile gegen die Vorlage
+   halten: Jedes Feld der Datei muss in der Vorlage vorkommen, und jedes
+   Pflichtfeld der Vorlage in jeder Datei. Was nicht passt, ist entweder ein
+   Fehler in der Datei oder eine Lücke in der Vorlage.
+
+**Beispiel.** Aus dieser Datei
+
+```yaml
+SourceTables:
+  Webshop:
+    Kunde:
+      business_object: Kunde
+      attributes:
+      - name: KundeID
+        primary_key: true
+      - name: Name
+    Bestellung:
+      business_object: Bestellung
+```
+
+wird nach den Schritten oben
+
+```
+SourceTables:
+  <Quellsystem: string>:
+    <Tabelle: string>:                       # nur ein Eintrag stellvertretend
+      business_object: string, optional      # steht überall, darf fachlich aber fehlen
+
+      attributes: list[object], optional     # fehlt bei Bestellung
+        - name: string
+          primary_key: boolean, optional     # fehlt bei Name
+```
+
+Die Kommentare im Beispiel zeigen nur, woher die Entscheidung kommt; in einer
+fertigen Vorlage stünde dort die fachliche Regel.
+
 ## Anhang A — Geschäftsobjekte (YAML)
 
 Das Modell: welche Geschäftsobjekte es gibt, wie sie beschrieben sind und wie
