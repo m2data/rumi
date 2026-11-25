@@ -134,7 +134,7 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Geschäftsobjekt als eigenes Element (einmal je Diagramm, nur dort),
   Kennungen `System.Tabelle` (zwei gleichnamige Tabellen in verschiedenen
   Systemen), „Quelltabellen bearbeiten" (Systemwechsel hängt die Tabelle um,
-  Zuordnung, nur geänderte Zeilen, Umbenennen, Punkt im Namen, Anlegen,
+  Zuordnung auch eingetippt, nur geänderte Zeilen, Umbenennen, Punkt im Namen, Anlegen,
   Löschen (auch mehrere; Herkunft und source_systems an den
   Geschäftsobjekten gehen mit, die
   Objekte bleiben), die flache Form vom 2026-10-07), das Nachziehen der Zuordnung beim Umbenennen

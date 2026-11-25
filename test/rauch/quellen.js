@@ -635,5 +635,50 @@ console.log('== Quelltabellen löschen: source_systems geht mit ==');
   api.setMode('komplett');
 }
 
+console.log('== Geschäftsobjekt an der Quelltabelle eintippen ==');
+{
+  global.confirm = ()=> false;
+  await api.loadYaml('BusinessObjects:\n  Kunde:\n    Domain: D\n  Ware:\n    Domain: D\n', 'eintippen.yaml');
+  api.loadQuellen('SourceTables:\n  Shop:\n    Rueck:\n      attributes:\n      - name: ID\n    Alt:\n      business_object: "A: B"\n', 'eintippen-q.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  const id = 'o:Shop.Rueck', bo = ()=> S.quellModell.objects['Shop.Rueck'].bo || '';
+  const speichere = wert => { formularOeffnen(id); $('pfBO').value = wert; klick('pfSave'); };
+  formularOeffnen(id);
+  t('das Feld ist ein Textfeld mit allen Geschäftsobjekten als Vorschlag', detail().innerHTML.includes('<input id="pfBO"')
+    && $('pfBO').getAttribute('list') === 'pfBOListe'
+    && [...$('pfBOListe').querySelectorAll('option')].map(o => o.getAttribute('value')).join() === 'Kunde,Ware');
+  const vorText = S.quellText;
+  $('pfBO').value = 'A: C';
+  klick('pfSave');
+  t('unzulässige Zeichen werden abgewiesen, die Eingabe bleibt', S.quellText === vorText && S.pflege === id && $('pfBO').value === 'A: C');
+  $('pfBO').value = ' Retoure ';
+  klick('pfSave');
+  t('ein neuer Name ist zugeordnet', bo() === 'Retoure' && /business_object: Retoure\n/.test(S.quellText), S.quellText);
+  t('angelegt wird dabei nichts', !S.model.objects.Retoure);
+  t('die Meldung nennt die Übernahme', /„Retoure.{1,6} legt erst die Übernahme an/.test($('toast').textContent), $('toast').textContent);
+  api.setMode('komplett');
+  t('die Prüfung meldet „noch nicht übernommen"', /noch nicht übernommen/.test($('msgList').innerHTML) && /Retoure/.test($('msgList').innerHTML), $('msgList').innerHTML);
+  api.setMode('quellen');
+  formularOeffnen(id);
+  t('der neue Name steht beim nächsten Öffnen im Feld', $('pfBO').value === 'Retoure');
+  for(let i = 0; i < 5 && S.quellText !== vorText; i++) api.undo();
+  t('Strg+Z nimmt die Zuordnung zurück', S.quellText === vorText && !bo());
+
+  speichere('Kunde');
+  t('ein vorhandenes lässt sich ebenso eintippen', bo() === 'Kunde' && !/Übernahme/.test($('toast').textContent), $('toast').textContent);
+  speichere('');
+  t('leer heißt keine Zuordnung', !bo() && !/Rueck:\n(?:      .*\n)*      business_object/.test(S.quellText), S.quellText);
+
+  formularOeffnen('o:Shop.Alt');
+  $('pfDesc').value = 'neu';
+  klick('pfSave');
+  t('ein älterer unzulässiger Name hindert das Speichern nicht', S.quellModell.objects['Shop.Alt'].desc === 'neu' && S.quellModell.objects['Shop.Alt'].bo === 'A: B');
+
+  speichere('Retoure');
+  api.uebernahmeAusfuehren();
+  t('die Übernahme legt das eingetippte Objekt an', !!S.model.objects.Retoure && S.model.objects.Retoure.tabQuellen.join() === 'Shop.Rueck');
+}
+
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });

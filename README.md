@@ -63,7 +63,8 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Gegenüberstellungen (eigene YAML). „Einstellungen → Geschäftsobjekt" stellt
   das zugeordnete Objekt als Kasten ins Diagramm, einmal je Diagramm und mit
   allen seinen Tabellen verbunden. Gepflegt wird über „Quelltabellen
-  bearbeiten" wie bei den Geschäftsobjekten. Beim Laden der Tabellen und über
+  bearbeiten" wie bei den Geschäftsobjekten; das zugeordnete Geschäftsobjekt
+  lässt sich auswählen oder eintippen, ein neues legt erst die Übernahme an. Beim Laden der Tabellen und über
   „Datei & Export → Geschäftsobjekte übernehmen" entstehen aus ihnen die
   zugeordneten Geschäftsobjekte bzw. werden ergänzt — Domäne, Beschreibung
   (keine gleiche doppelt), Beziehungen, Attribute (gleichnamige werden eins,

@@ -582,7 +582,7 @@ function pfLesen(){
   e.desc = $('pfDesc').value.replace(/[\u2028\u2029]/g, '\n').trim();
   if($('pfKeys')) e.keys = liste($('pfKeys').value);
   e.quellListe.forEach((q, i)=>{ const f = box.querySelector('.pfq-name[data-i="' + i + '"]'); if(f) q.name = f.value.trim(); });
-  if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value; }
+  if($('pfSystem')){ e.system = $('pfSystem').value.trim(); e.bo = $('pfBO').value.trim(); }
   const feld = (sel, i)=> box.querySelector(sel + '[data-i="' + i + '"]');
   // Zusatzattribute: ein Wert je Zeile, mehrere werden eine Liste. Unverändert
   // bleibt der Wert, wie er war — auch eine Liste mit nur einem Eintrag.
@@ -626,13 +626,13 @@ function pflegeFormular(box){
   // Quelltabellen: genau ein Quellsystem und die Zuordnung zu einem Geschäftsobjekt
   const quellen = S.mode === 'quellen';
   const gos = Object.keys(S.model.objects).sort((a,b)=> a.localeCompare(b, 'de'));
-  if(e.bo && !gos.includes(e.bo)) gos.push(e.bo);        // unbekannte Zuordnung bleibt wählbar
   // Führende Domäne: eine der Domänen; eine nicht gelistete bleibt wählbar
   const leit = e.domains.concat(e.leading && !e.domains.includes(e.leading) ? [e.leading] : []);
   const wahlLeading = `<select id="pfLeading" aria-label="Führende Domäne">`
     + [['', '—'], ...leit.map(d => [d, d])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
-  const wahlGO = `<select id="pfBO" aria-label="Geschäftsobjekt">`
-    + [['', '—'], ...gos.map(g => [g, g])].map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('') + `</select>`;
+  // Eintippen oder aus den vorhandenen wählen; ein neues legt erst die Übernahme an
+  const wahlGO = `<input id="pfBO" list="pfBOListe" placeholder="auswählen oder eintippen, auch neu" aria-label="Geschäftsobjekt">`
+    + `<datalist id="pfBOListe">${gos.map(g=>`<option value="${esc(g)}"></option>`).join('')}</datalist>`;
 
   box.innerHTML =
     `<div class="hd-bar"><h2 class="hd-title">Bearbeiten</h2>
@@ -797,6 +797,8 @@ function pflegeSpeichern(){
   const quellen = S.mode === 'quellen';
   if(quellen ? !qtNamePruefen(e.name, e.system) : !pfNamePruefen(e.name)) return;
   if(quellen && e.domains.length > 1){ toast('Eine Quelltabelle hat genau eine Domäne'); return; }
+  const boNeu = quellen && e.bo && e.bo !== (alt.bo || '');
+  if(boNeu && !pfNamePruefen(e.bo)) return;
   if(!quellen) pfQuellenUebernehmen(e);
   const neuName = quellen ? e.system + '.' + e.name : e.name;   // Kennung System.Tabelle
   if(neuName !== altName && aktModell().objects[neuName]){ toast(`„${neuName}" gibt es schon`); return; }
@@ -829,7 +831,8 @@ function pflegeSpeichern(){
     }
   }
   text = yamlEinheitlich(text);                    // die ganze Datei einheitlich, wie beim Herunterladen
-  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : ''));
+  pfUebernehmen(text, 'o:' + neuName, 'Gespeichert' + (neueZiele.length ? ', neu angelegt: ' + neueZiele.join(', ') : '')
+    + (boNeu && !S.model.objects[e.bo] ? ` — „${e.bo}" legt erst die Übernahme an` : ''));
 }
 
 /* Anlegen und Löschen fragen über den Bedienweg nach; die Arbeit steckt in
