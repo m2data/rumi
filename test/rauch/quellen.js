@@ -635,35 +635,5 @@ console.log('== Quelltabellen löschen: source_systems geht mit ==');
   api.setMode('komplett');
 }
 
-console.log('== Quelltabellen löschen: auch Tabellennamen in source_systems ==');
-{
-  const q = n => S.model.objects[n].sources.join();
-  global.confirm = ()=> false;
-  await api.loadYaml('BusinessObjects:\n  Rest:\n    Domain: D\n', 'namen.yaml');
-  api.loadQuellen(['SourceTables:', '  Alt:', '    Vorlage:', '      business_object: Vorlage', '    Kunde:', '      business_object: Kunde',
-    '  Shop:', '    Kunde:', '      business_object: Kunde', ''].join('\n'), 'namen-q.yaml');
-  S.yamlText = 'BusinessObjects:\n  Vorlage:\n    source_systems:\n    - Vorlage\n    - Shop\n  Kunde:\n    source_systems:\n    - Kunde\n    - Alt\n'
-    + '  Fremd:\n    source_systems:\n    - Vorlage\n';
-  S.model = api.buildModel(S.yamlText);
-  S.quellenAn = true; S.quellPflegeAn = true;
-  api.setMode('quellen');
-  api.pflegeObjektWeg(['Alt.Vorlage', 'Alt.Kunde']);
-  t('der Name der Tabelle geht', q('Vorlage') === 'Shop', q('Vorlage'));
-  t('eine verbleibende gleichnamige hält ihn', q('Kunde') === 'Kunde', q('Kunde'));
-  t('ein nicht verknüpftes Objekt bleibt', q('Fremd') === 'Vorlage', q('Fremd'));
-
-  const V = await bootApp();
-  V.S.quellenAn = V.S.quellPflegeAn = true;
-  V.api.setMode('quellen');
-  const stand = ()=> Object.fromEntries(Object.values(V.S.model.objects).map(o => [o.name, o.sources.join()]));
-  const vor = stand();
-  V.api.pflegeObjektWeg(Object.keys(V.S.quellModell.objects).filter(n => n.startsWith('Roadshow.')));
-  const nach = stand();
-  t('Vorlage ohne Roadshow: Bestellung und Position verlieren ihre VRS-Quelle',
-    nach.Bestellung === 'Bestellung' && nach.Position === 'Position', JSON.stringify(nach));
-  const anders = Object.keys(vor).filter(n => vor[n] !== nach[n]).join();
-  t('sonst ändert sich nur VereinsPartner, dessen einzige Tabelle ging', anders === 'Bestellung,Position,VereinsPartner', anders);
-}
-
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });

@@ -35,8 +35,8 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   löscht in einem Schritt, „Abbrechen" oder Escape beendet. Danach steuern sie
   wieder die Anzeige. Der Rechtsklick auf eine Zeile löscht die Auswahl direkt. Bei einer
   Quelltabelle geht ihre Herkunft an den Geschäftsobjekten mit (Table_Sources,
-  attribut_sources, Relation_Sources), dazu in source_systems ihr Quellsystem und
-  ihr Tabellenname, wenn dem Objekt keine Tabelle daraus bzw. gleichen Namens bleibt; die Objekte bleiben stehen.
+  attribut_sources, Relation_Sources), dazu ihr Quellsystem in source_systems,
+  wenn dem Objekt keine Tabelle daraus bleibt; die Objekte bleiben stehen.
   Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,
   ebenso Anordnung, Kantenzüge und die Hierarchiebeschreibung. Geschrieben wird
   **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —
