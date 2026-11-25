@@ -8017,24 +8017,26 @@ function goAusQuellenUebernehmen(weg){
 
 /* Die Herkunft aus gelöschten Tabellen von den Geschäftsobjekten nehmen:
    Table_Sources, attribut_sources, Relation_Sources (die Tabelle als Anfang
-   oder Ziel) und die Zeile „--->aus … kopiert", dazu das Quellsystem, wenn
-   dem Objekt keine Tabelle daraus bleibt. Verknüpft ist eine Tabelle auch
+   oder Ziel) und die Zeile „--->aus … kopiert", dazu aus source_systems
+   ihr System und ihr Name, wenn keine verbleibende Tabelle des Objekts ebenso
+   heißt oder aus dem System kommt. Verknüpft ist eine Tabelle auch
    über business_object, ohne dass je übernommen wurde. Objekt, Attribute,
    Beziehungen und Text bleiben — es ist keine Übernahme, die legte Gelöschtes
    wieder an. Geliefert werden nur Objekte, an denen sich etwas ändert. */
 function herkunftEntwuerfe(namen){
   const weg = new Set(namen), marken = new Set(namen.map(qtMarke));
   const {zu} = zuordnungFortschreiben(S.quellModell.objects);
-  const systemVon = n => n.includes('.') ? n.slice(0, n.indexOf('.')) : null;
+  // Webshop.Kunde → Webshop, Kunde: unter source_systems steht das eine oder das andere
+  const bezeichnungen = n => { const p = n.indexOf('.'); return p < 0 ? [n] : [n.slice(0, p), n.slice(p + 1)]; };
   return Object.values(S.model.objects).map(alt=>{
     const e = imBereich('komplett', ()=> pfEntwurfAus(alt));
     const verknuepft = [...alt.tabQuellen, ...alt.attrs.flatMap(a => a.quellen.map(qtTabelle)),
       ...[...zu].filter(([, bo]) => bo === alt.name).map(([n]) => n)];
-    const bleibt = new Set(verknuepft.filter(n => !weg.has(n)).map(systemVon));
-    const systemWeg = new Set(verknuepft.filter(n => weg.has(n)).map(systemVon).filter(s => !bleibt.has(s)));
-    if(e.sources.some(s => systemWeg.has(s))){
+    const bleibt = new Set(verknuepft.filter(n => !weg.has(n)).flatMap(bezeichnungen));
+    const quelleWeg = new Set(verknuepft.filter(n => weg.has(n)).flatMap(bezeichnungen).filter(s => !bleibt.has(s)));
+    if(e.sources.some(s => quelleWeg.has(s))){
       // die Arbeitsliste kürzen; eine Gruppe mit nur einer Quelle entfällt dabei
-      e.quellListe = e.quellListe.filter(q => !systemWeg.has(q.name));
+      e.quellListe = e.quellListe.filter(q => !quelleWeg.has(q.name));
       pfQuellenUebernehmen(e);
     }
     e.tabQuellen = e.tabQuellen.filter(n => !weg.has(n));
