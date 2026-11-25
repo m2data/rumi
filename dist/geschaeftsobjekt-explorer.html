@@ -338,6 +338,9 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 /* Attribute zusammenführen: breiter, Liste rollt */
 .ad-box{width:min(640px,100%)}
 .ad-box .modal-tools{gap:6px}
+#lizenzDlg .modal-tools{gap:6px}
+#lizenzFelder{margin-top:12px}
+#lizenzFelder :disabled{background:var(--paper);color:var(--muted)}
 #attrDlgListe{max-height:60vh;overflow-y:auto}
 .ad-attr{border-bottom:1px solid var(--hair-soft);padding:6px 0}
 .ad-attr .ad-mark{width:13px;height:13px;margin:0;accent-color:var(--obj);flex:none}
@@ -600,6 +603,9 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <div class="head">PFLEGE</div>
         <button id="optZusatz" aria-haspopup="dialog"
                 title="Welche weiteren Felder aus der YAML an Geschäftsobjekten und Attributen gepflegt werden. Der Browser merkt sich die Auswahl; eine Datei, die eine eigene mitbringt, setzt sich durch.">Zusatzattribute …</button>
+        <div class="head">BILDDATEIEN</div>
+        <button id="optLizenz" aria-haspopup="dialog"
+                title="Urheber und Lizenz des Modells (meta in der YAML) und ob der Hinweis unter SVG- und PNG-Bildern steht">Lizenzhinweis …</button>
       </div>
     </div>
     <div class="menu-wrap">
@@ -744,6 +750,26 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
     <h2 id="zusatzTitel">Zusatzattribute</h2>
     <div id="zusatzListe"></div>
     <div class="modal-tools"><button class="hd-btn ok" id="zusatzZu">Schließen</button></div>
+  </div>
+</div>
+
+<!-- Lizenzhinweis: die Angaben unter meta und ob sie in den Bildern stehen. -->
+<div class="modal" id="lizenzDlg" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="lizenzTitel">
+    <h2 id="lizenzTitel">Lizenzhinweis</h2>
+    <label class="einst"><input type="checkbox" id="lizenzAn"><span><strong>In SVG und PNG ausgeben</strong>als Zeile unter dem Diagramm</span></label>
+    <div class="pf" id="lizenzFelder">
+      <label class="pfr"><span>Titel</span><input id="lzTitel"></label>
+      <label class="pfr"><span>Urheber</span><input id="lzUrheber"></label>
+      <label class="pfr"><span>Lizenz</span><input id="lzLizenz"></label>
+      <label class="pfr"><span>Lizenz-URL</span><input id="lzUrl"></label>
+      <label class="pfr"><span>Hinweis</span><textarea id="lzHinweis" rows="2"></textarea></label>
+    </div>
+    <div class="empty" id="lizenzGesperrt">Die Angaben stehen unter meta in der YAML. Zum Ändern „Einstellungen → Geschäftsobjekte bearbeiten“ einschalten.</div>
+    <div class="modal-tools">
+      <button class="hd-btn ok" id="lizenzOk">Übernehmen</button>
+      <button class="hd-btn" id="lizenzAbbruch">Abbrechen</button>
+    </div>
   </div>
 </div>
 
@@ -5035,6 +5061,7 @@ const S = {
   selected:null, filter:'',
   pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   zusatzAn:{objekt:[], attribut:[]},   // Einstellung: welche Zusatzattribute gepflegt werden
+  lizenzAn:true,            // Einstellung: steht der Hinweis aus meta in SVG und PNG? (gehört zum Modell)
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
   // Quelltabellen: eigene Datei, eigener Bereich (Einstellung, Vorgabe aus)
   quellenAn:false,          // Einstellung: gibt es den Bereich überhaupt?
@@ -7750,6 +7777,97 @@ function zusatzSchalten(ebene, k, an){
   writeStore(); einstellungenMerken();
 }
 
+/* ---------- Lizenzhinweis: der Abschnitt meta ---------- */
+/* Die Felder mit allen Schreibweisen, die buildModel liest, in dessen Vorrang;
+   die erste ist die, unter der ein neues Feld entsteht. */
+const META_FELDER = [
+  {feld:'titel',     id:'lzTitel',   keys:['titel','title']},
+  {feld:'urheber',   id:'lzUrheber', keys:['urheber','autor','author','quelle']},
+  {feld:'lizenz',    id:'lzLizenz',  keys:['lizenz','license']},
+  {feld:'lizenzUrl', id:'lzUrl',     keys:['lizenz_url','license_url','url']},
+  {feld:'hinweis',   id:'lzHinweis', keys:['hinweis','note']}
+];
+
+/* Die Angaben unter meta umschreiben. Nur geänderte Felder; was die App nicht
+   kennt, und Kommentare bleiben. Ein leerer Wert nimmt das Feld heraus, ein
+   leerer Abschnitt entfällt ganz. null, wenn sich der Abschnitt nicht
+   umschreiben lässt (einzeilig mit verschachtelten Werten). */
+function goMetaAendern(text, werte){
+  const doc = readYaml(text).doc || {};
+  const roh = doc.meta && typeof doc.meta === 'object' ? doc.meta : {};
+  const geaendert = META_FELDER.filter(({feld, keys})=>{
+    const k = keys.find(x => roh[x]);
+    return String(werte[feld] || '').trim() !== (k ? String(roh[k]).trim() : '');
+  });
+  if(!geaendert.length) return text;
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const start = lines.findIndex(l => /^"?meta"?\s*:/.test(l));
+  let blk, vor, nach;
+  if(start < 0){
+    const ab = lines.findIndex(l => /^---\s*$/.test(l)) + 1;       // hinter einem Dokumentanfang
+    vor = lines.slice(0, ab); nach = ['', ...lines.slice(ab)]; blk = ['meta:'];
+  } else {
+    let ende = start + 1;
+    while(ende < lines.length && (yBlank(lines[ende]) || yCol(lines[ende]) > 0)) ende++;
+    // Leerzeilen und Kommentare am Rand gehören schon zum nächsten Abschnitt
+    while(ende > start + 1 && yBlank(lines[ende - 1]) && yCol(lines[ende - 1]) === 0) ende--;
+    vor = lines.slice(0, start); nach = lines.slice(ende); blk = lines.slice(start, ende);
+    if(/:\s*[^\s#]/.test(blk[0])){                                  // einzeilig: als Block aufschreiben
+      if(Object.values(roh).some(v => v && typeof v === 'object')) return null;
+      blk = ['meta:', ...Object.entries(roh).map(([k, v])=> '  ' + yWert(k) + ': ' + (v == null ? '' : yWert(v)))];
+    }
+  }
+  const F = splitObjectFields(blk), col = ' '.repeat(F.fieldCol || 2);
+  geaendert.forEach(({feld, keys})=>{
+    const neu = String(werte[feld] || '').trim();
+    const da = keys.map(k => F.fields.find(f => f.key === k)).filter(Boolean);
+    if(neu && !da.length){ F.fields.push({key: keys[0], lines: [col + keys[0] + ': ' + yWert(neu)]}); return; }
+    da.forEach((f, i)=>{
+      if(neu && i) return;                                          // der Vorrang gilt dem ersten
+      const rest = [];
+      while(f.lines.length > 1 && yBlank(f.lines[f.lines.length - 1]) && yCol(f.lines[f.lines.length - 1]) <= col.length) rest.unshift(f.lines.pop());
+      const k = yKommentarAb(f.lines[0]);
+      f.lines = [...(neu ? [col + f.key + ': ' + yWert(neu) + (k < 0 ? '' : ' ' + f.lines[0].slice(k))] : []), ...rest];
+    });
+  });
+  const innen = [...F.vorspann, ...F.fields.flatMap(f => f.lines)];
+  if(innen.some(l => l.trim() !== '')) return [...vor, F.head, ...innen, ...nach].join('\n');
+  while(nach.length && nach[0].trim() === '') nach.shift();
+  return [...vor, ...nach].join('\n');
+}
+
+/* Der Haken gehört zum Modell (Positionsinformationen) und lässt sich immer
+   setzen; die Angaben ändern die YAML und brauchen „Geschäftsobjekte
+   bearbeiten". Beides zusammen ist ein Schritt im Verlauf. */
+function lizenzAuf(){
+  closeMenus();
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  $('lizenzAn').checked = S.lizenzAn;
+  META_FELDER.forEach(({feld, id})=>{
+    $(id).value = S.model.meta[feld] == null ? '' : String(S.model.meta[feld]);
+    $(id).disabled = !S.pflegeAn;
+  });
+  $('lizenzGesperrt').hidden = S.pflegeAn;
+  $('lizenzDlg').hidden = false;
+}
+function lizenzZu(){ $('lizenzDlg').hidden = true; }
+function lizenzUebernehmen(){
+  let text = S.yamlText, modell = null;
+  if(S.pflegeAn) text = goMetaAendern(text, Object.fromEntries(META_FELDER.map(({feld, id})=> [feld, $(id).value])));
+  try{ if(text != null && text !== S.yamlText) modell = buildModel(text); }
+  catch(err){ text = null; }
+  if(text == null){ toast('Der Abschnitt meta lässt sich nicht umschreiben — bitte in der YAML ändern'); return; }
+  lizenzZu();
+  if(!modell && $('lizenzAn').checked === S.lizenzAn){ toast('Nichts geändert'); return; }
+  S.lizenzAn = $('lizenzAn').checked;
+  if(modell){
+    S.yamlText = text; S.model = modell;
+    renderMessages(); ansichtNeu({autoFit:false});
+  }
+  writeStore();
+  toast('Lizenzhinweis übernommen');
+}
+
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
    Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt und
    ein Schritt im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen
@@ -7802,6 +7920,10 @@ $('optTabQuelle').addEventListener('click', ()=> elementSchalten('tabquellen'));
 $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
+$('optLizenz').addEventListener('click', lizenzAuf);
+$('lizenzOk').addEventListener('click', lizenzUebernehmen);
+$('lizenzAbbruch').addEventListener('click', lizenzZu);
+$('lizenzDlg').addEventListener('click', e=>{ if(e.target === $('lizenzDlg')) lizenzZu(); });
 $('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });
 /* =====================================================================
    12 — Übernahme: Geschäftsobjekte aus den Quelltabellen
@@ -8374,6 +8496,7 @@ const layoutFile = ()=> ({
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
+  lizenzhinweis: S.lizenzAn,
   elemente: S.elementeKomplett,              // die der Diagramme stehen bei ihrem Baum
   uebersichtText: S.bereiche.hierarchie.outlineText,
   hierarchie: baumAblage(S.bereiche.hierarchie),
@@ -8412,6 +8535,7 @@ function adoptLayoutFile(obj){
     objekt:   Array.isArray(obj.zusatzfelder.objekt)   ? obj.zusatzfelder.objekt.slice()   : [],
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
+  S.lizenzAn = obj.lizenzhinweis !== false;      // ältere Dateien kennen den Schlüssel nicht: ein
   if(obj.elemente && typeof obj.elemente === 'object')
     S.elementeKomplett = elementeLesen(obj.elemente);
   if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
@@ -8937,7 +9061,7 @@ function gotoObject(name){
 /* Namensnennung nach CC-BY und Verwandtem: eine Zeile, überall dieselbe. */
 function attributionLine(){
   const m = S.model && S.model.meta;
-  if(!m || (!m.urheber && !m.lizenz)) return '';
+  if(!S.lizenzAn || !m || !(m.urheber || m.lizenz || m.lizenzUrl || m.hinweis)) return '';
   const teile = [];
   teile.push('Datenmodell' + (m.titel ? ' „' + m.titel + '"' : ''));
   if(m.urheber) teile.push('© ' + m.urheber);
@@ -9185,6 +9309,7 @@ document.addEventListener('keydown', ev=>{
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
   // z. B. die Taste „f" ein Einpassen aus.
+  if(ev.key === 'Escape' && !$('lizenzDlg').hidden){ lizenzZu(); return; }   // auch aus einem Feld heraus
   // Escape beendet den Löschmodus, auch vom Kästchen aus — nicht aus einem Textfeld
   if(ev.key === 'Escape' && loeschWahl && $('zusatzDlg').hidden && $('attrDlg').hidden
      && !(ev.target.matches && ev.target.matches('input:not(.ochk), textarea, select'))){
@@ -10164,6 +10289,7 @@ async function loadYaml(text, name, preset){
     S.routes = {1:{}};
     S.content = {1:{}};
     S.hidden = new Set();
+    S.lizenzAn = true;
     // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
     S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
     loeschWahl = null;

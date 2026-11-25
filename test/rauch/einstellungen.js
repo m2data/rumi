@@ -106,5 +106,98 @@ console.log('== Fremde Schlüssel bleiben gemerkt, erscheinen aber nicht ==');
     JSON.parse(L.getItem(KEY)).zusatzAn.objekt.join(',') === 'fremd');
 }
 
+console.log('== Lizenzhinweis: Haken ==');
+{
+  L.removeItem(KEY);
+  await neuStart();
+  api.setMode('komplett');
+  const hoehe = svg => +svg.match(/height="(\d+)"/)[1];
+  const hinweis = ()=> /class="att"/.test(api.exportSVG());
+  const oeffne = ()=>{ dispatch($('btnEinst'), 'click', {}); dispatch($('optLizenz'), 'click', {}); };
+  const setze = an => { oeffne(); $('lizenzAn').checked = an; dispatch($('lizenzOk'), 'click', {}); };
+  const setzeFelder = w => { oeffne(); Object.entries(w).forEach(([id, v])=>{ $(id).value = v; }); dispatch($('lizenzOk'), 'click', {}); };
+  t('Vorgabe ein: der Hinweis steht im Bild', S.lizenzAn && hinweis() && api.exportSVG().includes('© DDVUG e.V.'));
+  const h = hoehe(api.exportSVG());
+  S.pflegeAn = false;
+  oeffne();
+  t('der Dialog zeigt meta', !$('lizenzDlg').hidden && $('lizenzAn').checked && $('lzTitel').value === 'Willibald'
+    && $('lzUrheber').value === 'DDVUG e.V.' && $('lzLizenz').value === 'CC BY 4.0' && /creativecommons/.test($('lzUrl').value) && $('lzHinweis').value === '');
+  t('ohne „Bearbeiten" sind die Felder gesperrt, mit Erklärung', $('lzUrheber').disabled && !$('lizenzGesperrt').hidden && !$('lizenzAn').disabled);
+  $('lzUrheber').value = 'Fremd';
+  $('lizenzAn').checked = false;
+  const vorText = S.yamlText;
+  dispatch($('lizenzOk'), 'click', {});
+  t('der Haken wirkt trotzdem, der Text bleibt', $('lizenzDlg').hidden && !hinweis() && S.yamlText === vorText);
+  t('ohne Hinweis ist das Bild 20 px niedriger', hoehe(api.exportSVG()) === h - 20, hoehe(api.exportSVG()) + ' / ' + h);
+  t('auch die PNG-Höhe folgt', api.attributionLine() === '');
+  api.undo();
+  t('Strg+Z schaltet wieder ein', hinweis());
+  api.redo();
+  t('Strg+Y wieder aus', !hinweis());
+  const stand = api.layoutFile();
+  S.lizenzAn = true;
+  api.adoptLayoutFile(stand);
+  t('die Positionsinformationen tragen den Haken', S.lizenzAn === false);
+  delete stand.lizenzhinweis;
+  api.adoptLayoutFile(stand);
+  t('ohne den Schlüssel gilt ein', S.lizenzAn === true);
+  setze(false);
+  const vorher = api.layoutFile();
+  oeffne(); $('lizenzAn').checked = true; dispatch($('lizenzAbbruch'), 'click', {});
+  t('Abbrechen ändert nichts', !S.lizenzAn && $('lizenzDlg').hidden);
+  oeffne(); $('lizenzAn').checked = true; dispatch($('lzTitel'), 'keydown', {key:'Escape'});
+  t('Escape auch aus einem Feld heraus nicht', !S.lizenzAn && $('lizenzDlg').hidden);
+  oeffne(); dispatch($('lizenzOk'), 'click', {});
+  api.undo();
+  t('ohne Änderung entsteht kein Verlaufsschritt', S.lizenzAn === true);
+
+  console.log('== Lizenzhinweis: Angaben ==');
+  S.pflegeAn = true;
+  oeffne();
+  t('mit „Bearbeiten" sind die Felder offen', !$('lzUrheber').disabled && $('lizenzGesperrt').hidden);
+  dispatch($('lizenzAbbruch'), 'click', {});
+  const alt = S.yamlText;
+  setzeFelder({lzUrheber: 'X: Y "Z"'});
+  t('geändert wird nur diese Zeile', S.yamlText === alt.replace('  urheber: DDVUG e.V.', '  urheber: "X: Y \\"Z\\""'), S.yamlText.slice(0, 160));
+  t('das Bild nennt den neuen Urheber', api.attributionLine().includes('© X: Y "Z"'), api.attributionLine());
+  api.undo();
+  t('Strg+Z nimmt die Angabe zurück', S.yamlText === alt && S.model.meta.urheber === 'DDVUG e.V.');
+  setzeFelder({lzLizenz: '', lzUrl: ''});
+  t('geleerte Felder fallen weg', /^meta:\n  titel: Willibald\n  urheber: DDVUG e\.V\.\n\nBusinessObjects:/.test(S.yamlText.replace(/\r/g, '')), S.yamlText.slice(0, 120));
+  setzeFelder({lzUrheber: '', lzHinweis: 'Nur intern'});
+  t('ein Hinweis allein erscheint', /Nur intern/.test(api.attributionLine()) && hinweis());
+  setzeFelder({lzHinweis: ''});
+  t('der Titel allein nicht', !hinweis());
+  api.setSelection(['o:Bestellung']);
+  api.pflegeStart('o:Bestellung');
+  oeffne();
+  t('bei offenem Formular öffnet sich der Dialog nicht', $('lizenzDlg').hidden && S.pflege === 'o:Bestellung');
+  api.pflegeEnde();
+  setze(false);
+  await api.loadYaml('BusinessObjects:\n  A:\n    Domain: D\n', 'neu.yaml');
+  t('ein anderes Modell beginnt mit ein', S.lizenzAn === true && !hinweis());
+  S.pflegeAn = true;
+  setzeFelder({lzUrheber: 'Ich'});
+  t('ohne meta entsteht der Abschnitt am Anfang', S.yamlText.startsWith('meta:\n  urheber: Ich\n\nBusinessObjects:') && !!S.model.objects.A, S.yamlText);
+  setzeFelder({lzUrheber: ''});
+  t('alles leer: der Abschnitt entfällt', S.yamlText === 'BusinessObjects:\n  A:\n    Domain: D\n', S.yamlText);
+
+  console.log('== Lizenzhinweis: Eingriff in den Text ==');
+  const werte = (text, neu = {}) => { const m = api.buildModel(text).meta; return Object.assign({}, m, neu); };
+  const REST = '\n# Objekte\nBusinessObjects:\n  A:\n    Domain: D\n';
+  const fremd = 'meta:   # Kopf\n  # eigen\n  stand: 2026\n  license: MIT  # frei\n  # dazu\n  hinweis: |\n    eins\n    zwei\n' + REST;
+  t('unverändert bleibt der Text, auch mehrzeilig', api.goMetaAendern(fremd, werte(fremd)) === fremd);
+  t('Fremdes, Kommentare und englische Schreibweise bleiben',
+    api.goMetaAendern(fremd, werte(fremd, {lizenz:'BSD'})) === fremd.replace('license: MIT  # frei', 'license: BSD # frei'), api.goMetaAendern(fremd, werte(fremd, {lizenz:'BSD'})));
+  t('ein entferntes Feld lässt den Kommentar dahinter stehen',
+    api.goMetaAendern(fremd, werte(fremd, {lizenz:''})) === fremd.replace('  license: MIT  # frei\n', ''), api.goMetaAendern(fremd, werte(fremd, {lizenz:''})));
+  t('ein mehrzeiliger Hinweis geht ganz', api.goMetaAendern(fremd, werte(fremd, {hinweis:''})) === fremd.replace('  hinweis: |\n    eins\n    zwei\n', ''),
+    api.goMetaAendern(fremd, werte(fremd, {hinweis:''})));
+  const inline = 'meta: {titel: A, stand: 2026}\n' + REST;
+  const i2 = api.goMetaAendern(inline, werte(inline, {urheber:'U'}));
+  const im = api.buildModel(i2).meta;
+  t('einzeilig geschrieben: Werte bleiben erhalten', im.titel === 'A' && im.urheber === 'U' && /stand: "?2026/.test(i2) && i2.endsWith(REST), i2);
+}
+
 finish();
 })();

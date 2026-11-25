@@ -19,6 +19,7 @@ const S = {
   selected:null, filter:'',
   pflegeAn:false,           // Einstellung: dürfen Geschäftsobjekte bearbeitet werden?
   zusatzAn:{objekt:[], attribut:[]},   // Einstellung: welche Zusatzattribute gepflegt werden
+  lizenzAn:true,            // Einstellung: steht der Hinweis aus meta in SVG und PNG? (gehört zum Modell)
   pflege:null,              // Kennung des Objekts, das gerade bearbeitet wird
   // Quelltabellen: eigene Datei, eigener Bereich (Einstellung, Vorgabe aus)
   quellenAn:false,          // Einstellung: gibt es den Bereich überhaupt?

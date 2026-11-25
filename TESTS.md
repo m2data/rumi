@@ -101,7 +101,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   gewinnen gegen die Datei, die Zusatzattribute nur ohne Liste in der Datei;
   Strg+Z nimmt das Gemerkte mit zurück, schreibt aber sonst nichts; gemerkte
   Schlüssel, die das Modell nicht kennt, erscheinen weder in Details noch im
-  Formular.
+  Formular. Dazu der Lizenzhinweis: Haken für SVG und PNG (Verlauf, Stand,
+  Vorgabe ein), die Angaben unter `meta` ändern, ohne anderes anzufassen.
 - **`uebernahme.js`** — Geschäftsobjekte aus den Quelltabellen übernehmen:
   beim Laden der Datei und über das Menü, Anlegen und Ergänzen (Domäne,
   Beschreibung mit Herkunftsmarke und ohne Doppel, Business Keys aus den

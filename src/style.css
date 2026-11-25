@@ -319,6 +319,9 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 /* Attribute zusammenführen: breiter, Liste rollt */
 .ad-box{width:min(640px,100%)}
 .ad-box .modal-tools{gap:6px}
+#lizenzDlg .modal-tools{gap:6px}
+#lizenzFelder{margin-top:12px}
+#lizenzFelder :disabled{background:var(--paper);color:var(--muted)}
 #attrDlgListe{max-height:60vh;overflow-y:auto}
 .ad-attr{border-bottom:1px solid var(--hair-soft);padding:6px 0}
 .ad-attr .ad-mark{width:13px;height:13px;margin:0;accent-color:var(--obj);flex:none}

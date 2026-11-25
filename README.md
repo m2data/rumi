@@ -47,6 +47,10 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Positionsinformationen mit — so gibt man einen Stand zum Ansehen weiter, an
   dem sich die Fachdaten nicht verstellen lassen. Anordnen, Kanten umlenken und
   die Hierarchie bleiben davon unberührt.
+  **Lizenzhinweis**: „Einstellungen → Lizenzhinweis …" zeigt die Angaben unter
+  `meta` und schaltet mit einem Haken, ob sie als Zeile unter SVG- und
+  PNG-Bildern stehen (Vorgabe ein; der Haken gehört zum Modell). Ändern lassen
+  sich die Angaben mit „Geschäftsobjekte bearbeiten".
   **Im Browser gemerkt** werden nur persönliche Einstellungen, und zwar für
   alle Dateien: „Geschäftsobjekte bearbeiten", „Quelltabellen verwenden" und
   „Quelltabellen bearbeiten" setzen sich gegen die Datei durch, sobald man sie
@@ -199,6 +203,7 @@ meta: object, optional                       # Herkunft und Lizenz der Daten
   urheber: string, optional
   lizenz: string, optional
   lizenz_url: string, optional
+  hinweis: string, optional
 
 BusinessObjects:
   <Geschäftsobjekt: string>:

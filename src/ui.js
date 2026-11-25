@@ -64,6 +64,7 @@ const layoutFile = ()=> ({
   ausgeblendet: [...S.hidden],
   pflegeAn: S.pflegeAn,
   zusatzfelder: S.zusatzAn,
+  lizenzhinweis: S.lizenzAn,
   elemente: S.elementeKomplett,              // die der Diagramme stehen bei ihrem Baum
   uebersichtText: S.bereiche.hierarchie.outlineText,
   hierarchie: baumAblage(S.bereiche.hierarchie),
@@ -102,6 +103,7 @@ function adoptLayoutFile(obj){
     objekt:   Array.isArray(obj.zusatzfelder.objekt)   ? obj.zusatzfelder.objekt.slice()   : [],
     attribut: Array.isArray(obj.zusatzfelder.attribut) ? obj.zusatzfelder.attribut.slice() : []
   };
+  S.lizenzAn = obj.lizenzhinweis !== false;      // ältere Dateien kennen den Schlüssel nicht: ein
   if(obj.elemente && typeof obj.elemente === 'object')
     S.elementeKomplett = elementeLesen(obj.elemente);
   if(obj.uebersichtText) S.bereiche.hierarchie.outlineText = obj.uebersichtText;
@@ -627,7 +629,7 @@ function gotoObject(name){
 /* Namensnennung nach CC-BY und Verwandtem: eine Zeile, überall dieselbe. */
 function attributionLine(){
   const m = S.model && S.model.meta;
-  if(!m || (!m.urheber && !m.lizenz)) return '';
+  if(!S.lizenzAn || !m || !(m.urheber || m.lizenz || m.lizenzUrl || m.hinweis)) return '';
   const teile = [];
   teile.push('Datenmodell' + (m.titel ? ' „' + m.titel + '"' : ''));
   if(m.urheber) teile.push('© ' + m.urheber);
@@ -875,6 +877,7 @@ document.addEventListener('keydown', ev=>{
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
   // z. B. die Taste „f" ein Einpassen aus.
+  if(ev.key === 'Escape' && !$('lizenzDlg').hidden){ lizenzZu(); return; }   // auch aus einem Feld heraus
   // Escape beendet den Löschmodus, auch vom Kästchen aus — nicht aus einem Textfeld
   if(ev.key === 'Escape' && loeschWahl && $('zusatzDlg').hidden && $('attrDlg').hidden
      && !(ev.target.matches && ev.target.matches('input:not(.ochk), textarea, select'))){
@@ -1854,6 +1857,7 @@ async function loadYaml(text, name, preset){
     S.routes = {1:{}};
     S.content = {1:{}};
     S.hidden = new Set();
+    S.lizenzAn = true;
     // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
     S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
     loeschWahl = null;

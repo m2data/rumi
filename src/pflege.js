@@ -983,6 +983,97 @@ function zusatzSchalten(ebene, k, an){
   writeStore(); einstellungenMerken();
 }
 
+/* ---------- Lizenzhinweis: der Abschnitt meta ---------- */
+/* Die Felder mit allen Schreibweisen, die buildModel liest, in dessen Vorrang;
+   die erste ist die, unter der ein neues Feld entsteht. */
+const META_FELDER = [
+  {feld:'titel',     id:'lzTitel',   keys:['titel','title']},
+  {feld:'urheber',   id:'lzUrheber', keys:['urheber','autor','author','quelle']},
+  {feld:'lizenz',    id:'lzLizenz',  keys:['lizenz','license']},
+  {feld:'lizenzUrl', id:'lzUrl',     keys:['lizenz_url','license_url','url']},
+  {feld:'hinweis',   id:'lzHinweis', keys:['hinweis','note']}
+];
+
+/* Die Angaben unter meta umschreiben. Nur geänderte Felder; was die App nicht
+   kennt, und Kommentare bleiben. Ein leerer Wert nimmt das Feld heraus, ein
+   leerer Abschnitt entfällt ganz. null, wenn sich der Abschnitt nicht
+   umschreiben lässt (einzeilig mit verschachtelten Werten). */
+function goMetaAendern(text, werte){
+  const doc = readYaml(text).doc || {};
+  const roh = doc.meta && typeof doc.meta === 'object' ? doc.meta : {};
+  const geaendert = META_FELDER.filter(({feld, keys})=>{
+    const k = keys.find(x => roh[x]);
+    return String(werte[feld] || '').trim() !== (k ? String(roh[k]).trim() : '');
+  });
+  if(!geaendert.length) return text;
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const start = lines.findIndex(l => /^"?meta"?\s*:/.test(l));
+  let blk, vor, nach;
+  if(start < 0){
+    const ab = lines.findIndex(l => /^---\s*$/.test(l)) + 1;       // hinter einem Dokumentanfang
+    vor = lines.slice(0, ab); nach = ['', ...lines.slice(ab)]; blk = ['meta:'];
+  } else {
+    let ende = start + 1;
+    while(ende < lines.length && (yBlank(lines[ende]) || yCol(lines[ende]) > 0)) ende++;
+    // Leerzeilen und Kommentare am Rand gehören schon zum nächsten Abschnitt
+    while(ende > start + 1 && yBlank(lines[ende - 1]) && yCol(lines[ende - 1]) === 0) ende--;
+    vor = lines.slice(0, start); nach = lines.slice(ende); blk = lines.slice(start, ende);
+    if(/:\s*[^\s#]/.test(blk[0])){                                  // einzeilig: als Block aufschreiben
+      if(Object.values(roh).some(v => v && typeof v === 'object')) return null;
+      blk = ['meta:', ...Object.entries(roh).map(([k, v])=> '  ' + yWert(k) + ': ' + (v == null ? '' : yWert(v)))];
+    }
+  }
+  const F = splitObjectFields(blk), col = ' '.repeat(F.fieldCol || 2);
+  geaendert.forEach(({feld, keys})=>{
+    const neu = String(werte[feld] || '').trim();
+    const da = keys.map(k => F.fields.find(f => f.key === k)).filter(Boolean);
+    if(neu && !da.length){ F.fields.push({key: keys[0], lines: [col + keys[0] + ': ' + yWert(neu)]}); return; }
+    da.forEach((f, i)=>{
+      if(neu && i) return;                                          // der Vorrang gilt dem ersten
+      const rest = [];
+      while(f.lines.length > 1 && yBlank(f.lines[f.lines.length - 1]) && yCol(f.lines[f.lines.length - 1]) <= col.length) rest.unshift(f.lines.pop());
+      const k = yKommentarAb(f.lines[0]);
+      f.lines = [...(neu ? [col + f.key + ': ' + yWert(neu) + (k < 0 ? '' : ' ' + f.lines[0].slice(k))] : []), ...rest];
+    });
+  });
+  const innen = [...F.vorspann, ...F.fields.flatMap(f => f.lines)];
+  if(innen.some(l => l.trim() !== '')) return [...vor, F.head, ...innen, ...nach].join('\n');
+  while(nach.length && nach[0].trim() === '') nach.shift();
+  return [...vor, ...nach].join('\n');
+}
+
+/* Der Haken gehört zum Modell (Positionsinformationen) und lässt sich immer
+   setzen; die Angaben ändern die YAML und brauchen „Geschäftsobjekte
+   bearbeiten". Beides zusammen ist ein Schritt im Verlauf. */
+function lizenzAuf(){
+  closeMenus();
+  if(S.pflege){ toast('Erst das offene Bearbeiten-Formular speichern oder abbrechen'); return; }
+  $('lizenzAn').checked = S.lizenzAn;
+  META_FELDER.forEach(({feld, id})=>{
+    $(id).value = S.model.meta[feld] == null ? '' : String(S.model.meta[feld]);
+    $(id).disabled = !S.pflegeAn;
+  });
+  $('lizenzGesperrt').hidden = S.pflegeAn;
+  $('lizenzDlg').hidden = false;
+}
+function lizenzZu(){ $('lizenzDlg').hidden = true; }
+function lizenzUebernehmen(){
+  let text = S.yamlText, modell = null;
+  if(S.pflegeAn) text = goMetaAendern(text, Object.fromEntries(META_FELDER.map(({feld, id})=> [feld, $(id).value])));
+  try{ if(text != null && text !== S.yamlText) modell = buildModel(text); }
+  catch(err){ text = null; }
+  if(text == null){ toast('Der Abschnitt meta lässt sich nicht umschreiben — bitte in der YAML ändern'); return; }
+  lizenzZu();
+  if(!modell && $('lizenzAn').checked === S.lizenzAn){ toast('Nichts geändert'); return; }
+  S.lizenzAn = $('lizenzAn').checked;
+  if(modell){
+    S.yamlText = text; S.model = modell;
+    renderMessages(); ansichtNeu({autoFit:false});
+  }
+  writeStore();
+  toast('Lizenzhinweis übernommen');
+}
+
 /* Quelle bzw. Domäne als eigener Kasten neben jedem Objekt — in der
    Komplettansicht wie in der Hierarchie. Wie der Pflegeschalter gemerkt und
    ein Schritt im Verlauf. Neu aufgebaut wird ohne Einpassen; die neuen Kästen
@@ -1035,4 +1126,8 @@ $('optTabQuelle').addEventListener('click', ()=> elementSchalten('tabquellen'));
 $('optDomaene').addEventListener('click', ()=> elementSchalten('domaene'));
 $('optZusatz').addEventListener('click', zusatzAuf);
 $('zusatzZu').addEventListener('click', zusatzZu);
+$('optLizenz').addEventListener('click', lizenzAuf);
+$('lizenzOk').addEventListener('click', lizenzUebernehmen);
+$('lizenzAbbruch').addEventListener('click', lizenzZu);
+$('lizenzDlg').addEventListener('click', e=>{ if(e.target === $('lizenzDlg')) lizenzZu(); });
 $('zusatzDlg').addEventListener('click', e=>{ if(e.target === $('zusatzDlg')) zusatzZu(); });
