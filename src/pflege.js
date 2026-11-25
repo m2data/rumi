@@ -870,7 +870,7 @@ function loeschFrage(namen){
   if(rein) s += ` ${rein} eingehende Beziehung(en) werden mit entfernt.`;
   if(S.mode === 'quellen'){
     const go = herkunftEntwuerfe(namen).map(x => x.alt.name);
-    if(go.length) s += ` An ${go.length} Geschäftsobjekt(en) wird die Herkunft daraus entfernt: ${namenKurz(go)}; die Objekte bleiben stehen.`;
+    if(go.length) s += ` An ${go.length} Geschäftsobjekt(en) werden Herkunft und Quellsystem daraus entfernt: ${namenKurz(go)}; die Objekte bleiben stehen.`;
   } else if(S.quellenAn && S.quellModell){
     const zu = new Set(zuordnungFortschreiben(S.quellModell.objects).zu.values());
     const wieder = namen.filter(n => zu.has(n));

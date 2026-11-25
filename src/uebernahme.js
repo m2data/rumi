@@ -215,19 +215,32 @@ function goAusQuellenUebernehmen(weg){
 
 /* Die Herkunft aus gelöschten Tabellen von den Geschäftsobjekten nehmen:
    Table_Sources, attribut_sources, Relation_Sources (die Tabelle als Anfang
-   oder Ziel) und die Zeile „--->aus … kopiert". Objekt, Attribute,
+   oder Ziel) und die Zeile „--->aus … kopiert", dazu das Quellsystem, wenn
+   dem Objekt keine Tabelle daraus bleibt. Verknüpft ist eine Tabelle auch
+   über business_object, ohne dass je übernommen wurde. Objekt, Attribute,
    Beziehungen und Text bleiben — es ist keine Übernahme, die legte Gelöschtes
    wieder an. Geliefert werden nur Objekte, an denen sich etwas ändert. */
 function herkunftEntwuerfe(namen){
   const weg = new Set(namen), marken = new Set(namen.map(qtMarke));
+  const {zu} = zuordnungFortschreiben(S.quellModell.objects);
+  const systemVon = n => n.includes('.') ? n.slice(0, n.indexOf('.')) : null;
   return Object.values(S.model.objects).map(alt=>{
     const e = imBereich('komplett', ()=> pfEntwurfAus(alt));
+    const verknuepft = [...alt.tabQuellen, ...alt.attrs.flatMap(a => a.quellen.map(qtTabelle)),
+      ...[...zu].filter(([, bo]) => bo === alt.name).map(([n]) => n)];
+    const bleibt = new Set(verknuepft.filter(n => !weg.has(n)).map(systemVon));
+    const systemWeg = new Set(verknuepft.filter(n => weg.has(n)).map(systemVon).filter(s => !bleibt.has(s)));
+    if(e.sources.some(s => systemWeg.has(s))){
+      // die Arbeitsliste kürzen; eine Gruppe mit nur einer Quelle entfällt dabei
+      e.quellListe = e.quellListe.filter(q => !systemWeg.has(q.name));
+      pfQuellenUebernehmen(e);
+    }
     e.tabQuellen = e.tabQuellen.filter(n => !weg.has(n));
     e.attrs.forEach(a => { a.quellen = a.quellen.filter(q => !weg.has(qtTabelle(q))); });
     e.rels.forEach(x => { x.quellen = x.quellen.filter(h => !h.split('→').some(n => weg.has(n))); });
     const zeilen = e.desc.split('\n');
     if(zeilen.some(z => marken.has(z.trim()))) e.desc = zeilen.filter(z => !marken.has(z.trim())).join('\n').trim();
-    const anders = e.desc !== (alt.desc || '') || e.tabQuellen.length !== alt.tabQuellen.length
+    const anders = e.sources.length !== alt.sources.length || e.desc !== (alt.desc || '') || e.tabQuellen.length !== alt.tabQuellen.length
       || e.attrs.some((a, i) => a.quellen.length !== alt.attrs[i].quellen.length)
       || e.rels.some((x, i) => x.quellen.length !== alt.rels[i].quellen.length);
     return anders ? {alt, e} : null;

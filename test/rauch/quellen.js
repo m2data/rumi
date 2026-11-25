@@ -597,5 +597,43 @@ console.log('== Quelltabellen löschen: die Herkunft geht mit ==');
   api.setMode('komplett');
 }
 
+console.log('== Quelltabellen löschen: source_systems geht mit ==');
+{
+  const tab = (n, bo, mehr = [])=> ['    ' + n + ':', '      business_object: ' + bo, '      attributes:', '      - name: ID', '        type: int', ...mehr];
+  const TABELLEN = ['SourceTables:', '  Alt:', ...tab('Kunde', 'Kunde'), ...tab('Wohnort', 'Kunde'), ...tab('Vorlage', 'Vorlage'),
+    '  Shop:', ...tab('Kunde', 'Kunde'), ...tab('Auftrag', 'Auftrag', ['      relationships:', '      - to: Alt.Kunde', '        name: von']), ''].join('\n');
+  const q = n => S.model.objects[n].sources.join();
+  let frage = '';
+  global.confirm = ()=> false;
+  await api.loadYaml('BusinessObjects:\n  Kunde:\n    source_systems:\n    - name: Alt\n      overlap_group: 1\n    - name: Shop\n      overlap_group: 1\n    - Altsystem\n'
+    + '  Auftrag:\n    source_systems:\n    - Alt\n', 'systeme.yaml');
+  api.loadQuellen(TABELLEN, 'systeme-q.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.setMode('quellen');
+  const vor = S.yamlText;
+  t('Ausgangslage', q('Kunde') === 'Alt,Shop,Altsystem' && q('Auftrag') === 'Alt,Shop', q('Kunde') + ' / ' + q('Auftrag'));
+  api.pflegeObjektWeg('Alt.Wohnort');
+  t('bleibt eine Tabelle des Systems, bleibt source_systems', q('Kunde') === 'Alt,Shop,Altsystem', q('Kunde'));
+  api.pflegeObjektWeg('Alt.Kunde');
+  t('mit der letzten geht das System, der Rest bleibt', q('Kunde') === 'Shop,Altsystem', q('Kunde'));
+  t('die Gruppe mit nur einer Quelle entfällt', !/overlap_group/.test(S.yamlText) && !Object.keys(S.model.objects.Kunde.quellGruppe).length, S.yamlText);
+  t('nur Beziehungsziel: source_systems unverändert', q('Auftrag') === 'Alt,Shop', q('Auftrag'));
+  api.undo(); api.undo();
+  t('Strg+Z stellt den Text wieder her', S.yamlText === vor);
+  api.pflegeObjektWeg(['Alt.Kunde', 'Alt.Wohnort']);
+  t('beide zusammen ebenso', q('Kunde') === 'Shop,Altsystem', q('Kunde'));
+
+  // nur über business_object verknüpft, nie übernommen
+  S.yamlText = 'BusinessObjects:\n  Vorlage:\n    source_systems:\n    - Alt\n    - Shop\n';
+  S.model = api.buildModel(S.yamlText);
+  global.confirm = f => { frage = f; return true; };
+  api.setMode('quellen');
+  dispatch([...$('objectList').querySelectorAll('button')].find(b => b.dataset.id === 'o:Alt.Vorlage'), 'contextmenu', {clientX:5, clientY:5});
+  dispatch($('ctxMenu').querySelector('[data-ctx="delete"]'), 'click', {});
+  t('auch ohne Table_Sources geht das System', q('Vorlage') === 'Shop', S.yamlText);
+  t('die Rückfrage nennt Herkunft und Quellsystem', /Herkunft und Quellsystem.*Vorlage/.test(frage), frage);
+  api.setMode('komplett');
+}
+
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });
