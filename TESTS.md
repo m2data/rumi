@@ -92,7 +92,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Formular im Reiter „Details" (Quellen ordnen und überschneidend gruppieren),
   Text-Chirurgie am Modell-YAML (Kommentare und
   Formatierung unberührter Stellen bleiben), Umbenennen samt Verweisen und
-  Kennungen, Anlegen, Löschen, Rückgängig; Zusatzattribute (Dialog, Feldnamen
+  Kennungen, Anlegen, Löschen (einzeln und mehrere aus der Objektliste, ein
+  Verlaufsschritt, kein Wiederauftauchen in der Übersicht), Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
 - **`einstellungen.js`** — was sich der Browser merkt: die drei Schalter
@@ -134,7 +135,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Kennungen `System.Tabelle` (zwei gleichnamige Tabellen in verschiedenen
   Systemen), „Quelltabellen bearbeiten" (Systemwechsel hängt die Tabelle um,
   Zuordnung, nur geänderte Zeilen, Umbenennen, Punkt im Namen, Anlegen,
-  Löschen, die flache Form vom 2026-10-07), das Nachziehen der Zuordnung beim Umbenennen
+  Löschen (auch mehrere; die Herkunft an den Geschäftsobjekten geht mit, die
+  Objekte bleiben), die flache Form vom 2026-10-07), das Nachziehen der Zuordnung beim Umbenennen
   eines Geschäftsobjekts, die beiden Dateien laden und speichern, Stand und
   ältere Positionsinformationen.
 - **`fuehrung.js`** — weiche Kantenführung im dichten kombinierten Modell

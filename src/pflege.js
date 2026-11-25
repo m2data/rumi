@@ -853,28 +853,68 @@ function pflegeObjektNeu(name){
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
-/* Ohne Argument das offene Formular, mit Kennung ein beliebiges Objekt — aus
-   dem Kontextmenü heraus ist kein Formular offen. */
-function pflegeLoeschen(id = S.pflege){
-  if(!id) return;
-  const name = id.slice(2);
-  const rein = pfEingehend(name);
-  if(confirm(`„${name}" aus dem Modell löschen?`
-    + (rein ? ` ${rein} eingehende Beziehung(en) werden mit entfernt.` : ''))) pflegeObjektWeg(name);
+/* Ohne Argument das offene Formular, sonst eine Kennung oder eine Liste
+   davon — aus Kontextmenü und Objektliste heraus ist kein Formular offen. */
+function pflegeLoeschen(ids = S.pflege){
+  const namen = [].concat(ids || []).map(id => id.slice(2));
+  if(!namen.length || !confirm(loeschFrage(namen))) return;
+  pflegeObjektWeg(namen);
 }
-const pfEingehend = name => Object.values(aktModell().objects)
-  .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
-function pflegeObjektWeg(name){
-  if(!pflegeErlaubt() || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(aktText(), name, aktZerleger());
-  if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
-  S.outlineText = uebersichtObjekt(S.outlineText, name, null);
+function loeschFrage(namen){
+  const einer = namen.length === 1, weg = new Set(namen);
+  const rein = Object.values(aktModell().objects)
+    .reduce((s,o)=> s + (weg.has(o.name) ? 0 : o.rels.filter(r => weg.has(r.to)).length), 0);
+  let s = einer ? `„${namen[0]}" aus dem Modell löschen?`
+                : `${namen.length} Objekte aus dem Modell löschen: ${namenKurz(namen)}?`;
+  if(rein) s += ` ${rein} eingehende Beziehung(en) werden mit entfernt.`;
+  if(S.mode === 'quellen'){
+    const go = herkunftEntwuerfe(namen).map(x => x.alt.name);
+    if(go.length) s += ` An ${go.length} Geschäftsobjekt(en) wird die Herkunft daraus entfernt: ${namenKurz(go)}; die Objekte bleiben stehen.`;
+  } else if(S.quellenAn && S.quellModell){
+    const zu = new Set(zuordnungFortschreiben(S.quellModell.objects).zu.values());
+    const wieder = namen.filter(n => zu.has(n));
+    if(wieder.length) s += ` Quelltabellen sind weiter zugeordnet — die nächste Übernahme legt wieder an: ${namenKurz(wieder)}.`;
+  }
+  return s;
+}
+
+/* Ein Objekt oder mehrere auf einmal: ein Neuaufbau, ein Schritt im Verlauf.
+   Wird eine Quelltabelle gelöscht, geht ihre Herkunft an den
+   Geschäftsobjekten mit; die Objekte selbst bleiben. */
+function pflegeObjektWeg(namen){
+  namen = [].concat(namen).filter(n => aktModell().objects[n]);
+  if(!pflegeErlaubt() || !namen.length) return;
+  let text = aktText();
+  for(const n of namen){
+    text = goObjektLoeschen(text, n, aktZerleger());
+    if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
+  }
+  if(S.mode === 'quellen' && !herkunftLoesen(namen)) return;
+  S.outlineText = namen.reduce((t, n)=> uebersichtObjekt(t, n, null), S.outlineText);
   S.outline = null;
-  pfUebernehmen(text, null, `„${name}" gelöscht`);
+  // Auch aus der sichtbaren Menge je Diagramm: die nächste Änderung am Baum
+  // schreibt sie in die Übersicht, das Gelöschte stünde dann wieder dort
+  const weg = new Set(namen.map(n => 'o:' + n));
+  Object.keys(S.hierShown).forEach(k=>{ S.hierShown[k] = (S.hierShown[k] || []).filter(id => !weg.has(id)); });
+  const inListe = $('pane-objects').classList.contains('active');
+  pfUebernehmen(text, null, namen.length === 1 ? `„${namen[0]}" gelöscht` : `${namen.length} Objekte gelöscht`);
+  if(inListe) setSidePane('objects');        // der Neuaufbau stellt „Beschreibung" vor
+}
+
+/* Was von der Auswahl gelöscht werden kann, auch Ausgeblendetes. Anhängsel
+   (Quelle, Domäne …) stehen nicht als Objekt im Modell. */
+const loeschbar = ()=> listedNodes().filter(n => S.sel.has(n.id)).map(n => n.id);
+
+function syncLoeschKnopf(){
+  const b = $('objDel'), n = loeschbar().length;
+  b.hidden = !pflegeErlaubt();
+  b.disabled = !n;
+  b.textContent = n ? `Löschen (${n})` : 'Löschen';
 }
 
 $('objNew').addEventListener('click', pflegeNeu);
+$('objDel').addEventListener('click', ()=> pflegeLoeschen(loeschbar()));
 
 /* ---------- Einstellungen ----------
    Ein Menü in der Kopfzeile. „Geschäftsobjekte bearbeiten" ist ein Haken:

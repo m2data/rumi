@@ -310,7 +310,14 @@ function renderObjectList(){
     if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
     renderObjectList();
   }));
-  updateVisCount();
+  ul.querySelectorAll('button[data-id]').forEach(b=> b.addEventListener('contextmenu', ev=>{
+    const n = S.graph.byId.get(b.dataset.id);
+    if(!n) return;
+    ev.preventDefault();
+    if(!S.sel.has(n.id)) setSelection([n.id]);
+    ctxMenuOeffnen(n, ev.clientX, ev.clientY);
+  }));
+  updateVisCount(); syncLoeschKnopf();
 }
 
 /* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
@@ -703,6 +710,7 @@ function updateAlignBar(){
   const n = [...S.sel].filter(id => isVisible(id)).length;
   bar.classList.toggle('on', n >= 2);
   $('alignCount').textContent = n + ' gewählt';
+  syncLoeschKnopf();
 }
 
 function alignSelection(mode){
@@ -1157,8 +1165,8 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
 
-/* Kontextmenü am Kasten: dieselben Aktionen wie im Detailbereich und auf der
-   Entf-Taste, nur dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
+/* Kontextmenü am Kasten und an der Zeile der Objektliste: dieselben Aktionen
+   wie im Detailbereich und auf der Entf-Taste, dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
    kommen keine dazu. Der Inhalt entsteht bei jedem Öffnen, denn welche
    Einträge gelten, hängt an der Größe der Auswahl, an der Art des Objekts und
    am Schalter „Geschäftsobjekte bearbeiten". Geschlossen wird es von
@@ -1167,15 +1175,18 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
 function ctxMenuOeffnen(n, x, y){
   const m = $('ctxMenu');
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(k => k && !k.hidden);
-  const mehrere = list.length > 1;
-  const einzeln = !mehrere && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  const einzeln = S.sel.size <= 1 && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  const weg = loeschbar();                  // auch Ausgeblendetes, in der Liste wählbar
   m.innerHTML =
-    `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
-    + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
+    (list.length ? `<button data-ctx="hide">${list.length > 1 ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>` : '')
+    + (einzeln && !n.hidden ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
     + (einzeln && pflegeErlaubt()
         ? `<button data-ctx="edit">Bearbeiten …</button>`
           + (S.mode !== 'quellen' ? `<button data-ctx="attrdlg">Attribute zusammenführen …</button>` : '')
-          + `<hr><button data-ctx="delete">Objekt löschen …</button>` : '');
+        : '')
+    + (pflegeErlaubt() && weg.length
+        ? `<hr><button data-ctx="delete">${weg.length > 1 ? weg.length + ' Objekte' : 'Objekt'} löschen …</button>` : '');
+  if(!m.innerHTML){ closeMenus(); return; }
   m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
     closeMenus();
     const a = b.dataset.ctx;
@@ -1186,7 +1197,7 @@ function ctxMenuOeffnen(n, x, y){
     if(a === 'related') addRelated(n.id);
     if(a === 'edit') pflegeStart(n.id);
     if(a === 'attrdlg') attributDialogAuf(n.id);
-    if(a === 'delete') pflegeLoeschen(n.id);
+    if(a === 'delete') pflegeLoeschen(weg);
   });
   closeMenus(m);
   m.style.left = x + 'px'; m.style.top = y + 'px';
@@ -1701,9 +1712,9 @@ function loadQuellen(text, name){
     + (loeschen ? ` · ${waisen.length} gelöscht` : '') + ' · ' + uebernahmeText(u));
 }
 
+const namenKurz = namen => namen.length > 8 ? namen.slice(0, 8).join(', ') + ` … und ${namen.length - 8} weitere` : namen.join(', ');
 function waisenFrage(namen){
-  const liste = namen.length > 8 ? namen.slice(0, 8).join(', ') + ` … und ${namen.length - 8} weitere` : namen.join(', ');
-  return `${namen.length} Geschäftsobjekt(e) stammen nur aus Tabellen, die in der neuen Datei fehlen: ${liste}.`
+  return `${namen.length} Geschäftsobjekt(e) stammen nur aus Tabellen, die in der neuen Datei fehlen: ${namenKurz(namen)}.`
     + ' Mitlöschen? Beziehungen auf sie werden mit entfernt.';
 }
 

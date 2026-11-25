@@ -29,7 +29,11 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   Wichtigkeit sortiert, sich überschneidende als Gruppe markiert), Attribute
   (Typ, nullable, PK/AK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
   Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
-  „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus.
+  „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus. In der
+  Objektliste wählt Strg+Klick oder Umschalt+Klick mehrere; „Löschen" darüber
+  oder der Rechtsklick auf eine Zeile löscht sie in einem Schritt. Bei einer
+  Quelltabelle geht ihre Herkunft an den Geschäftsobjekten mit (Table_Sources,
+  attribut_sources, Relation_Sources), die Objekte bleiben stehen.
   Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,
   ebenso Anordnung, Kantenzüge und die Hierarchiebeschreibung. Geschrieben wird
   **in die vorhandene YAML hinein**: geändert wird nur die bearbeitete Stelle —

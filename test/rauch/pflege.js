@@ -1283,5 +1283,85 @@ console.log('== Speichern ordnet die Felder wie im Handbuch ==');
   api.setMode('komplett');
 }
 
+console.log('== Löschen aus der Objektliste ==');
+{
+  const el = id => document.getElementById(id);
+  const zeile = id => [...el('objectList').querySelectorAll('button')].find(b => b.dataset.id === id);
+  const ctxWeg = ()=> el('ctxMenu').querySelector('[data-ctx="delete"]');
+  const da = n => !!S.model.objects[n];
+  const reiter = ()=> document.querySelector('.sidetab[aria-selected="true"]').dataset.pane;
+  const YAML = ['BusinessObjects:',
+    ...['A','B','C','D','E'].flatMap((n, i, l)=> ['  ' + n + ':', '    Domain: X', '    source_systems:', '    - Q',
+      '    relationships:', '    - to: ' + l[(i + 1) % 5]]), ''].join('\n');
+  let frage = '';
+  global.confirm = f => { frage = f; return true; };
+  await api.loadYaml(YAML, 'liste.yaml');
+  S.quellenAn = false; S.pflegeAn = true;
+  api.setMode('komplett');
+
+  dispatch(zeile('o:E'), 'contextmenu', {clientX:5, clientY:5});
+  t('Rechtsklick auf die Zeile wählt sie und öffnet das Menü', [...S.sel].join() === 'o:E' && !!ctxWeg());
+  dispatch(ctxWeg(), 'click', {});
+  t('einzeln gelöscht, der Rest bleibt', !da('E') && ['A','B','C','D'].every(da), frage);
+  t('die Rückfrage nennt die eingehende Beziehung', /1 eingehende/.test(frage), frage);
+
+  t('ohne Auswahl ist der Knopf inaktiv', el('objDel').disabled && !el('objDel').hidden);
+  dispatch(zeile('o:A'), 'click', {});
+  dispatch(zeile('o:B'), 'click', {ctrlKey:true});
+  t('der Knopf zählt die Auswahl', el('objDel').textContent === 'Löschen (2)' && !el('objDel').disabled, el('objDel').textContent);
+  const vor = S.yamlText;
+  global.confirm = ()=> false;
+  el('objDel').click();
+  t('ein Nein lässt den Modelltext unverändert', S.yamlText === vor);
+  global.confirm = f => { frage = f; return true; };
+  // B wird nur von A erreicht, und A geht mit: nichts Eingehendes zu melden
+  el('objDel').click();
+  t('mehrere gelöscht', !da('A') && !da('B') && da('C') && da('D'));
+  t('die Rückfrage nennt beide und zählt nur Beziehungen, die bleiben sollten', /2 Objekte.*A, B\?/.test(frage) && !/eingehende/.test(frage), frage);
+  api.undo();
+  t('ein Strg+Z holt alle zurück', S.yamlText === vor && da('A') && da('B'));
+
+  dispatch(zeile('o:C'), 'click', {});
+  const chk = el('objectList').querySelector('.ochk[data-id="o:C"]');
+  chk.checked = false; dispatch(chk, 'change', {});
+  dispatch(zeile('o:C'), 'contextmenu', {clientX:5, clientY:5});
+  t('ein ausgeblendetes Objekt: Löschen ja, Ausblenden nein',
+    !!ctxWeg() && !el('ctxMenu').querySelector('[data-ctx="hide"]'));
+  dispatch(ctxWeg(), 'click', {});
+  t('Ausgeblendetes wird gelöscht', !da('C') && da('D'));
+  api.undo();
+
+  dispatch(el('optQuelle'), 'click', {});
+  const anh = S.graph.nodes.find(n => n.eltern);
+  api.setSelection([anh.id, 'o:D']);
+  t('ein Anhängsel zählt nicht mit', el('objDel').textContent === 'Löschen (1)', el('objDel').textContent);
+  dispatch(el('optQuelle'), 'click', {});
+
+  api.loadUebersicht('Alle:\n  objekte:\n    - A\n    - B\n    - D\n');
+  api.setMode('hierarchie');
+  api.selectDiagram('Alle');
+  S.hierShown.Alle = ['o:A', 'o:B', 'o:D'];
+  dispatch(document.querySelector('.sidetab[data-pane="objects"]'), 'click', {});
+  dispatch(zeile('o:B'), 'contextmenu', {clientX:5, clientY:5});
+  dispatch(ctxWeg(), 'click', {});
+  t('in der Hierarchie bleibt der Reiter „Objekte" vorn', !da('B') && reiter() === 'objects', reiter());
+  api.outlineAdd(null, 'Neu');
+  t('das Gelöschte taucht in der Übersicht nicht wieder auf', !/- B\b/.test(S.outlineText) && /- A\b/.test(S.outlineText), S.outlineText);
+
+  api.setMode('komplett');
+  S.pflegeAn = false;
+  api.setSelection(['o:A', 'o:D']);
+  dispatch(zeile('o:A'), 'contextmenu', {clientX:5, clientY:5});
+  t('ohne „Bearbeiten" weder Knopf noch Eintrag', el('objDel').hidden && !ctxWeg());
+  api.pflegeObjektWeg(['A', 'D']);
+  t('und kein Löschen', da('A') && da('D'));
+  S.pflegeAn = true;
+
+  api.setSelection(S.graph.nodes.filter(n => !n.eltern && !n.abgeleitet).map(n => n.id));
+  let fehler = '';
+  try{ el('objDel').click(); }catch(e){ fehler = e.message; }
+  t('alle auf einmal: leeres Modell, kein Fehler', !fehler && !Object.keys(S.model.objects).length, fehler);
+}
+
 finish();
 })();

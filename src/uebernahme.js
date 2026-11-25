@@ -213,6 +213,36 @@ function goAusQuellenUebernehmen(weg){
   return r;
 }
 
+/* Die Herkunft aus gelöschten Tabellen von den Geschäftsobjekten nehmen:
+   Table_Sources, attribut_sources, Relation_Sources (die Tabelle als Anfang
+   oder Ziel) und die Zeile „--->aus … kopiert". Objekt, Attribute,
+   Beziehungen und Text bleiben — es ist keine Übernahme, die legte Gelöschtes
+   wieder an. Geliefert werden nur Objekte, an denen sich etwas ändert. */
+function herkunftEntwuerfe(namen){
+  const weg = new Set(namen), marken = new Set(namen.map(qtMarke));
+  return Object.values(S.model.objects).map(alt=>{
+    const e = imBereich('komplett', ()=> pfEntwurfAus(alt));
+    e.tabQuellen = e.tabQuellen.filter(n => !weg.has(n));
+    e.attrs.forEach(a => { a.quellen = a.quellen.filter(q => !weg.has(qtTabelle(q))); });
+    e.rels.forEach(x => { x.quellen = x.quellen.filter(h => !h.split('→').some(n => weg.has(n))); });
+    const zeilen = e.desc.split('\n');
+    if(zeilen.some(z => marken.has(z.trim()))) e.desc = zeilen.filter(z => !marken.has(z.trim())).join('\n').trim();
+    const anders = e.desc !== (alt.desc || '') || e.tabQuellen.length !== alt.tabQuellen.length
+      || e.attrs.some((a, i) => a.quellen.length !== alt.attrs[i].quellen.length)
+      || e.rels.some((x, i) => x.quellen.length !== alt.rels[i].quellen.length);
+    return anders ? {alt, e} : null;
+  }).filter(Boolean);
+}
+function herkunftLoesen(namen){
+  let text = S.yamlText;
+  for(const {alt, e} of herkunftEntwuerfe(namen)){
+    text = imBereich('komplett', ()=> goObjektAendern(text, alt.name, e, alt));
+    if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return false; }
+  }
+  if(text !== S.yamlText){ S.yamlText = text; S.model = buildModel(text); }
+  return true;
+}
+
 /* Prüfung über beide Modelle: hat ein Attribut des Geschäftsobjekts Quellen,
    deren Spalten einen anderen Typ tragen als es selbst oder als einander?
    Es gilt der Typ am Attribut — gemeldet wird, damit es jemand entscheidet. */

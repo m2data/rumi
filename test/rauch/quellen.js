@@ -523,5 +523,73 @@ console.log('== Ausschalten im Bereich ==');
   t('die Hierarchie zeigt ihre Objekte', S.graph.nodes.some(n => !n.hidden && n.name === 'Kunde'));
 }
 
+console.log('== Quelltabellen löschen: die Herkunft geht mit ==');
+{
+  const da = n => !!S.quellModell.objects[n];
+  const zeile = id => [...$('objectList').querySelectorAll('button')].find(b => b.dataset.id === id);
+  const reiter = ()=> document.querySelector('.sidetab[aria-selected="true"]').dataset.pane;
+  const go = ()=> S.model.objects;
+  const TABELLEN = ['SourceTables:',
+    '  Alt:', '    Kunde:', '      business_object: Kunde', '      Domain: D', '      desc: Text aus Alt.',
+    '      attributes:', '      - name: ID', '        type: int', '      - name: Ort', '        type: text',
+    '    Lager:', '      business_object: Lager', '      attributes:', '      - name: LID', '        type: int',
+    '  Shop:', '    Auftrag:', '      business_object: Auftrag', '      attributes:', '      - name: Nr', '        type: int',
+    '      relationships:', '      - to: Alt.Kunde', '        name: von',
+    '    Kunde:', '      business_object: Kunde', '      attributes:', '      - name: ID', '        type: int', ''].join('\n');
+  let frage = '';
+  global.confirm = ()=> false;
+  await api.loadYaml('BusinessObjects:\n  Rest:\n    Domain: D\n', 'herkunft.yaml');
+  S.quellenAn = true; S.quellPflegeAn = true;
+  api.loadQuellen(TABELLEN, 'herkunft-q.yaml');
+  api.setMode('quellen');
+  t('Ausgangslage: Herkunft aus Alt.Kunde steht da', go().Kunde.tabQuellen.includes('Alt.Kunde') && /--->aus Alt.Kunde/.test(go().Kunde.desc)
+    && go().Auftrag.rels[0].quellen.join() === 'Shop.Auftrag→Alt.Kunde', S.yamlText);
+  const vorGo = S.yamlText, vorQ = S.quellText;
+  dispatch(document.querySelector('.sidetab[data-pane="objects"]'), 'click', {});
+  global.confirm = f => { frage = f; return true; };
+
+  // einzeln
+  dispatch(zeile('o:Alt.Kunde'), 'contextmenu', {clientX:5, clientY:5});
+  dispatch($('ctxMenu').querySelector('[data-ctx="delete"]'), 'click', {});
+  const k = go().Kunde;
+  t('die Tabelle ist weg, der Reiter bleibt', !da('Alt.Kunde') && da('Alt.Lager') && reiter() === 'objects', reiter());
+  t('die Rückfrage nennt die Geschäftsobjekte', /2 Geschäftsobjekt/.test(frage) && /Kunde/.test(frage) && /Auftrag/.test(frage), frage);
+  t('keine Herkunft mehr im Modelltext', !S.yamlText.includes('Alt.Kunde'), S.yamlText);
+  t('Objekt, Attribute, Text und die andere Quelle bleiben', k && k.attrs.map(a => a.name).join() === 'ID,Ort'
+    && k.desc.trim() === 'Text aus Alt.' && k.tabQuellen.join() === 'Shop.Kunde'
+    && k.attrs[0].quellen.join() === 'Shop.Kunde.ID' && !k.attrs[1].quellen.length, S.yamlText);
+  t('die Beziehung bleibt ohne Herkunft', go().Auftrag.rels.length === 1 && !go().Auftrag.rels[0].quellen.length);
+  t('nichts anderes ändert sich: Lager behält seine Herkunft', go().Lager.tabQuellen.join() === 'Alt.Lager');
+  api.undo();
+  t('ein Strg+Z bringt Tabelle und Herkunft zurück', S.quellText === vorQ && S.yamlText === vorGo);
+  api.redo();
+  api.setMode('komplett');
+  t('die Prüfung meldet keine fehlende Quelltabelle', !/Quelltabelle fehlt/.test($('msgList').innerHTML));
+  api.setMode('quellen');
+  for(let i = 0; i < 5 && S.quellText !== vorQ; i++) api.undo();       // der Moduswechsel kann selbst ein Schritt sein
+
+  // mehrere, ein ganzes System
+  dispatch(document.querySelector('.sidetab[data-pane="objects"]'), 'click', {});
+  api.setSelection(['o:Alt.Kunde', 'o:Alt.Lager']);
+  $('objDel').click();
+  t('beide weg, der leere Systemabschnitt entfällt', !da('Alt.Kunde') && !da('Alt.Lager') && !/^  Alt:/m.test(S.quellText) && da('Shop.Kunde'), S.quellText);
+  t('alle Geschäftsobjekte stehen noch, ohne Herkunft aus Alt', go().Kunde && go().Lager && !/Alt\./.test(S.yamlText.replace('aus Alt.', '')), S.yamlText);
+  api.undo();
+
+  // Gelöschtes Geschäftsobjekt entsteht nicht neu
+  api.setMode('komplett'); S.pflegeAn = true;
+  api.setSelection(['o:Lager']);
+  $('objDel').click();
+  t('die Rückfrage warnt vor der nächsten Übernahme', /Übernahme legt wieder an: Lager/.test(frage), frage);
+  api.setMode('quellen');
+  api.pflegeObjektWeg('Alt.Kunde');
+  t('das Löschen einer Tabelle legt kein Geschäftsobjekt an', !go().Lager && !da('Alt.Kunde'));
+
+  S.quellPflegeAn = false;
+  api.pflegeObjektWeg(['Shop.Kunde']);
+  t('ohne „Quelltabellen bearbeiten" wird nichts gelöscht', da('Shop.Kunde'));
+  api.setMode('komplett');
+}
+
 finish();
 })().catch(e=>{ console.error(e); process.exit(1); });

@@ -352,6 +352,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 /* ---------- Pflege: Formular im Reiter „Details" ---------- */
 .listtools .newobj{color:var(--hot);white-space:nowrap}
 .listtools .newobj:hover{background:#FBE9F1}
+.listtools .newobj:disabled{color:var(--muted);background:none;cursor:default;opacity:.6}
 .pf{font-size:11.5px}
 .pfr{display:flex;align-items:baseline;gap:8px;padding:3px 0}
 .pfr>span{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 78px;letter-spacing:.03em}
@@ -686,6 +687,7 @@ button.mlink:hover, button.mgi-obj:hover{color:var(--obj);text-decoration-color:
         <button id="showNone">keine</button>
         <span class="count" id="visCount"></span>
         <button id="objNew" class="newobj" title="Ein neues Geschäftsobjekt anlegen und gleich bearbeiten">＋ Objekt</button>
+        <button id="objDel" class="newobj" title="Die in der Liste gewählten Objekte aus dem Modell löschen. Strg+Klick oder Umschalt+Klick wählt mehrere.">Löschen</button>
       </div>
       <ul class="olist" id="objectList"></ul>
       <div class="grouphead">NOTATION</div>
@@ -7615,28 +7617,68 @@ function pflegeObjektNeu(name){
   if(pfUebernehmen(text, 'o:' + name, `„${name}" angelegt`)) pflegeStart('o:' + name);
 }
 
-/* Ohne Argument das offene Formular, mit Kennung ein beliebiges Objekt — aus
-   dem Kontextmenü heraus ist kein Formular offen. */
-function pflegeLoeschen(id = S.pflege){
-  if(!id) return;
-  const name = id.slice(2);
-  const rein = pfEingehend(name);
-  if(confirm(`„${name}" aus dem Modell löschen?`
-    + (rein ? ` ${rein} eingehende Beziehung(en) werden mit entfernt.` : ''))) pflegeObjektWeg(name);
+/* Ohne Argument das offene Formular, sonst eine Kennung oder eine Liste
+   davon — aus Kontextmenü und Objektliste heraus ist kein Formular offen. */
+function pflegeLoeschen(ids = S.pflege){
+  const namen = [].concat(ids || []).map(id => id.slice(2));
+  if(!namen.length || !confirm(loeschFrage(namen))) return;
+  pflegeObjektWeg(namen);
 }
-const pfEingehend = name => Object.values(aktModell().objects)
-  .reduce((s,o)=> s + (o.name === name ? 0 : o.rels.filter(r => r.to === name).length), 0);
 
-function pflegeObjektWeg(name){
-  if(!pflegeErlaubt() || !aktModell().objects[name]) return;
-  const text = goObjektLoeschen(aktText(), name, aktZerleger());
-  if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
-  S.outlineText = uebersichtObjekt(S.outlineText, name, null);
+function loeschFrage(namen){
+  const einer = namen.length === 1, weg = new Set(namen);
+  const rein = Object.values(aktModell().objects)
+    .reduce((s,o)=> s + (weg.has(o.name) ? 0 : o.rels.filter(r => weg.has(r.to)).length), 0);
+  let s = einer ? `„${namen[0]}" aus dem Modell löschen?`
+                : `${namen.length} Objekte aus dem Modell löschen: ${namenKurz(namen)}?`;
+  if(rein) s += ` ${rein} eingehende Beziehung(en) werden mit entfernt.`;
+  if(S.mode === 'quellen'){
+    const go = herkunftEntwuerfe(namen).map(x => x.alt.name);
+    if(go.length) s += ` An ${go.length} Geschäftsobjekt(en) wird die Herkunft daraus entfernt: ${namenKurz(go)}; die Objekte bleiben stehen.`;
+  } else if(S.quellenAn && S.quellModell){
+    const zu = new Set(zuordnungFortschreiben(S.quellModell.objects).zu.values());
+    const wieder = namen.filter(n => zu.has(n));
+    if(wieder.length) s += ` Quelltabellen sind weiter zugeordnet — die nächste Übernahme legt wieder an: ${namenKurz(wieder)}.`;
+  }
+  return s;
+}
+
+/* Ein Objekt oder mehrere auf einmal: ein Neuaufbau, ein Schritt im Verlauf.
+   Wird eine Quelltabelle gelöscht, geht ihre Herkunft an den
+   Geschäftsobjekten mit; die Objekte selbst bleiben. */
+function pflegeObjektWeg(namen){
+  namen = [].concat(namen).filter(n => aktModell().objects[n]);
+  if(!pflegeErlaubt() || !namen.length) return;
+  let text = aktText();
+  for(const n of namen){
+    text = goObjektLoeschen(text, n, aktZerleger());
+    if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
+  }
+  if(S.mode === 'quellen' && !herkunftLoesen(namen)) return;
+  S.outlineText = namen.reduce((t, n)=> uebersichtObjekt(t, n, null), S.outlineText);
   S.outline = null;
-  pfUebernehmen(text, null, `„${name}" gelöscht`);
+  // Auch aus der sichtbaren Menge je Diagramm: die nächste Änderung am Baum
+  // schreibt sie in die Übersicht, das Gelöschte stünde dann wieder dort
+  const weg = new Set(namen.map(n => 'o:' + n));
+  Object.keys(S.hierShown).forEach(k=>{ S.hierShown[k] = (S.hierShown[k] || []).filter(id => !weg.has(id)); });
+  const inListe = $('pane-objects').classList.contains('active');
+  pfUebernehmen(text, null, namen.length === 1 ? `„${namen[0]}" gelöscht` : `${namen.length} Objekte gelöscht`);
+  if(inListe) setSidePane('objects');        // der Neuaufbau stellt „Beschreibung" vor
+}
+
+/* Was von der Auswahl gelöscht werden kann, auch Ausgeblendetes. Anhängsel
+   (Quelle, Domäne …) stehen nicht als Objekt im Modell. */
+const loeschbar = ()=> listedNodes().filter(n => S.sel.has(n.id)).map(n => n.id);
+
+function syncLoeschKnopf(){
+  const b = $('objDel'), n = loeschbar().length;
+  b.hidden = !pflegeErlaubt();
+  b.disabled = !n;
+  b.textContent = n ? `Löschen (${n})` : 'Löschen';
 }
 
 $('objNew').addEventListener('click', pflegeNeu);
+$('objDel').addEventListener('click', ()=> pflegeLoeschen(loeschbar()));
 
 /* ---------- Einstellungen ----------
    Ein Menü in der Kopfzeile. „Geschäftsobjekte bearbeiten" ist ein Haken:
@@ -7960,6 +8002,36 @@ function goAusQuellenUebernehmen(weg){
       body:`Eine Beziehung der Quelltabellen zeigt auf ${tab.join(', ')} ohne Geschäftsobjekt. Die Übernahme hat „${bo}" angelegt; die Zuordnung steht nicht in der Tabellen-YAML.`};
   });
   return r;
+}
+
+/* Die Herkunft aus gelöschten Tabellen von den Geschäftsobjekten nehmen:
+   Table_Sources, attribut_sources, Relation_Sources (die Tabelle als Anfang
+   oder Ziel) und die Zeile „--->aus … kopiert". Objekt, Attribute,
+   Beziehungen und Text bleiben — es ist keine Übernahme, die legte Gelöschtes
+   wieder an. Geliefert werden nur Objekte, an denen sich etwas ändert. */
+function herkunftEntwuerfe(namen){
+  const weg = new Set(namen), marken = new Set(namen.map(qtMarke));
+  return Object.values(S.model.objects).map(alt=>{
+    const e = imBereich('komplett', ()=> pfEntwurfAus(alt));
+    e.tabQuellen = e.tabQuellen.filter(n => !weg.has(n));
+    e.attrs.forEach(a => { a.quellen = a.quellen.filter(q => !weg.has(qtTabelle(q))); });
+    e.rels.forEach(x => { x.quellen = x.quellen.filter(h => !h.split('→').some(n => weg.has(n))); });
+    const zeilen = e.desc.split('\n');
+    if(zeilen.some(z => marken.has(z.trim()))) e.desc = zeilen.filter(z => !marken.has(z.trim())).join('\n').trim();
+    const anders = e.desc !== (alt.desc || '') || e.tabQuellen.length !== alt.tabQuellen.length
+      || e.attrs.some((a, i) => a.quellen.length !== alt.attrs[i].quellen.length)
+      || e.rels.some((x, i) => x.quellen.length !== alt.rels[i].quellen.length);
+    return anders ? {alt, e} : null;
+  }).filter(Boolean);
+}
+function herkunftLoesen(namen){
+  let text = S.yamlText;
+  for(const {alt, e} of herkunftEntwuerfe(namen)){
+    text = imBereich('komplett', ()=> goObjektAendern(text, alt.name, e, alt));
+    if(text == null){ toast('Im Modelltext fehlt der Abschnitt "BusinessObjects"'); return false; }
+  }
+  if(text !== S.yamlText){ S.yamlText = text; S.model = buildModel(text); }
+  return true;
 }
 
 /* Prüfung über beide Modelle: hat ein Attribut des Geschäftsobjekts Quellen,
@@ -8521,7 +8593,14 @@ function renderObjectList(){
     if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
     renderObjectList();
   }));
-  updateVisCount();
+  ul.querySelectorAll('button[data-id]').forEach(b=> b.addEventListener('contextmenu', ev=>{
+    const n = S.graph.byId.get(b.dataset.id);
+    if(!n) return;
+    ev.preventDefault();
+    if(!S.sel.has(n.id)) setSelection([n.id]);
+    ctxMenuOeffnen(n, ev.clientX, ev.clientY);
+  }));
+  updateVisCount(); syncLoeschKnopf();
 }
 
 /* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
@@ -8914,6 +8993,7 @@ function updateAlignBar(){
   const n = [...S.sel].filter(id => isVisible(id)).length;
   bar.classList.toggle('on', n >= 2);
   $('alignCount').textContent = n + ' gewählt';
+  syncLoeschKnopf();
 }
 
 function alignSelection(mode){
@@ -9368,8 +9448,8 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
   if(a === 'png') exportPNG(+b.dataset.scale || 2);
 });
 
-/* Kontextmenü am Kasten: dieselben Aktionen wie im Detailbereich und auf der
-   Entf-Taste, nur dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
+/* Kontextmenü am Kasten und an der Zeile der Objektliste: dieselben Aktionen
+   wie im Detailbereich und auf der Entf-Taste, dort erreichbar, wo das Objekt liegt — neue Fähigkeiten
    kommen keine dazu. Der Inhalt entsteht bei jedem Öffnen, denn welche
    Einträge gelten, hängt an der Größe der Auswahl, an der Art des Objekts und
    am Schalter „Geschäftsobjekte bearbeiten". Geschlossen wird es von
@@ -9378,15 +9458,18 @@ menu.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
 function ctxMenuOeffnen(n, x, y){
   const m = $('ctxMenu');
   const list = [...S.sel].map(id => S.graph.byId.get(id)).filter(k => k && !k.hidden);
-  const mehrere = list.length > 1;
-  const einzeln = !mehrere && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  const einzeln = S.sel.size <= 1 && n.kind === 'object';      // Quellen kennen weder Pflege noch Nachbarn
+  const weg = loeschbar();                  // auch Ausgeblendetes, in der Liste wählbar
   m.innerHTML =
-    `<button data-ctx="hide">${mehrere ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>`
-    + (einzeln ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
+    (list.length ? `<button data-ctx="hide">${list.length > 1 ? list.length + ' Objekte ausblenden' : 'Ausblenden'}</button>` : '')
+    + (einzeln && !n.hidden ? `<button data-ctx="related">Verknüpfte Objekte ins Diagramm holen</button>` : '')
     + (einzeln && pflegeErlaubt()
         ? `<button data-ctx="edit">Bearbeiten …</button>`
           + (S.mode !== 'quellen' ? `<button data-ctx="attrdlg">Attribute zusammenführen …</button>` : '')
-          + `<hr><button data-ctx="delete">Objekt löschen …</button>` : '');
+        : '')
+    + (pflegeErlaubt() && weg.length
+        ? `<hr><button data-ctx="delete">${weg.length > 1 ? weg.length + ' Objekte' : 'Objekt'} löschen …</button>` : '');
+  if(!m.innerHTML){ closeMenus(); return; }
   m.querySelectorAll('[data-ctx]').forEach(b=> b.onclick = ()=>{
     closeMenus();
     const a = b.dataset.ctx;
@@ -9397,7 +9480,7 @@ function ctxMenuOeffnen(n, x, y){
     if(a === 'related') addRelated(n.id);
     if(a === 'edit') pflegeStart(n.id);
     if(a === 'attrdlg') attributDialogAuf(n.id);
-    if(a === 'delete') pflegeLoeschen(n.id);
+    if(a === 'delete') pflegeLoeschen(weg);
   });
   closeMenus(m);
   m.style.left = x + 'px'; m.style.top = y + 'px';
@@ -9912,9 +9995,9 @@ function loadQuellen(text, name){
     + (loeschen ? ` · ${waisen.length} gelöscht` : '') + ' · ' + uebernahmeText(u));
 }
 
+const namenKurz = namen => namen.length > 8 ? namen.slice(0, 8).join(', ') + ` … und ${namen.length - 8} weitere` : namen.join(', ');
 function waisenFrage(namen){
-  const liste = namen.length > 8 ? namen.slice(0, 8).join(', ') + ` … und ${namen.length - 8} weitere` : namen.join(', ');
-  return `${namen.length} Geschäftsobjekt(e) stammen nur aus Tabellen, die in der neuen Datei fehlen: ${liste}.`
+  return `${namen.length} Geschäftsobjekt(e) stammen nur aus Tabellen, die in der neuen Datei fehlen: ${namenKurz(namen)}.`
     + ' Mitlöschen? Beziehungen auf sie werden mit entfernt.';
 }
 
