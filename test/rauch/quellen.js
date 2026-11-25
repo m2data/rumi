@@ -570,15 +570,21 @@ console.log('== Quelltabellen löschen: die Herkunft geht mit ==');
 
   // mehrere, ein ganzes System
   dispatch(document.querySelector('.sidetab[data-pane="objects"]'), 'click', {});
-  api.setSelection(['o:Alt.Kunde', 'o:Alt.Lager']);
   $('objDel').click();
+  const alt = [...$('objectList').querySelectorAll('.gtools')].find(g => /ALT/.test(g.closest('li').innerHTML));
+  klick(alt.querySelector('[data-on="1"]'));
+  t('„alle" am Quellsystem wählt dessen Tabellen', $('objDel').textContent === 'Löschen (2)', $('objDel').textContent);
+  const bleibt = sichtbar().filter(n => !/^Alt\./.test(n.name)).map(n => n.id).join();
+  $('objDel').click();
+  t('der Reiter und die übrigen im Diagramm bleiben', reiter() === 'objects' && $('objDelAb').hidden && sichtbar().map(n => n.id).join() === bleibt);
   t('beide weg, der leere Systemabschnitt entfällt', !da('Alt.Kunde') && !da('Alt.Lager') && !/^  Alt:/m.test(S.quellText) && da('Shop.Kunde'), S.quellText);
   t('alle Geschäftsobjekte stehen noch, ohne Herkunft aus Alt', go().Kunde && go().Lager && !/Alt\./.test(S.yamlText.replace('aus Alt.', '')), S.yamlText);
   api.undo();
 
   // Gelöschtes Geschäftsobjekt entsteht nicht neu
   api.setMode('komplett'); S.pflegeAn = true;
-  api.setSelection(['o:Lager']);
+  $('objDel').click();
+  klick(zeile('o:Lager'));
   $('objDel').click();
   t('die Rückfrage warnt vor der nächsten Übernahme', /Übernahme legt wieder an: Lager/.test(frage), frage);
   api.setMode('quellen');

@@ -432,6 +432,7 @@ function showDiagram(node){
 function setMode(mode){
   if(mode === 'quellen' && !S.quellenAn) mode = 'hierarchie';   // Bereich ausgeschaltet
   const sauber = !ungesichert();         // Umschalten ist keine Änderung (siehe selectDiagram)
+  if(mode !== S.mode) loeschWahl = null;         // die Wahl zum Löschen gilt dem verlassenen Bereich
   S.mode = mode;
   // Die Quelltabellen sind ein zweiter Baum: dieselbe Oberfläche wie die Hierarchie
   const baum = mode !== 'komplett';

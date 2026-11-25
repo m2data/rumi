@@ -333,6 +333,7 @@ li.grouphead{display:flex;align-items:center;gap:6px;list-style:none}
 /* ---------- Pflege: Formular im Reiter „Details" ---------- */
 .listtools .newobj{color:var(--hot);white-space:nowrap}
 .listtools .newobj:hover{background:#FBE9F1}
+.loeschen .olist .ochk{accent-color:var(--hot)}
 .listtools .newobj:disabled{color:var(--muted);background:none;cursor:default;opacity:.6}
 .pf{font-size:11.5px}
 .pfr{display:flex;align-items:baseline;gap:8px;padding:3px 0}

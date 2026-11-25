@@ -92,8 +92,8 @@ auch einzeln ausführen (`node test/rauch/kanten.js`). Der gemeinsame Start
   Formular im Reiter „Details" (Quellen ordnen und überschneidend gruppieren),
   Text-Chirurgie am Modell-YAML (Kommentare und
   Formatierung unberührter Stellen bleiben), Umbenennen samt Verweisen und
-  Kennungen, Anlegen, Löschen (einzeln und mehrere aus der Objektliste, ein
-  Verlaufsschritt, kein Wiederauftauchen in der Übersicht), Rückgängig; Zusatzattribute (Dialog, Feldnamen
+  Kennungen, Anlegen, Löschen (einzeln per Rechtsklick, mehrere über den
+  Löschmodus der Objektliste — Kästchen, alle/keine, Suche, Abbrechen —, ein Verlaufsschritt, kein Wiederauftauchen in der Übersicht), Rückgängig; Zusatzattribute (Dialog, Feldnamen
   mit `_ - / .`, Lesen/Schreiben von Bestellung und Bestellung_VRS neben
   `schema.org`, Erhalt beim Neuschreiben eines Attributs).
 - **`einstellungen.js`** — was sich der Browser merkt: die drei Schalter

@@ -30,8 +30,10 @@ Zur Bedienung siehe das [Benutzerhandbuch](HANDBUCH.md); diese Seite gibt den
   (Typ, nullable, PK/AK/FK, Verweisziel) und ausgehende Beziehungen (Ziel, Name,
   Kardinalitäten). „＋ Objekt" über der Objektliste legt ein neues Objekt an,
   „Objekt löschen" nimmt eines samt der Beziehungen darauf wieder heraus. In der
-  Objektliste wählt Strg+Klick oder Umschalt+Klick mehrere; „Löschen" darüber
-  oder der Rechtsklick auf eine Zeile löscht sie in einem Schritt. Bei einer
+  Objektliste schaltet „Löschen" die Kästchen um: sie wählen dann zum Löschen
+  aus (auch über „alle"/„keine", bei einer Suche nur die Treffer), „Löschen (n)"
+  löscht in einem Schritt, „Abbrechen" oder Escape beendet. Danach steuern sie
+  wieder die Anzeige. Der Rechtsklick auf eine Zeile löscht die Auswahl direkt. Bei einer
   Quelltabelle geht ihre Herkunft an den Geschäftsobjekten mit (Table_Sources,
   attribut_sources, Relation_Sources), die Objekte bleiben stehen.
   Umbenennen zieht `to:` und `references:` in allen anderen Objekten mit,

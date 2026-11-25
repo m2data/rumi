@@ -185,6 +185,7 @@ function recordHistory(snap){
   histPos = hist.length - 1;
 }
 function restoreHistory(snap){
+  loeschModus(false);
   restoringHistory = true;                                 // die folgenden persist()/writeStore() nicht mitschreiben
   try{
     const p = JSON.parse(snap);
@@ -264,8 +265,23 @@ function listedNodes(){ return S.graph.nodes.filter(n => !n.eltern && !n.abgelei
 
 const collapsedGroups = new Set();          // zugeklappte Domänen (nur diese Sitzung)
 
+/* Löschmodus: solange eine Menge da ist, wählen die Kästchen der Liste zum
+   Löschen, statt die Anzeige zu steuern. Reiner Ansichtszustand — weder im
+   Verlauf noch in einer Datei. */
+let loeschWahl = null;
+function loeschModus(an){
+  if(!an && !loeschWahl) return;
+  loeschWahl = an ? new Set() : null;
+  renderObjectList();
+}
+function loeschMarkieren(ids, on){
+  ids.forEach(id => { if(on) loeschWahl.add(id); else loeschWahl.delete(id); });
+  ids.forEach(id => document.querySelectorAll(`.olist .ochk[data-id="${CSS.escape(id)}"]`).forEach(c=>{ c.checked = on; }));
+  syncLoeschKnopf();
+}
+
 function renderObjectList(){
-  $('objNew').hidden = !pflegeErlaubt();      // Einstellung „… bearbeiten" des Bereichs
+  syncLoeschKnopf();                          // Einstellung „… bearbeiten" des Bereichs, Löschmodus
   const ul = $('objectList');
   const groups = new Map();
   // Tabellen nach ihrem Quellsystem, Geschäftsobjekte nach ihrer führenden Domäne
@@ -292,19 +308,24 @@ function renderObjectList(){
     list.sort((a,b)=> a.name.localeCompare(b.name, 'de')).forEach(n=>{
       const meta = `${n.ref.keys.length} BK · ${n.ref.attrs.length} A · ${n.ref.rels.length} B`;
       html += `<li class="row${n.hidden ? ' off' : ''}">
-        <input type="checkbox" class="ochk" data-id="${esc(n.id)}" ${n.hidden ? '' : 'checked'}
-               aria-label="${esc(n.name)} im Diagramm anzeigen">
+        <input type="checkbox" class="ochk" data-id="${esc(n.id)}" ${(loeschWahl ? loeschWahl.has(n.id) : !n.hidden) ? 'checked' : ''}
+               aria-label="${esc(n.name)} ${loeschWahl ? 'zum Löschen wählen' : 'im Diagramm anzeigen'}">
         <button data-id="${esc(n.id)}" aria-current="${S.sel.has(n.id)}">
           <span class="nm">${esc(n.name)}</span><span class="meta">${esc(meta)}</span>
         </button></li>`;
     });
   }
   ul.innerHTML = html;
-  ul.querySelectorAll('button[data-id]').forEach(b=> b.addEventListener('click', ev=>
-    select(b.dataset.id, true, ev.shiftKey || ev.ctrlKey || ev.metaKey)));
-  ul.querySelectorAll('.ochk').forEach(c=> c.addEventListener('change', ()=> setVisible(c.dataset.id, c.checked)));
-  ul.querySelectorAll('.gtools button').forEach(b=> b.addEventListener('click', ()=>
-    setGroupVisible(gidx[+b.dataset.gi], b.dataset.on === '1')));
+  ul.querySelectorAll('button[data-id]').forEach(b=> b.addEventListener('click', ev=>{
+    if(loeschWahl) loeschMarkieren([b.dataset.id], !loeschWahl.has(b.dataset.id));
+    else select(b.dataset.id, true, ev.shiftKey || ev.ctrlKey || ev.metaKey);
+  }));
+  ul.querySelectorAll('.ochk').forEach(c=> c.addEventListener('change', ()=>
+    loeschWahl ? loeschMarkieren([c.dataset.id], c.checked) : setVisible(c.dataset.id, c.checked)));
+  ul.querySelectorAll('.gtools button').forEach(b=> b.addEventListener('click', ()=>{
+    const list = gidx[+b.dataset.gi], on = b.dataset.on === '1';
+    if(loeschWahl) loeschMarkieren(list.map(n => n.id), on); else setGroupVisible(list, on);
+  }));
   ul.querySelectorAll('.gcaret, .gname').forEach(el=> el.addEventListener('click', ()=>{
     const g = el.dataset.grp;
     if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
@@ -317,7 +338,7 @@ function renderObjectList(){
     if(!S.sel.has(n.id)) setSelection([n.id]);
     ctxMenuOeffnen(n, ev.clientX, ev.clientY);
   }));
-  updateVisCount(); syncLoeschKnopf();
+  updateVisCount();
 }
 
 /* Sichtbarkeit merken: in der Komplettsicht global (S.hidden), im Hierarchie-
@@ -357,13 +378,15 @@ function setVisible(id, on){
   if(!on){ S.sel.delete(id); if(S.selected === id) S.selected = [...S.sel].pop() || null; }
   if(S.mode !== 'komplett') hierPlaceFresh();
   document.querySelectorAll(`.olist .ochk[data-id="${CSS.escape(id)}"]`).forEach(c=>{
-    c.checked = on;
+    if(!loeschWahl) c.checked = on;
     c.closest('li').classList.toggle('off', !on);
   });
   updateVisCount(); draw(); renderDetails(); updateAlignBar(); persist();
 }
 
 function setAllVisible(on){
+  // Zum Löschen nur, was die Liste zeigt: bei einer Suche allein die Treffer
+  if(loeschWahl){ loeschMarkieren(listedNodes().filter(n => matchesFilter(n, S.filter)).map(n => n.id), on); return; }
   listedNodes().forEach(n=>{ n.hidden = !on; markVisible(n.id, on); });
   if(!on){ S.sel.clear(); S.selected = null; }
   if(S.mode !== 'komplett') hierPlaceFresh();
@@ -852,6 +875,11 @@ document.addEventListener('keydown', ev=>{
   // In einem Eingabefeld (Suche, Beschreibung, Umbenennen) gilt keine Kurztaste —
   // dort tippt man Text (auch Ziffern), nur Escape verlässt das Feld. Sonst löste
   // z. B. die Taste „f" ein Einpassen aus.
+  // Escape beendet den Löschmodus, auch vom Kästchen aus — nicht aus einem Textfeld
+  if(ev.key === 'Escape' && loeschWahl && $('zusatzDlg').hidden && $('attrDlg').hidden
+     && !(ev.target.matches && ev.target.matches('input:not(.ochk), textarea, select'))){
+    loeschModus(false); closeMenus(); return;
+  }
   const editable = ev.target.matches
     && (ev.target.matches('input, textarea, select') || ev.target.isContentEditable);
   if(editable){ if(ev.key === 'Escape') ev.target.blur(); return; }
@@ -1828,6 +1856,7 @@ async function loadYaml(text, name, preset){
     S.hidden = new Set();
     // Übersicht und Quelltabellen-Diagramme zum neuen Modell neu prüfen
     S.bereiche = {hierarchie: neuerBaum(), quellen: neuerBaum()};
+    loeschWahl = null;
     S.uebernahmeMeldungen = [];             // gehörten zum vorigen Modell
     // Die Quelltabellen sind eine eigene Datei: ein neues Modell lässt sie stehen
     if(preset && typeof preset.quellYaml === 'string'){

@@ -141,7 +141,7 @@ class El {
   // Dateifelder: standardmäßig leer, für Tests des Ladewegs aber setzbar
   get files(){ return this._files || []; } set files(v){ this._files = v; }
   set value(v){ this._v = v; } get value(){ return this._v || ''; }
-  set checked(v){ this._c = v; } get checked(){ return !!this._c; }
+  set checked(v){ this._c = v; } get checked(){ return this._c === undefined ? this.getAttribute('checked') !== null : !!this._c; }
 }
 
 /* Selektoren: Tag, .klasse, #id, [attr], [attr="v"], Kombinationen und Nachfahren */

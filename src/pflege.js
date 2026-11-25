@@ -891,6 +891,7 @@ function pflegeObjektWeg(namen){
     if(text == null){ toast('Das Objekt steht so nicht im Modelltext'); return; }
   }
   if(S.mode === 'quellen' && !herkunftLoesen(namen)) return;
+  loeschWahl = null;
   S.outlineText = namen.reduce((t, n)=> uebersichtObjekt(t, n, null), S.outlineText);
   S.outline = null;
   // Auch aus der sichtbaren Menge je Diagramm: die nächste Änderung am Baum
@@ -907,14 +908,21 @@ function pflegeObjektWeg(namen){
 const loeschbar = ()=> listedNodes().filter(n => S.sel.has(n.id)).map(n => n.id);
 
 function syncLoeschKnopf(){
-  const b = $('objDel'), n = loeschbar().length;
+  if(!pflegeErlaubt()) loeschWahl = null;
+  const an = !!loeschWahl, b = $('objDel'), n = an ? loeschGewaehlt().length : 0;
   b.hidden = !pflegeErlaubt();
-  b.disabled = !n;
+  b.disabled = an && !n;
   b.textContent = n ? `Löschen (${n})` : 'Löschen';
+  $('objNew').hidden = !pflegeErlaubt() || an;
+  $('objDelAb').hidden = !an;
+  $('listWas').textContent = an ? 'Zum Löschen wählen:' : 'Anzeigen:';
+  $('pane-objects').classList.toggle('loeschen', an);
 }
+const loeschGewaehlt = ()=> listedNodes().filter(n => loeschWahl.has(n.id)).map(n => n.id);
 
 $('objNew').addEventListener('click', pflegeNeu);
-$('objDel').addEventListener('click', ()=> pflegeLoeschen(loeschbar()));
+$('objDel').addEventListener('click', ()=> loeschWahl ? pflegeLoeschen(loeschGewaehlt()) : loeschModus(true));
+$('objDelAb').addEventListener('click', ()=> loeschModus(false));
 
 /* ---------- Einstellungen ----------
    Ein Menü in der Kopfzeile. „Geschäftsobjekte bearbeiten" ist ein Haken:

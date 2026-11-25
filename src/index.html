@@ -174,12 +174,13 @@
 
     <div class="pane active" id="pane-objects">
       <div class="listtools">
-        <span>Anzeigen:</span>
+        <span id="listWas">Anzeigen:</span>
         <button id="showAll">alle</button>
         <button id="showNone">keine</button>
         <span class="count" id="visCount"></span>
         <button id="objNew" class="newobj" title="Ein neues Geschäftsobjekt anlegen und gleich bearbeiten">＋ Objekt</button>
-        <button id="objDel" class="newobj" title="Die in der Liste gewählten Objekte aus dem Modell löschen. Strg+Klick oder Umschalt+Klick wählt mehrere.">Löschen</button>
+        <button id="objDel" class="newobj" title="Objekte aus dem Modell löschen: die Kästchen der Liste wählen so lange aus, was gelöscht wird">Löschen</button>
+        <button id="objDelAb" title="Nichts löschen, die Kästchen steuern wieder die Anzeige (Escape)" hidden>Abbrechen</button>
       </div>
       <ul class="olist" id="objectList"></ul>
       <div class="grouphead">NOTATION</div>
